@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pfofire-cache-v1';
+const CACHE_NAME = 'prayforo-cache-v1';
 const urlsToCache = [
   '/',
   '/index.html',

@@ -1,4 +1,4 @@
-# PfoFire v0.1.6
+# Prayforo v0.3.6
 
 這是一個使用 Firebase 認證和存儲的代禱應用程序。
 

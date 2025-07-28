@@ -1,8 +1,8 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.pfofire.app',
-  appName: 'PfoFire',
+  appId: 'com.prayforo.app',
+  appName: 'Prayforo',
   webDir: 'dist',
   server: {
     androidScheme: 'https'

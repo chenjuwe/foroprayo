@@ -1,6 +1,6 @@
 {
-  "name": "pfofire",
-  "version": "0.1.6",
+  "name": "prayforo",
+  "version": "0.3.6",
   "description": "Pray for others - A prayer sharing platform",
   "type": "module",
   "scripts": {

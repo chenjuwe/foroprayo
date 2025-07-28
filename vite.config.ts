@@ -31,8 +31,8 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'PfoFire',
-        short_name: 'PfoFire',
+              name: 'Prayforo',
+      short_name: 'Prayforo',
         description: '使用 Firebase 的代禱應用程序',
         theme_color: '#ffffff',
         icons: [

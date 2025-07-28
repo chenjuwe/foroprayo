@@ -1,6 +1,6 @@
 {
-  "name": "PfoFire",
-  "short_name": "PfoFire",
+  "name": "Prayforo",
+  "short_name": "Prayforo",
   "description": "使用 Firebase 的代禱應用程序",
   "start_url": "/",
   "display": "standalone",
