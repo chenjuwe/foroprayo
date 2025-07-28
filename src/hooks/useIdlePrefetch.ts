@@ -1,0 +1,55 @@
+import { useEffect } from 'react';
+import { queryClient } from '@/config/queryClient';
+import { log } from '@/lib/logger';
+
+/**
+ * 當用戶閒置時預取數據的 Hook
+ * 
+ * @param userId 當前用戶 ID
+ */
+export function useIdlePrefetch(userId?: string) {
+  useEffect(() => {
+    if (!userId) return;
+    
+    // 確保只在用戶有登入時執行
+    let idleCallbackId: number;
+    let timeoutId: NodeJS.Timeout;
+    
+    const handleIdle = () => {
+      log.debug('用戶閒置，開始預取數據', null, 'useIdlePrefetch');
+      
+      // 為了避免性能問題，設置 5 秒延遲，確保用戶真的閒置
+      timeoutId = setTimeout(() => {
+        try {
+          // 預取數據
+          queryClient.prefetchQuery({
+            queryKey: ['prayers', { page: 0, limit: 10 }],
+            staleTime: 5 * 60 * 1000, // 5 分鐘過期
+          });
+          
+          log.debug('閒置預取成功', null, 'useIdlePrefetch');
+        } catch (error) {
+          log.error('閒置預取失敗', error, 'useIdlePrefetch');
+        }
+      }, 5000);
+    };
+    
+    // 使用 requestIdleCallback 或 setTimeout 作為備用
+    if ('requestIdleCallback' in window) {
+      idleCallbackId = window.requestIdleCallback(handleIdle, { timeout: 10000 });
+    } else {
+      // 備用方案：使用 setTimeout
+      timeoutId = setTimeout(handleIdle, 15000);
+    }
+    
+    // 清理函數
+    return () => {
+      if ('requestIdleCallback' in window && idleCallbackId) {
+        window.cancelIdleCallback(idleCallbackId);
+      }
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [userId]); // 只在 userId 變化時重新執行
+} 

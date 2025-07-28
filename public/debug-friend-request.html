@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>好友請求調試工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .instruction {
+            background-color: #fff;
+            border-left: 4px solid #4f46e5;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 0 4px 4px 0;
+        }
+        code {
+            background-color: #f0f0f0;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: Monaco, monospace;
+            font-size: 0.9em;
+        }
+        pre {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            overflow: auto;
+            margin: 10px 0;
+        }
+        .btn {
+            background-color: #4f46e5;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        .btn:hover {
+            background-color: #4338ca;
+        }
+        #result {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 20px;
+            min-height: 100px;
+        }
+    </style>
+</head>
+<body>
+    <h1>好友請求調試工具</h1>
+    
+    <div class="instruction">
+        <h2>使用步驟：</h2>
+        <ol>
+            <li>請先在 PrayFor 應用中登入您的帳號</li>
+            <li>按下「執行調試」按鈕</li>
+            <li>查看結果區域或打開瀏覽器控制台(F12)查看更詳細的資訊</li>
+        </ol>
+    </div>
+    
+    <button id="runDebug" class="btn">執行調試</button>
+    <button id="searchUser" class="btn">查找「我剛剛重新改名」用戶</button>
+    
+    <div id="result">
+        <p>調試結果將顯示在這裡...</p>
+    </div>
+    
+    <script>
+        // 全局變數存儲調試資料
+        let debugData;
+        
+        document.getElementById('runDebug').addEventListener('click', async () => {
+            try {
+                if (!window.supabase) {
+                    document.getElementById('result').innerHTML = `
+                        <p style="color: red;">錯誤: 找不到 supabase 物件。請確保您已登入 PrayFor 應用。</p>
+                        <p>請點擊 <a href="/" target="_blank">這裡</a> 登入應用，然後再回來執行調試。</p>
+                    `;
+                    return;
+                }
+                
+                document.getElementById('result').innerHTML = '<p>正在執行調試中，請稍候...</p>';
+                
+                // 執行調試函數
+                debugData = await debugFriendRequestAvatar();
+                const avatarIssues = findAvatarIssues(debugData);
+                
+                // 顯示結果摘要
+                const resultHTML = `
+                    <h3>調試完成</h3>
+                    <p>找到 ${debugData.requests.length} 個好友請求</p>
+                    <p>發現 ${avatarIssues.length} 個頭像問題</p>
+                    <p>相關用戶數: ${Object.keys(debugData.userMap).length}</p>
+                    <p>詳細資訊請查看瀏覽器控制台(F12)</p>
+                `;
+                
+                document.getElementById('result').innerHTML = resultHTML;
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <p style="color: red;">執行過程中發生錯誤:</p>
+                    <pre>${error.toString()}</pre>
+                `;
+                console.error('調試執行錯誤:', error);
+            }
+        });
+        
+        document.getElementById('searchUser').addEventListener('click', async () => {
+            try {
+                if (!debugData || !debugData.requests) {
+                    document.getElementById('result').innerHTML = `
+                        <p style="color: orange;">請先點擊「執行調試」按鈕獲取資料。</p>
+                    `;
+                    return;
+                }
+                
+                // 查找用戶名為「我剛剛重新改名」的用戶
+                const targetUsername = '我剛剛重新改名';
+                let foundUsers = [];
+                
+                // 在請求中查找
+                debugData.requests.forEach(req => {
+                    if (req.sender.username === targetUsername) {
+                        foundUsers.push({
+                            role: '發送者',
+                            requestId: req.requestId,
+                            userId: req.sender.id,
+                            username: req.sender.username,
+                            avatarUrl: req.sender.avatar_url,
+                            avatarDetails: req.sender.avatar_details,
+                            requestStatus: req.status || 'pending',
+                            requestDate: req.created_at
+                        });
+                    }
+                    if (req.receiver.username === targetUsername) {
+                        foundUsers.push({
+                            role: '接收者',
+                            requestId: req.requestId,
+                            userId: req.receiver.id,
+                            username: req.receiver.username,
+                            avatarUrl: req.receiver.avatar_url,
+                            avatarDetails: req.receiver.avatar_details,
+                            requestStatus: req.status || 'pending',
+                            requestDate: req.created_at
+                        });
+                    }
+                });
+                
+                // 顯示查找結果
+                if (foundUsers.length > 0) {
+                    let resultHTML = `
+                        <h3>查找結果: 找到 ${foundUsers.length} 個「我剛剛重新改名」用戶</h3>
+                    `;
+                    
+                    foundUsers.forEach((user, index) => {
+                        resultHTML += `
+                            <div style="margin-bottom: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                                <h4>用戶 #${index + 1}</h4>
+                                <p><strong>用戶ID:</strong> ${user.userId}</p>
+                                <p><strong>用戶名:</strong> ${user.username}</p>
+                                <p><strong>在請求中角色:</strong> ${user.role}</p>
+                                <p><strong>請求ID:</strong> ${user.requestId}</p>
+                                <p><strong>請求狀態:</strong> ${user.requestStatus}</p>
+                                <p><strong>請求日期:</strong> ${new Date(user.requestDate).toLocaleString('zh-TW')}</p>
+                                <p><strong>頭像URL:</strong> ${user.avatarUrl || '無'}</p>
+                                <p><strong>有詳細頭像資訊:</strong> ${user.avatarDetails ? '是' : '否'}</p>
+                            </div>
+                        `;
+                    });
+                    
+                    document.getElementById('result').innerHTML = resultHTML;
+                } else {
+                    document.getElementById('result').innerHTML = `
+                        <h3>查找結果</h3>
+                        <p>未找到用戶名為「我剛剛重新改名」的用戶。</p>
+                    `;
+                }
+                
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <p style="color: red;">查找過程中發生錯誤:</p>
+                    <pre>${error.toString()}</pre>
+                `;
+                console.error('查找用戶錯誤:', error);
+            }
+        });
+        
+        // 從debug-friend-request.js中復製的函數
+        async function debugFriendRequestAvatar() {
+            const { data: { session } } = await window.supabase.auth.getSession();
+            if (!session) {
+                console.error('請先登入應用才能查詢');
+                throw new Error('未登入，請先登入應用');
+            }
+            
+            console.log('正在查詢好友請求和頭像關係...');
+            
+            // 1. 查詢所有好友請求
+            const { data: requests, error: requestError } = await window.supabase
+                .from('friend_requests')
+                .select('*');
+                
+            if (requestError) {
+                console.error('查詢好友請求失敗:', requestError);
+                throw requestError;
+            }
+            
+            console.log('找到 ' + requests.length + ' 個好友請求');
+            
+            // 2. 收集所有發送者和接收者的ID
+            const userIds = new Set();
+            requests.forEach(req => {
+                if (req.sender_id) userIds.add(req.sender_id);
+                if (req.receiver_id) userIds.add(req.receiver_id);
+            });
+            
+            console.log('相關用戶IDs:', Array.from(userIds));
+            
+            // 3. 查詢所有相關用戶的配置檔案
+            const { data: profiles, error: profileError } = await window.supabase
+                .from('user_profiles')
+                .select('*')
+                .in('id', Array.from(userIds));
+                
+            if (profileError) {
+                console.error('查詢用戶配置檔案失敗:', profileError);
+                throw profileError;
+            }
+            
+            // 4. 查詢所有相關用戶的頭像
+            const { data: avatars, error: avatarError } = await window.supabase
+                .from('user_avatars')
+                .select('*')
+                .in('user_id', Array.from(userIds));
+                
+            if (avatarError) {
+                console.error('查詢用戶頭像失敗:', avatarError);
+                throw avatarError;
+            }
+            
+            // 5. 創建用戶ID到配置檔案和頭像的映射
+            const userMap = {};
+            profiles.forEach(profile => {
+                if (!userMap[profile.id]) userMap[profile.id] = {};
+                userMap[profile.id].profile = profile;
+            });
+            
+            avatars.forEach(avatar => {
+                if (!userMap[avatar.user_id]) userMap[avatar.user_id] = {};
+                userMap[avatar.user_id].avatar = avatar;
+            });
+            
+            // 6. 對每個請求，檢查發送者和接收者的資料
+            const enrichedRequests = requests.map(req => {
+                const senderInfo = userMap[req.sender_id] || {};
+                const receiverInfo = userMap[req.receiver_id] || {};
+                
+                return {
+                    requestId: req.id,
+                    status: req.status,
+                    created_at: req.created_at,
+                    sender: {
+                        id: req.sender_id,
+                        username: senderInfo.profile?.username,
+                        avatar_url: senderInfo.profile?.avatar_url,
+                        avatar_details: senderInfo.avatar
+                    },
+                    receiver: {
+                        id: req.receiver_id,
+                        username: receiverInfo.profile?.username,
+                        avatar_url: receiverInfo.profile?.avatar_url,
+                        avatar_details: receiverInfo.avatar
+                    }
+                };
+            });
+            
+            // 7. 顯示詳細資訊
+            console.log('========== 好友請求詳細資訊 ==========');
+            enrichedRequests.forEach((req, index) => {
+                console.log(`請求 #${index + 1} (ID: ${req.requestId}, 狀態: ${req.status || 'pending'})`);
+                console.log('發送者:', req.sender);
+                console.log('接收者:', req.receiver);
+                console.log('-------------------');
+            });
+            
+            // 8. 返回查詢結果供進一步分析
+            return {
+                requests: enrichedRequests,
+                userMap,
+                originalRequests: requests,
+                originalProfiles: profiles,
+                originalAvatars: avatars
+            };
+        }
+
+        function findAvatarIssues(debugData) {
+            if (!debugData || !debugData.requests) {
+                console.error('沒有可用的調試數據');
+                return [];
+            }
+            
+            const issues = [];
+            
+            debugData.requests.forEach((req, index) => {
+                // 檢查發送者是否有頭像問題
+                const sender = req.sender;
+                if (sender && sender.id) {
+                    if (!sender.avatar_url && !sender.avatar_details) {
+                        issues.push({
+                            type: 'sender_missing_avatar',
+                            requestIndex: index,
+                            requestId: req.requestId,
+                            userId: sender.id,
+                            username: sender.username
+                        });
+                    } else if (sender.avatar_url && sender.avatar_details && 
+                            sender.avatar_url !== sender.avatar_details.avatar_url_48 && 
+                            sender.avatar_url !== sender.avatar_details.avatar_url_30 && 
+                            sender.avatar_url !== sender.avatar_details.avatar_url_96) {
+                        issues.push({
+                            type: 'sender_avatar_mismatch',
+                            requestIndex: index,
+                            requestId: req.requestId,
+                            userId: sender.id,
+                            username: sender.username,
+                            profileAvatar: sender.avatar_url,
+                            avatarDetails: sender.avatar_details
+                        });
+                    }
+                }
+            });
+            
+            console.log(`發現 ${issues.length} 個頭像問題`);
+            issues.forEach((issue, i) => {
+                console.log(`問題 #${i+1}: ${issue.type} - 用戶 ${issue.username || issue.userId}`);
+            });
+            
+            return issues;
+        }
+    </script>
+</body>
+</html> 

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-touch-fullscreen" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+    <title>PfoFire v0.1.6</title>
+    <meta name="description" content="PfoFire - 使用 Firebase 的代禱應用程序" />
+    <meta name="author" content="Lovable" />
+
+    <meta property="og:title" content="figma-flow-forge-78" />
+    <meta property="og:description" content="Lovable Generated Project" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@lovable_dev" />
+    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    
+    <!-- PWA manifest and Apple specific icons -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="PfoFire" />
+    
+    <!-- 預載入關鍵資源 - 優化載入速度 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://supabase.co">
+    <link rel="dns-prefetch" href="https://api.supabase.com">
+    
+    <!-- 預載入關鍵 CSS -->
+    <link rel="preload" href="/src/index.css" as="style">
+    
+    <!-- 預載入關鍵圖片 -->
+    <link rel="preload" href="/placeholder.svg" as="image" type="image/svg+xml">
+    
+    <style>
+      /* iOS 超強制修復 - 完全鎖定頁面不允許任何拖動 */
+      html {
+        width: 100% !important;
+        height: 100% !important;
+        position: relative !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        -webkit-user-select: none !important;
+        -webkit-touch-callout: none !important;
+        -webkit-tap-highlight-color: transparent !important;
+        overscroll-behavior: none !important;
+        overscroll-behavior-x: none !important;
+        overscroll-behavior-y: auto !important;
+      }
+      
+      body {
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 100vh !important;
+        min-height: -webkit-fill-available !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        position: relative !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        -webkit-user-select: none !important;
+        -webkit-touch-callout: none !important;
+        -webkit-tap-highlight-color: transparent !important;
+        overscroll-behavior: none !important;
+        overscroll-behavior-x: none !important;
+        overscroll-behavior-y: auto !important;
+      }
+      
+      #root {
+        width: 100% !important;
+        height: auto !important;
+        min-height: 100vh !important;
+        min-height: -webkit-fill-available !important;
+        position: relative !important;
+        left: 0 !important;
+        top: 0 !important;
+        right: 0 !important;
+        overflow-x: hidden !important;
+        overflow-y: visible !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      
+      *, *::before, *::after {
+        -webkit-overflow-scrolling: touch !important;
+        overflow-x: hidden !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        -webkit-user-drag: none !important;
+        -khtml-user-drag: none !important;
+        -moz-user-drag: none !important;
+        -o-user-drag: none !important;
+        user-drag: none !important;
+        touch-action: pan-y !important;
+      }
+      
+      .w-full, .container, .max-w-md, .mx-auto {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+      }
+
+      /* 允許輸入欄位中的文字被選取 */
+      input, textarea {
+        -webkit-user-select: text !important;
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
+        user-select: text !important;
+        -webkit-touch-callout: default !important;
+      }
+
+      /* 允許發布卡片內容文字被選取 */
+      .prayer-card .text-sm, 
+      .prayer-card .whitespace-pre-wrap,
+      .text-gray-800,
+      .text-left,
+      .break-words,
+      [class*="PrayerContent"] div,
+      [class*="PrayerPost"] .text-left div {
+        -webkit-user-select: text !important;
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
+        user-select: text !important;
+        -webkit-touch-callout: default !important;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="root"></div>
+    
+    <script>
+      // 簡化的水平鎖定，不影響垂直滾動和點擊
+      (function() {
+        function preventHorizontalScroll() {
+          // 只防止水平滾動，保持垂直滾動
+          if (window.scrollX !== 0) {
+            window.scrollTo(0, window.scrollY);
+          }
+        }
+        
+        // 監聽滾動，只重置水平位置
+        window.addEventListener('scroll', preventHorizontalScroll, { passive: true });
+        
+        // 防止頁面被水平拖動
+        document.addEventListener('touchstart', function(e) {
+          if (e.touches.length === 1) {
+            window.startX = e.touches[0].clientX;
+          }
+        }, { passive: true });
+        
+        document.addEventListener('touchmove', function(e) {
+          if (e.touches.length === 1 && window.startX) {
+            const deltaX = Math.abs(e.touches[0].clientX - window.startX);
+            const deltaY = Math.abs(e.touches[0].clientY - (e.touches[0].target?.getBoundingClientRect?.()?.top || 0));
+            
+            // 只在明顯水平滑動且不是垂直滑動時阻止
+            if (deltaX > deltaY && deltaX > 30) {
+              e.preventDefault();
+            }
+          }
+        }, { passive: false });
+      })();
+    </script>
+    
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,446 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 修復 CSS 語法錯誤 */
+.\[-\:\.\] {
+  /* 覆蓋無效樣式 */
+  display: inline;
+}
+
+.\[-\\:\.\] {
+  /* 覆蓋無效樣式 */
+  display: inline;
+}
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. */
+
+@layer base {
+  :root {
+    --background: 18 59% 93%;
+    --foreground: 222.2 84% 4.9%;
+    
+    /* 統一的佈局變數，防止 FOUC */
+    --card-padding-sm: 15px;
+    --card-padding-md: 0px;
+    --card-padding-lg: 0px;
+    --main-padding-sm: 0px;
+    --main-padding-md: 24px;
+    --main-padding-lg: 32px;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply text-foreground font-sans;
+    /* 使用系統內建字體堆疊 */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, Cantarell, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    /* 優化字體渲染 */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    /* 支援中文字體 */
+    font-feature-settings: "kern" 1;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    /* iOS 修復：強制覆蓋任何自動添加的樣式 */
+    width: 100vw;
+    /* 強制移除高度限制，讓內容自然流動 */
+    height: auto !important;
+    min-height: auto !important;
+    /* 強制移除任何自動添加的安全區域 padding */
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  /* iOS Safari 特殊適配 */
+  html {
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* 移除安全區域 padding，改用其他方式處理 */
+  /* iOS 的安全區域會在組件層級處理 */
+
+  /* 確保根容器正確佈局 */
+  #root {
+    width: 100vw;
+    /* iOS 修復：讓根容器高度自然適應內容 */
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+    /* 安全區域將在組件層級處理 */
+  }
+
+  /* 中文字體優化 */
+  html:lang(zh),
+  html:lang(zh-CN),
+  html:lang(zh-TW) {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "PingFang TC", "Microsoft YaHei", "Segoe UI", Roboto, "Noto Sans CJK SC", "Noto Sans CJK TC", Ubuntu, Cantarell, system-ui, sans-serif;
+  }
+
+  /* Completely hide all scrollbars globally */
+  html, body {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* Internet Explorer and Edge */
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  /* Hide scrollbars for all elements */
+  *::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  * {
+    scrollbar-width: none !important; /* Firefox */
+    -ms-overflow-style: none !important; /* Internet Explorer and Edge */
+  }
+}
+
+/* Hide scrollbar but keep scrolling functionality */
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none !important;  /* Internet Explorer 10+ */
+    scrollbar-width: none !important;  /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none !important;  /* Safari and Chrome */
+    width: 0 !important;
+    height: 0 !important;
+  }
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+.text-link-blue {
+  color: rgba(59, 130, 246, 1);
+}
+
+.text-link-blue-hover {
+  color: rgba(37, 99, 235, 1);
+}
+
+/* 自定義響應式導覽列對齊類別 - 與 card-container 完美對齊 */
+@layer utilities {
+  .nav-align-buttons {
+    padding-left: calc(var(--main-padding-sm) + var(--card-padding-sm)) !important;
+    padding-right: calc(var(--main-padding-sm) + var(--card-padding-sm)) !important;
+    /* 防止載入時的按鈕跳動 - 移除 contain 以避免 iOS WebView 問題 */
+  }
+
+  @media (min-width: 768px) {
+    .nav-align-buttons {
+      padding-left: calc(var(--main-padding-md) + var(--card-padding-md)) !important;
+      padding-right: calc(var(--main-padding-md) + var(--card-padding-md)) !important;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .nav-align-buttons {
+      padding-left: calc(var(--main-padding-lg) + var(--card-padding-lg)) !important;
+      padding-right: calc(var(--main-padding-lg) + var(--card-padding-lg)) !important;
+    }
+  }
+
+  /* 防止佈局變化時的閃爍效果 - 移除會創建 stacking context 的屬性 */
+  .layout-stable {
+    /* 移除 contain 和 will-change 以修復 iOS WebView fixed 定位問題 */
+  }
+
+  /* 確保卡片尺寸穩定 */
+  .prayer-card {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 120px; /* 設定最小高度防止跳動 */
+    /* 移除 contain 以避免 iOS WebView 問題 */
+  }
+
+  /* 載入狀態時維持佈局穩定 */
+  .loading-stable {
+    min-height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 統一的卡片容器樣式 - 使用 CSS 變數確保一致性 */
+  .card-container {
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+    padding-left: var(--card-padding-sm) !important;
+    padding-right: var(--card-padding-sm) !important;
+    box-sizing: border-box;
+    /* 移除 contain 以避免 iOS WebView 中的 stacking context 問題 */
+  }
+
+  @media (min-width: 768px) {
+    .card-container {
+      padding-left: var(--card-padding-md) !important;
+      padding-right: var(--card-padding-md) !important;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .card-container {
+      padding-left: var(--card-padding-lg) !important;
+      padding-right: var(--card-padding-lg) !important;
+    }
+  }
+}
+
+/* ==================== iOS 專用修復 ==================== */
+/* 最高優先級修復：解決 body 的高度和安全區域問題 */
+@media screen and (max-width: 430px) {
+  /* 強制移除 body 的固定高度 */
+  body {
+    height: auto !important;
+    min-height: 100vh !important;
+    min-height: -webkit-fill-available !important;
+    padding: 0 !important;
+  }
+  
+  /* 強制移除自動添加的安全區域 padding */
+  @supports (padding: max(0px)) {
+    body {
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+    }
+  }
+  
+  /* 確保根容器正確適配 */
+  #root {
+    height: auto !important;
+    min-height: 100vh !important;
+    min-height: -webkit-fill-available !important;
+  }
+}
+
+/* iOS Safari 專用修復 */
+@supports (-webkit-touch-callout: none) {
+  body {
+    height: auto !important;
+    min-height: 100vh !important;
+    min-height: -webkit-fill-available !important;
+    padding: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+  
+  #root {
+    height: auto !important;
+    min-height: 100vh !important;
+    min-height: -webkit-fill-available !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+}
+
+/* 強制添加下拉菜單陰影效果 - 使用更強的選擇器 */
+:root [data-radix-popper-content-wrapper] > div,
+body [data-radix-popper-content-wrapper] > div,
+#root [data-radix-popper-content-wrapper] > div,
+[role="menu"],
+[role="dialog"],
+[data-state="open"],
+[data-radix-menu-content],
+[data-radix-dropdown-menu-content] {
+  box-shadow: 0 20px 30px -10px rgba(0,0,0,0.5), 0 10px 20px -5px rgba(0,0,0,0.3) !important;
+  border: 1px solid rgba(0,0,0,0.1) !important;
+  border-radius: 0 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+/* 立即顯示菜單，覆蓋原有的動畫效果 */
+[data-state=open][data-radix-menu-content],
+[data-state=open][data-radix-dropdown-menu-content] {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: scale(1) !important;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.4), 0 8px 10px -6px rgba(0,0,0,0.3) !important;
+  border: 1px solid rgba(0,0,0,0.05) !important;
+}
+
+/* 強制設定訪客和匿名用戶頭像樣式 */
+[data-radix-avatar-fallback] {
+  background-color: #95d2f4 !important;
+  color: #000000 !important;
+}
+
+[data-radix-avatar-fallback]:empty::before {
+  content: "G";
+}
+
+[data-testid="default-avatar"] {
+  background-color: #95d2f4 !important;
+  color: #000000 !important;
+}
+
+[data-testid="default-avatar"]:empty::before {
+  content: "G";
+}
+
+/* 訊息對話框按鈕樣式 */
+.send-button {
+  background: transparent !important;
+  color: #16a34a !important;
+  border: 1px solid #16a34a !important;
+  border-radius: 0 !important;
+}
+
+.send-button:hover {
+  background: transparent !important;
+  color: #16a34a !important;
+  border: 1px solid #16a34a !important;
+}
+
+.send-button:disabled {
+  background: transparent !important;
+  color: #16a34a !important;
+  border: 1px solid #16a34a !important;
+  opacity: 0.5 !important;
+}
+
+.cancel-button {
+  background: transparent !important;
+  color: #e11d48 !important;
+  border: 1px solid #e11d48 !important;
+  border-radius: 0 !important;
+}
+
+.cancel-button:hover {
+  background: transparent !important;
+  color: #e11d48 !important;
+  border: 1px solid #e11d48 !important;
+}
+
+.cancel-button:disabled {
+  background: transparent !important;
+  color: #e11d48 !important;
+  border: 1px solid #e11d48 !important;
+  opacity: 0.5 !important;
+}
+
+/* 旋轉動畫 */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

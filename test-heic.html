@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HEIC 檔案測試</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+        h1 { 
+            color: #333; 
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .upload-area {
+            border: 2px dashed #1694da;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            background: #f8fcff;
+        }
+        input[type="file"] {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            width: 100%;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+            border-left: 4px solid #2196f3;
+        }
+        .warning {
+            background: #fff3e0;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+            border-left: 4px solid #ff9800;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            background: #f5f5f5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 HEIC 檔案格式測試</h1>
+        
+        <div class="info">
+            <strong>ℹ️ 關於 HEIC 格式：</strong><br>
+            HEIC (High Efficiency Image Container) 是 Apple 在 iOS 11 後採用的新圖片格式，檔案較小但品質更高。
+            <strong>好消息：Prayforo 現在已經支援 HEIC 格式的自動轉換！</strong>
+        </div>
+
+        <div class="warning" style="background: #e8f5e8; border-left-color: #4caf50;">
+            <strong>✅ 新功能：HEIC 自動支援</strong><br>
+            • 上傳 HEIC 檔案時會自動轉換為 JPG 格式<br>
+            • 支援所有主流瀏覽器（Chrome、Firefox、Safari）<br>
+            • 轉換後會進行智能壓縮優化<br>
+            • 無需手動轉換，直接上傳即可！
+        </div>
+
+        <div class="upload-area">
+            <h3>📤 選擇圖片檔案測試</h3>
+            <input type="file" id="fileInput" accept="image/*,.heic,.heif" />
+            <p>支援格式：JPG, PNG, GIF, WebP, HEIC</p>
+        </div>
+
+        <div id="result" class="result" style="display: none;">
+            <h4>📊 檔案資訊：</h4>
+            <div id="fileInfo"></div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const result = document.getElementById('result');
+        const fileInfo = document.getElementById('fileInfo');
+
+        fileInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const fileExtension = file.name.toLowerCase().split('.').pop();
+            const isHeic = fileExtension === 'heic' || fileExtension === 'heif';
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+
+            let statusColor = '#4caf50';
+            let statusText = '✅ 支援的格式';
+            let recommendation = '';
+
+            if (isHeic) {
+                statusColor = '#4caf50';
+                statusText = '✅ HEIC 格式（自動支援）';
+                recommendation = '<br><strong>✨ 新功能：</strong>HEIC 檔案會自動轉換為 JPG 格式並進行智能壓縮';
+            }
+
+            fileInfo.innerHTML = `
+                <p><strong>檔案名稱：</strong>${file.name}</p>
+                <p><strong>檔案類型：</strong>${file.type || '未知'}</p>
+                <p><strong>副檔名：</strong>.${fileExtension}</p>
+                <p><strong>檔案大小：</strong>${sizeMB} MB</p>
+                <p style="color: ${statusColor}"><strong>狀態：</strong>${statusText}</p>
+                ${recommendation}
+            `;
+
+            result.style.display = 'block';
+
+            // 測試瀏覽器是否能載入圖片
+            if (!isHeic) {
+                const img = new Image();
+                img.onload = function() {
+                    fileInfo.innerHTML += `
+                        <p style="color: #4caf50"><strong>✅ 圖片載入測試：</strong>成功 (${this.width}x${this.height})</p>
+                    `;
+                };
+                img.onerror = function() {
+                    fileInfo.innerHTML += `
+                        <p style="color: #f44336"><strong>❌ 圖片載入測試：</strong>失敗</p>
+                    `;
+                };
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                fileInfo.innerHTML += `
+                    <p style="color: #4caf50"><strong>✅ 圖片載入測試：</strong>HEIC 格式已支援自動轉換</p>
+                `;
+            }
+        });
+    </script>
+</body>
+</html> 

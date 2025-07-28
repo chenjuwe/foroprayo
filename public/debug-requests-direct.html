@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>好友請求欄位調試工具 (直接版)</title>
+    <!-- 引入 Supabase JS 客戶端 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .instruction {
+            background-color: #fff;
+            border-left: 4px solid #4f46e5;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 0 4px 4px 0;
+        }
+        pre {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            overflow: auto;
+        }
+        .btn {
+            background-color: #4f46e5;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn:hover {
+            background-color: #4338ca;
+        }
+        #result {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #f5f5f5;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .login-form {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .login-form input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>好友請求欄位調試工具 (直接版)</h1>
+    
+    <div class="instruction">
+        <h2>說明：</h2>
+        <p>此工具用於直接檢查好友請求表中的 sender_name_at_time 欄位是否存在並已正確填充。</p>
+        <p><strong>注意：</strong> 此工具會直接連接到 Supabase，需要提供登入資訊。</p>
+    </div>
+    
+    <div class="login-form" id="loginForm">
+        <h3>Supabase 登入</h3>
+        <input type="email" id="email" placeholder="電子郵件" />
+        <input type="password" id="password" placeholder="密碼" />
+        <button class="btn" id="loginBtn">登入</button>
+        <p id="loginStatus">尚未登入</p>
+    </div>
+    
+    <div id="actionButtons" style="display: none;">
+        <button id="checkField" class="btn">檢查欄位</button>
+        <button id="viewRequests" class="btn">查看請求數據</button>
+        <button id="fixData" class="btn">修復數據</button>
+    </div>
+    
+    <div id="result">
+        <p>請先登入...</p>
+    </div>
+    
+    <script>
+        // Supabase 配置 - 從應用配置中獲取
+        const SUPABASE_URL = 'https://wnyqfsnbfqbyzssbjmpw.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndueXFmc25iZnFieXpzc2JqbXB3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzUzMTc0NTgsImV4cCI6MTk5MDg5MzQ1OH0.OkOeh1RVq_V6NC7TPnKAmKOjAR-YnHXH0rKDEQNGr24';
+        
+        // 初始化 Supabase 客戶端
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // 登入功能
+        document.getElementById('loginBtn').addEventListener('click', async function() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            if (!email || !password) {
+                document.getElementById('loginStatus').innerHTML = '<span style="color:red">請輸入電子郵件和密碼</span>';
+                return;
+            }
+            
+            document.getElementById('loginStatus').textContent = '登入中...';
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password
+                });
+                
+                if (error) throw error;
+                
+                document.getElementById('loginStatus').innerHTML = `<span style="color:green">登入成功! 用戶: ${data.user.email}</span>`;
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('actionButtons').style.display = 'block';
+                document.getElementById('result').innerHTML = '<p>請選擇一個操作按鈕</p>';
+            } catch (error) {
+                document.getElementById('loginStatus').innerHTML = `<span style="color:red">登入失敗: ${error.message}</span>`;
+            }
+        });
+        
+        // 自動檢查是否已登入
+        async function checkSession() {
+            const { data } = await supabase.auth.getSession();
+            if (data && data.session) {
+                document.getElementById('loginStatus').innerHTML = `<span style="color:green">已登入! 用戶: ${data.session.user.email}</span>`;
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('actionButtons').style.display = 'block';
+                document.getElementById('result').innerHTML = '<p>請選擇一個操作按鈕</p>';
+            }
+        }
+        
+        // 頁面載入時檢查會話
+        checkSession();
+        
+        document.getElementById('checkField').addEventListener('click', async function() {
+            try {
+                document.getElementById('result').innerHTML = '<p>正在檢查欄位...</p>';
+                
+                // 使用 SQL 查詢檢查欄位是否存在
+                const { data, error } = await supabase.rpc('check_column_exists', {
+                    p_table: 'friend_requests',
+                    p_column: 'sender_name_at_time'
+                });
+                
+                if (error) {
+                    // 如果函數不存在，嘗試使用直接查詢
+                    if (error.message.includes('does not exist')) {
+                        const { data: columnData, error: columnError } = await supabase
+                            .from('information_schema.columns')
+                            .select('column_name')
+                            .eq('table_name', 'friend_requests')
+                            .eq('column_name', 'sender_name_at_time');
+                            
+                        if (columnError) {
+                            throw columnError;
+                        }
+                        
+                        if (columnData && columnData.length > 0) {
+                            document.getElementById('result').innerHTML = '<p style="color:green">✅ sender_name_at_time 欄位存在!</p>';
+                        } else {
+                            document.getElementById('result').innerHTML = '<p style="color:red">❌ sender_name_at_time 欄位不存在!</p>';
+                        }
+                    } else {
+                        throw error;
+                    }
+                } else {
+                    if (data) {
+                        document.getElementById('result').innerHTML = '<p style="color:green">✅ sender_name_at_time 欄位存在!</p>';
+                    } else {
+                        document.getElementById('result').innerHTML = '<p style="color:red">❌ sender_name_at_time 欄位不存在!</p>';
+                    }
+                }
+            } catch (error) {
+                console.error(error);
+                document.getElementById('result').innerHTML = `<p style="color:red">錯誤: ${error.message}</p>`;
+                
+                // 嘗試另一種方法
+                document.getElementById('result').innerHTML += '<p>嘗試使用另一種方法檢查...</p>';
+                try {
+                    const { data, error } = await supabase
+                        .from('friend_requests')
+                        .select('sender_name_at_time')
+                        .limit(1);
+                        
+                    if (error && error.message.includes('column "sender_name_at_time" does not exist')) {
+                        document.getElementById('result').innerHTML += '<p style="color:red">❌ 確認 sender_name_at_time 欄位不存在!</p>';
+                    } else {
+                        document.getElementById('result').innerHTML += '<p style="color:green">✅ 確認 sender_name_at_time 欄位存在!</p>';
+                    }
+                } catch (e) {
+                    document.getElementById('result').innerHTML += `<p style="color:red">另一種方法也失敗: ${e.message}</p>`;
+                }
+            }
+        });
+        
+        document.getElementById('viewRequests').addEventListener('click', async function() {
+            try {
+                document.getElementById('result').innerHTML = '<p>正在獲取請求數據...</p>';
+                
+                // 獲取好友請求數據
+                const { data: requests, error } = await supabase
+                    .from('friend_requests')
+                    .select('*')
+                    .limit(10);
+                    
+                if (error) {
+                    throw new Error(`獲取請求數據失敗: ${error.message}`);
+                }
+                
+                if (requests && requests.length > 0) {
+                    // 檢查是否有 sender_name_at_time 欄位
+                    const hasSenderNameAtTime = 'sender_name_at_time' in requests[0];
+                    
+                    // 獲取相關用戶資料，以便顯示實際用戶名
+                    const userIds = new Set();
+                    requests.forEach(req => {
+                        if (req.sender_id) userIds.add(req.sender_id);
+                        if (req.receiver_id) userIds.add(req.receiver_id);
+                    });
+                    
+                    const { data: profiles } = await supabase
+                        .from('user_profiles')
+                        .select('id, username')
+                        .in('id', Array.from(userIds));
+                        
+                    // 創建用戶ID到用戶名的映射
+                    const userMap = {};
+                    if (profiles) {
+                        profiles.forEach(profile => {
+                            userMap[profile.id] = profile.username;
+                        });
+                    }
+                    
+                    // 創建表格顯示
+                    let tableHTML = '<h3>好友請求數據:</h3>';
+                    tableHTML += '<table>';
+                    tableHTML += '<thead><tr>';
+                    tableHTML += '<th>ID</th>';
+                    tableHTML += '<th>發送者ID</th>';
+                    tableHTML += '<th>發送者名稱</th>';
+                    tableHTML += '<th>接收者ID</th>';
+                    tableHTML += '<th>狀態</th>';
+                    
+                    if (hasSenderNameAtTime) {
+                        tableHTML += '<th>發送時名稱</th>';
+                    } else {
+                        tableHTML += '<th><span style="color:red">發送時名稱欄位不存在</span></th>';
+                    }
+                    
+                    tableHTML += '</tr></thead>';
+                    tableHTML += '<tbody>';
+                    
+                    requests.forEach(req => {
+                        tableHTML += '<tr>';
+                        tableHTML += `<td>${req.id}</td>`;
+                        tableHTML += `<td>${req.sender_id}</td>`;
+                        tableHTML += `<td>${userMap[req.sender_id] || '未知'}</td>`;
+                        tableHTML += `<td>${req.receiver_id}</td>`;
+                        tableHTML += `<td>${req.status || 'pending'}</td>`;
+                        
+                        if (hasSenderNameAtTime) {
+                            if (req.sender_name_at_time) {
+                                tableHTML += `<td>${req.sender_name_at_time}</td>`;
+                            } else {
+                                tableHTML += '<td><span style="color:orange">空值</span></td>';
+                            }
+                        } else {
+                            tableHTML += '<td><span style="color:red">欄位不存在</span></td>';
+                        }
+                        
+                        tableHTML += '</tr>';
+                    });
+                    
+                    tableHTML += '</tbody></table>';
+                    document.getElementById('result').innerHTML = tableHTML;
+                } else {
+                    document.getElementById('result').innerHTML = '<p>沒有找到請求數據</p>';
+                }
+            } catch (error) {
+                console.error(error);
+                document.getElementById('result').innerHTML = `<p style="color:red">錯誤: ${error.message}</p>`;
+            }
+        });
+        
+        document.getElementById('fixData').addEventListener('click', async function() {
+            try {
+                document.getElementById('result').innerHTML = '<p>正在修復數據...</p>';
+                
+                // 需要管理員權限才能執行SQL
+                try {
+                    // 1. 首先嘗試使用一般查詢方式確認欄位是否存在
+                    try {
+                        const { data: columnCheck, error: columnError } = await supabase
+                            .from('friend_requests')
+                            .select('sender_name_at_time')
+                            .limit(1);
+                            
+                        if (columnError && columnError.message && columnError.message.includes('sender_name_at_time')) {
+                            document.getElementById('result').innerHTML += '<p>欄位不存在，需要創建...</p>';
+                            document.getElementById('result').innerHTML += `
+                                <div style="background-color: #ffeeba; padding: 15px; border-radius: 4px; margin: 10px 0;">
+                                    <p><strong>需要管理員權限執行以下SQL:</strong></p>
+                                    <pre>ALTER TABLE friend_requests ADD COLUMN IF NOT EXISTS sender_name_at_time TEXT;</pre>
+                                </div>
+                            `;
+                        }
+                    } catch (e) {
+                        // 忽略這個錯誤，繼續嘗試修復
+                    }
+                    
+                    // 2. 建議執行的SQL修復
+                    document.getElementById('result').innerHTML += `
+                        <div style="background-color: #d4edda; padding: 15px; border-radius: 4px; margin: 10px 0;">
+                            <h4>請在Supabase SQL編輯器中執行以下命令:</h4>
+                            <pre>-- 1. 添加欄位（如果不存在）
+ALTER TABLE friend_requests ADD COLUMN IF NOT EXISTS sender_name_at_time TEXT;
+
+-- 2. 填充現有數據
+UPDATE friend_requests fr
+SET sender_name_at_time = (
+  SELECT username
+  FROM user_profiles up
+  WHERE up.id = fr.sender_id
+  LIMIT 1
+)
+WHERE fr.sender_name_at_time IS NULL;
+
+-- 3. 創建觸發器確保新請求自動填充此欄位
+CREATE OR REPLACE FUNCTION set_sender_name_at_time()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.sender_name_at_time := (
+    SELECT username
+    FROM user_profiles
+    WHERE id = NEW.sender_id
+    LIMIT 1
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_set_sender_name_at_time ON friend_requests;
+
+CREATE TRIGGER trigger_set_sender_name_at_time
+BEFORE INSERT ON friend_requests
+FOR EACH ROW
+EXECUTE FUNCTION set_sender_name_at_time();</pre>
+                        </div>
+                    `;
+                    
+                    document.getElementById('result').innerHTML += `
+                        <p>執行以上SQL後，請重新啟動應用程序來應用前端修改。</p>
+                        <p>您也可以在<a href="https://app.supabase.com/" target="_blank">Supabase控制面板</a>的SQL編輯器中執行這些命令。</p>
+                    `;
+                } catch (error) {
+                    throw error;
+                }
+            } catch (error) {
+                console.error(error);
+                document.getElementById('result').innerHTML = `<p style="color:red">錯誤: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,144 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0;
+  text-align: center;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+body {
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+html {
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  /* 移除 will-change 以避免 iOS WebView 中的 stacking context 問題 */
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+.App {
+  min-height: 100vh;
+  width: 100%;
+}
+
+.prayer-post-card {
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+.layout-stable {
+  height: auto;
+  min-height: 100px; /* 根據內容調整 */
+}
+
+@media (max-width: 640px) {
+  .prayer-card {
+    width: 100%;
+  }
+}
+
+/* 強制覆蓋所有頭像樣式 */
+
+/* 覆蓋默認頭像 */
+[data-testid="default-avatar"],
+[data-radix-avatar-fallback],
+div[class*="avatar"] div,
+div[class*="Avatar"] div {
+  background-color: #95d2f4 !important;
+  color: #000000 !important;
+}
+
+/* 強制顯示G */
+[data-radix-avatar-fallback]::before {
+  content: "G" !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* 隱藏原始內容，只顯示我們的G */
+[data-radix-avatar-fallback] * {
+  display: none !important;
+}
+
+/* 覆蓋任何訪客頭像的背景圖 */
+[class*="avatar"] img,
+div[class*="Avatar"] img {
+  opacity: 0 !important;
+}
+
+/* 針對灰色圓圈的訪客頭像 */
+.rounded-full:empty {
+  background-color: #95d2f4 !important;
+}
+
+.rounded-full:empty::before {
+  content: "G";
+  color: #000000 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-weight: bold;
+}
+
+/* 自定義訪客頭像類 */
+.guest-avatar {
+  background-color: #95d2f4 !important;
+  color: #000000 !important;
+  font-weight: bold !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+}
+
+/* 修復構建時的 CSS 語法錯誤 */
+.\[-\:\.\], .\[-\\\:\.\] {
+  /* 空規則，防止無效的 -:. 樣式 */
+  position: static;
+}

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Prayforo</string>
+    <string name="title_activity_main">Prayforo</string>
+    <string name="package_name">com.prayforo.app</string>
+    <string name="custom_url_scheme">com.prayforo.app</string>
+</resources>

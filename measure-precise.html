@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>精確測量工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .pixel-ruler {
+            background: linear-gradient(90deg, #ff0000 0px, #ff0000 1px, transparent 1px, transparent 10px),
+                        linear-gradient(0deg, #ff0000 0px, #ff0000 1px, transparent 1px, transparent 10px);
+            background-size: 10px 10px;
+        }
+        .measurement-line {
+            position: absolute;
+            background: red;
+            opacity: 0.7;
+        }
+        .measurement-line.horizontal {
+            height: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .measurement-line.vertical {
+            width: 2px;
+            left: 50%;
+            transform: translateX(-50%);
+            height: 100%;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="text-center p-4">
+        <h1 class="text-xl font-bold mb-4">精確測量工具 - 像素級分析</h1>
+        <p class="text-sm text-gray-600 mb-4">模擬 iPhone 12 Pro (390px)</p>
+    </div>
+
+    <!-- 像素標尺 -->
+    <div class="mx-auto mb-4" style="width: 390px;">
+        <div class="text-xs text-center mb-1">像素標尺 (每格10px)</div>
+        <div class="pixel-ruler h-4 border border-gray-400" style="width: 390px;"></div>
+        <div class="flex justify-between text-xs text-gray-500 mt-1">
+            <span>0</span>
+            <span>100</span>
+            <span>200</span>
+            <span>300</span>
+            <span>390</span>
+        </div>
+    </div>
+
+    <!-- 模擬螢幕容器 -->
+    <div id="screen" class="mx-auto bg-blue-100 border-4 border-blue-500 relative" style="width: 390px; height: 400px;">
+        <div class="text-center text-xs text-blue-600 py-1">iPhone 12 Pro 螢幕 (390px)</div>
+        
+        <!-- 當前實際佈局 -->
+        <div class="flex flex-col items-center w-full relative h-full">
+            <main class="w-full flex flex-col items-center pt-8">
+                <section class="w-full flex flex-col items-center gap-4">
+                    <!-- 代禱輸入卡片 - 當前實際樣式 -->
+                    <div id="card1" class="bg-white shadow-sm relative mx-auto border-2 border-red-500" 
+                         style="width: min(360px, calc(100vw - 30px)); padding: 15px 15px 20px 15px;">
+                        <div class="text-center text-sm text-red-600 mb-2">代禱輸入卡片</div>
+                        <div class="h-16 bg-gray-50 flex flex-col items-center justify-center text-xs">
+                            <div>當前樣式: min(360px, calc(100vw - 30px))</div>
+                            <div>在390px螢幕: min(360, 360) = 360px</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 匿名發布選項卡片 - 當前實際樣式 -->
+                    <div id="card2" class="bg-white h-[70px] p-4 shadow-sm flex items-center mx-auto border-2 border-green-500" 
+                         style="width: min(360px, calc(100vw - 30px));">
+                        <div class="flex items-start gap-2">
+                            <input type="checkbox" class="mt-1 h-3.5 w-3.5 border-blue-500 border" />
+                            <div class="text-blue-500 text-xs leading-5">
+                                訪客發布！<br />
+                                歡迎登入或註冊帳號，隨時觀看你的代禱紀錄。
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+
+        <!-- 測量線 -->
+        <div id="leftLine" class="measurement-line vertical" style="left: 0; height: 100%;"></div>
+        <div id="rightLine" class="measurement-line vertical" style="right: 0; height: 100%;"></div>
+        <div id="cardLeftLine" class="measurement-line vertical" style="display: none;"></div>
+        <div id="cardRightLine" class="measurement-line vertical" style="display: none;"></div>
+    </div>
+
+    <!-- 測量結果 -->
+    <div class="mt-8 p-4 bg-white border mx-auto max-w-lg rounded-lg shadow">
+        <h2 class="font-bold mb-4 text-center">精確測量結果</h2>
+        
+        <div class="grid grid-cols-2 gap-4 text-sm">
+            <div class="space-y-2">
+                <h3 class="font-semibold text-blue-600">螢幕與容器</h3>
+                <div>螢幕寬度: <span id="screenWidth" class="font-mono">-</span></div>
+                <div>容器內寬: <span id="containerInnerWidth" class="font-mono">-</span></div>
+            </div>
+            
+            <div class="space-y-2">
+                <h3 class="font-semibold text-red-600">代禱卡片 (#card1)</h3>
+                <div>卡片寬度: <span id="card1Width" class="font-mono">-</span></div>
+                <div>左邊距: <span id="card1Left" class="font-mono">-</span></div>
+                <div>右邊距: <span id="card1Right" class="font-mono">-</span></div>
+            </div>
+            
+            <div class="space-y-2">
+                <h3 class="font-semibold text-green-600">匿名卡片 (#card2)</h3>
+                <div>卡片寬度: <span id="card2Width" class="font-mono">-</span></div>
+                <div>左邊距: <span id="card2Left" class="font-mono">-</span></div>
+                <div>右邊距: <span id="card2Right" class="font-mono">-</span></div>
+            </div>
+            
+            <div class="space-y-2">
+                <h3 class="font-semibold text-purple-600">CSS 計算</h3>
+                <div>calc(100vw - 30px): <span id="calcValue" class="font-mono">-</span></div>
+                <div>min(360px, calc): <span id="minValue" class="font-mono">-</span></div>
+                <div>實際viewport: <span id="viewportWidth" class="font-mono">-</span></div>
+            </div>
+        </div>
+
+        <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+            <h4 class="font-semibold text-yellow-800 mb-2">分析結果</h4>
+            <div id="analysis" class="text-sm text-yellow-700">
+                正在分析...
+            </div>
+        </div>
+
+        <button onclick="toggleMeasurementLines()" class="mt-4 w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+            切換測量線顯示
+        </button>
+    </div>
+
+    <script>
+        let measurementLinesVisible = false;
+
+        function toggleMeasurementLines() {
+            measurementLinesVisible = !measurementLinesVisible;
+            const card1 = document.getElementById('card1');
+            const card1Rect = card1.getBoundingClientRect();
+            const screen = document.getElementById('screen');
+            const screenRect = screen.getBoundingClientRect();
+
+            const cardLeftLine = document.getElementById('cardLeftLine');
+            const cardRightLine = document.getElementById('cardRightLine');
+
+            if (measurementLinesVisible) {
+                const leftPos = card1Rect.left - screenRect.left;
+                const rightPos = card1Rect.right - screenRect.left;
+                
+                cardLeftLine.style.left = leftPos + 'px';
+                cardLeftLine.style.display = 'block';
+                cardRightLine.style.left = rightPos + 'px';
+                cardRightLine.style.display = 'block';
+            } else {
+                cardLeftLine.style.display = 'none';
+                cardRightLine.style.display = 'none';
+            }
+        }
+
+        function measureLayout() {
+            const screen = document.getElementById('screen');
+            const card1 = document.getElementById('card1');
+            const card2 = document.getElementById('card2');
+            
+            const screenRect = screen.getBoundingClientRect();
+            const card1Rect = card1.getBoundingClientRect();
+            const card2Rect = card2.getBoundingClientRect();
+            
+            // 基本測量
+            const screenWidth = screenRect.width - 8; // 減去border
+            const card1Width = card1Rect.width;
+            const card2Width = card2Rect.width;
+            
+            const card1Left = card1Rect.left - screenRect.left - 4; // 減去border
+            const card1Right = screenRect.right - card1Rect.right - 4;
+            const card2Left = card2Rect.left - screenRect.left - 4;
+            const card2Right = screenRect.right - card2Rect.right - 4;
+            
+            // CSS 計算
+            const viewportWidth = window.innerWidth;
+            const calcValue = viewportWidth - 30;
+            const minValue = Math.min(360, calcValue);
+            
+            // 更新顯示
+            document.getElementById('screenWidth').textContent = Math.round(screenWidth) + 'px';
+            document.getElementById('containerInnerWidth').textContent = Math.round(screenWidth) + 'px';
+            
+            document.getElementById('card1Width').textContent = Math.round(card1Width) + 'px';
+            document.getElementById('card1Left').textContent = Math.round(card1Left) + 'px';
+            document.getElementById('card1Right').textContent = Math.round(card1Right) + 'px';
+            
+            document.getElementById('card2Width').textContent = Math.round(card2Width) + 'px';
+            document.getElementById('card2Left').textContent = Math.round(card2Left) + 'px';
+            document.getElementById('card2Right').textContent = Math.round(card2Right) + 'px';
+            
+            document.getElementById('calcValue').textContent = Math.round(calcValue) + 'px';
+            document.getElementById('minValue').textContent = Math.round(minValue) + 'px';
+            document.getElementById('viewportWidth').textContent = Math.round(viewportWidth) + 'px';
+            
+            // 分析
+            let analysis = '';
+            
+            if (Math.abs(card1Width - 360) > 2) {
+                analysis += `❌ 卡片寬度不是360px (實際: ${Math.round(card1Width)}px)\n`;
+            } else {
+                analysis += `✅ 卡片寬度正確 (${Math.round(card1Width)}px)\n`;
+            }
+            
+            if (Math.abs(card1Left - 15) > 2) {
+                analysis += `❌ 左邊距不是15px (實際: ${Math.round(card1Left)}px)\n`;
+            } else {
+                analysis += `✅ 左邊距正確 (${Math.round(card1Left)}px)\n`;
+            }
+            
+            if (Math.abs(card1Right - 15) > 2) {
+                analysis += `❌ 右邊距不是15px (實際: ${Math.round(card1Right)}px)\n`;
+            } else {
+                analysis += `✅ 右邊距正確 (${Math.round(card1Right)}px)\n`;
+            }
+            
+            analysis += `\n計算過程:\n`;
+            analysis += `viewport: ${Math.round(viewportWidth)}px\n`;
+            analysis += `calc(100vw - 30px): ${Math.round(calcValue)}px\n`;
+            analysis += `min(360px, ${Math.round(calcValue)}px): ${Math.round(minValue)}px`;
+            
+            document.getElementById('analysis').textContent = analysis;
+        }
+
+        // 在頁面載入後測量
+        window.addEventListener('load', measureLayout);
+        window.addEventListener('resize', measureLayout);
+    </script>
+</body>
+</html> 

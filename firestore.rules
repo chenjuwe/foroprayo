@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 用戶資料集合
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // 用戶背景集合
+    match /user_backgrounds/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // 代禱集合
+    match /prayers/{prayerId} {
+      // 公開讀取
+      allow read: if true;
+      // 放寬權限：允許任何人創建代禱
+      allow create: if true;
+      // 只有代禱作者可以更新或刪除
+      allow update, delete: if request.auth != null && 
+                              request.auth.uid == resource.data.user_id;
+    }
+    
+    // 代禱回應集合
+    match /prayer_responses/{responseId} {
+      // 公開讀取
+      allow read: if true;
+      // 放寬權限：允許任何人創建回應
+      allow create: if true;
+      // 只有回應作者可以更新或刪除
+      allow update, delete: if request.auth != null && 
+                              request.auth.uid == resource.data.user_id;
+    }
+    
+    // 讚集合
+    match /prayer_likes/{likeId} {
+      // 讀取限制
+      allow read: if true;
+      // 放寬權限：允許任何人點讚
+      allow write: if true;
+    }
+  }
+} 
