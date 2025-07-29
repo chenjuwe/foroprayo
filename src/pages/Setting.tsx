@@ -255,7 +255,7 @@ export default function Setting() {
         <div className="relative" style={{ width: '270px', marginBottom: '20px' }}>
           <input
             type="text"
-            value=""
+            value={newUsername}
             onChange={(e) => handleUsernameChange(e.target.value)}
             placeholder="輸入新的用戶名稱"
             className="w-full bg-transparent border-b border-[#1694da] pb-2 text-black placeholder-[#1694da] focus:outline-none focus:border-[#1694da] text-sm rounded-none"
