@@ -216,6 +216,10 @@ export const Header: React.FC<HeaderProps> = ({
       handlePublish();
     } else if (action === 'community') {
       handleCommunity();
+    } else if (action === 'baptism') {
+      navigate(ROUTES.BAPTISM);
+    } else if (action === 'miracle') {
+      navigate(ROUTES.MIRACLE);
     }
   };
 
@@ -234,6 +238,8 @@ export const Header: React.FC<HeaderProps> = ({
       navigate(isFirebasePath ? '/message' : ROUTES.MESSAGE);  // 導航到對應的消息頁面
     } else if (action === 'setting') {
       navigate(isFirebasePath ? '/setting' : ROUTES.SETTING);  // 導航到對應的設置頁面
+    } else if (action === 'journey') {
+      navigate(isFirebasePath ? '/journey' : ROUTES.JOURNEY);  // 導航到對應的恩典之路頁面
     }
   };
 
@@ -615,7 +621,9 @@ export const Header: React.FC<HeaderProps> = ({
           onMenuItemClick={handleMenuItemClick}
           items={[
             { action: 'publish', label: '發布代禱', icon: ReleasePrayerIcon, color: '#FEE25F', hoverColor: '#FEE25F' },
-            { action: 'community', label: '代禱社群', icon: SocialIcon, color: '#FF9B50', hoverColor: '#FF9B50' }
+            { action: 'community', label: '代禱社群', icon: SocialIcon, color: '#FF9B50', hoverColor: '#FF9B50' },
+            { action: 'baptism', label: '受洗故事', icon: ReleasePrayerIcon, color: '#95d2f4', hoverColor: '#95d2f4' },
+            { action: 'miracle', label: '神蹟經驗', icon: SocialIcon, color: '#4D9BD9', hoverColor: '#4D9BD9' }
           ]}
         />
         
@@ -627,7 +635,8 @@ export const Header: React.FC<HeaderProps> = ({
           items={[
             { action: 'profile', label: '個人資料', icon: SocialIcon, color: '#C87806', hoverColor: '#C87806' },
             { action: 'log', label: '代禱紀錄', icon: ReleasePrayerIcon, color: '#9594f4', hoverColor: '#9594f4' },
-            { action: 'message', label: '好友訊息', icon: MessageIcon, color: '#3DCC00', hoverColor: '#3DCC00' }
+            { action: 'message', label: '好友訊息', icon: MessageIcon, color: '#3DCC00', hoverColor: '#3DCC00' },
+            { action: 'journey', label: '恩典之路', icon: ReleasePrayerIcon, color: '#E57373', hoverColor: '#E57373' }
           ]}
         />
       </div>

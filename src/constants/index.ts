@@ -148,6 +148,9 @@ export const ROUTES = {
   LOG: '/log',                 // Firebase 版本的日誌頁面
   MESSAGE: '/message',         // Firebase 版本的訊息頁面
   SETTING: '/setting',         // Firebase 版本的設定頁面
+  BAPTISM: '/baptism',         // 受洗故事頁面
+  MIRACLE: '/miracle',         // 神蹟經驗頁面
+  JOURNEY: '/journey',         // 恩典之路頁面
   // Claire 管理後台路由
   CLAIRE: '/claire',
   CLAIRE_DASHBOARD: '/claire/dashboard', // 添加儀表板路由

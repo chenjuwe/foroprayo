@@ -13,6 +13,9 @@ import Message from "../pages/Message";
 import Profile from "../pages/Profile";
 import TestFirebaseStorage from "../pages/TestFirebaseStorage";
 import Setting from "../pages/Setting";
+import Baptism from "../pages/Baptism";
+import Miracle from "../pages/Miracle";
+import Journey from "../pages/Journey";
 
 // Claire 管理後台頁面
 import ClaireLayout from "../pages/claire/ClaireLayout";
@@ -101,6 +104,30 @@ export const router = createBrowserRouter([
     element: (
       <ErrorBoundary>
         <Message />
+      </ErrorBoundary>
+    ),
+  },
+  {
+    path: "/baptism",
+    element: (
+      <ErrorBoundary>
+        <Baptism />
+      </ErrorBoundary>
+    ),
+  },
+  {
+    path: "/miracle",
+    element: (
+      <ErrorBoundary>
+        <Miracle />
+      </ErrorBoundary>
+    ),
+  },
+  {
+    path: "/journey",
+    element: (
+      <ErrorBoundary>
+        <Journey />
       </ErrorBoundary>
     ),
   },
