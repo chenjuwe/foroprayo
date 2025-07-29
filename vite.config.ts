@@ -10,13 +10,20 @@ import fs from 'fs';
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: true,
-    port: 5173,
+    // 簡化服務器配置
+    host: '127.0.0.1',
+    port: 5173, 
     strictPort: false,
+    hmr: {
+      // 移除 clientPort 讓 Vite 自動處理
+      host: '127.0.0.1',
+      protocol: 'ws'
+    },
     headers:
       mode === 'development'
         ? {
             'Cache-Control': 'no-store',
+            'Access-Control-Allow-Origin': '*',
           }
         : undefined,
   },
