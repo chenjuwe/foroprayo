@@ -15,11 +15,53 @@ def capacitor_pods
   pod 'CapacitorSplashScreen', :path => '../../node_modules/@capacitor/splash-screen'
 end
 
+def firebase_pods
+  # 指定Firebase版本
+  pod 'Firebase/Core', '~> 10.19.0'
+  pod 'Firebase/Auth', '~> 10.19.0'
+  pod 'Firebase/Firestore', '~> 10.19.0'
+  pod 'Firebase/Storage', '~> 10.19.0'
+  pod 'Firebase/Analytics', '~> 10.19.0'
+end
+
 target 'App' do
   capacitor_pods
-  # Add your Pods here
+  firebase_pods
 end
 
 post_install do |installer|
   assertDeploymentTarget(installer)
+  
+  # 解決腳本構建階段警告和編譯問題
+  installer.pods_project.targets.each do |target|
+    # 處理腳本構建階段問題
+    target.build_phases.each do |build_phase|
+      if build_phase.is_a?(Xcodeproj::Project::Object::PBXShellScriptBuildPhase)
+        # 啟用基於依賴分析
+        build_phase.dependency_file = '$(DERIVED_FILE_DIR)/$(PRODUCT_NAME)-$(CURRENT_ARCH).d'
+        build_phase.always_out_of_date = false
+        
+        # 顯示環境變數
+        build_phase.show_env_vars_in_log = '1'
+        
+        # 確保輸入/輸出路徑存在
+        if build_phase.input_paths.nil? || build_phase.input_paths.empty?
+          build_phase.input_paths = []
+        end
+        
+        if build_phase.output_paths.nil? || build_phase.output_paths.empty?
+          build_phase.output_paths = []
+        end
+      end
+    end
+    
+    # 處理編譯器設置
+    target.build_configurations.each do |config|
+      # 確保iOS部署目標
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+      
+      # 為所有目標啟用新的構建系統
+      config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
+    end
+  end
 end
