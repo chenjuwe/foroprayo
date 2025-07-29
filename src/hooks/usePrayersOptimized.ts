@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { prayerService, Prayer, CreatePrayerRequest } from '@/services/prayerService';
+import { Prayer, CreatePrayerRequest } from '@/types/prayer';
 import { firebasePrayerService } from '@/services';
 import { log } from '@/lib/logger';
 import { notify } from '@/lib/notifications';
@@ -16,10 +16,9 @@ export const usePrayers = () => {
   return useQuery({
     queryKey: QUERY_KEYS.PRAYERS,
     queryFn: async () => {
-      log.debug('開始獲取代禱列表 (Firebase)', null, 'usePrayers');
+      log.debug('開始獲取代禱列表 (Firebase)', {}, 'usePrayers');
 
       try {
-        // 使用 Firebase 服務獲取代禱列表
         const prayers = await firebasePrayerService.getInstance().getAllPrayers();
         log.info('成功載入代禱列表 (Firebase)', { count: prayers.length }, 'usePrayers');
         return prayers;
@@ -72,9 +71,8 @@ export const useCreatePrayer = () => {
       }
     },
     onSuccess: (newPrayer: Prayer) => {
-      // 立即更新緩存
-      queryClient.setQueryData<Prayer[]>(QUERY_KEYS.PRAYERS, (oldData) => {
-        if (!oldData) return [newPrayer];
+      // 立即更新代禱緩存
+      queryClient.setQueryData<Prayer[]>(QUERY_KEYS.PRAYERS, (oldData = []) => {
         return [newPrayer, ...oldData];
       });
 

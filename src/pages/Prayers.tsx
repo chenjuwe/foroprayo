@@ -23,7 +23,7 @@ export default function Prayers() {
     isLoading: prayersLoading, 
     error: prayersError,
     refetch: refetchPrayers
-  } = usePrayers(); // 這已經是使用 Firebase 的版本
+  } = usePrayers(); // 不帶參數調用，以獲取所有非 baptism 類型的代禱
   const createPrayerMutation = useCreatePrayer(); // 這已經是使用 Firebase 的版本
   const { user, avatarUrl, avatarUrl30, isLoggedIn, refreshAvatar } = useFirebaseAvatar(); // 使用 Firebase 頭像 hook
   const initFirebaseAuth = useFirebaseAuthStore(state => state.initAuth);
@@ -482,6 +482,7 @@ export default function Prayers() {
       is_anonymous: isLoggedIn ? isAnonymous : true,
       ...userData,
       image_url: imageUrl || null,
+      prayer_type: 'prayer', // 指定為一般代禱類型
     }, {
       onSuccess: () => {
         setPrayerText('');
@@ -522,7 +523,7 @@ export default function Prayers() {
   return (
     <div className="h-screen w-screen overflow-hidden">
       {/* 固定背景層 */}
-      <div style={backgroundStyle} />
+      <div style={getCurrentBackgroundStyle()} />
 
       {/* 玻璃遮罩層 */}
       <div 

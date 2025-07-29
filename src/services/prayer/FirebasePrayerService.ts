@@ -61,6 +61,7 @@ export class FirebasePrayerService extends BaseService {
       image_url: data.image_url || null,
       is_answered: data.is_answered || false,
       response_count: data.response_count || 0,
+      prayer_type: data.prayer_type || 'prayer', // 預設為一般代禱
     };
   }
 
@@ -77,14 +78,11 @@ export class FirebasePrayerService extends BaseService {
       );
       
       const querySnapshot = await getDocs(prayersQuery);
-      const prayers: Prayer[] = [];
-      
-      for (const doc of querySnapshot.docs) {
-        prayers.push(this.convertDocToPrayer(doc));
-      }
+      const prayers: Prayer[] = querySnapshot.docs.map(doc => this.convertDocToPrayer(doc));
       
       this.logOperation('getAllPrayers success', { count: prayers.length });
       return prayers;
+
     } catch (error) {
       this.handleError(error, 'getAllPrayers');
       throw error;
@@ -132,7 +130,8 @@ export class FirebasePrayerService extends BaseService {
         updated_at: serverTimestamp(),
         image_url: prayer.image_url || null,
         is_answered: false,
-        response_count: 0
+        response_count: 0,
+        // prayer_type is no longer needed here for new prayers
       };
       
       const docRef = await addDoc(collection(db(), this.PRAYERS_COLLECTION), prayerData);
@@ -143,7 +142,7 @@ export class FirebasePrayerService extends BaseService {
         throw new Error('創建代禱失敗：無法獲取新建的代禱數據');
       }
       
-      this.logOperation('createPrayer success', { id: docRef.id });
+      this.logOperation('createPrayer success', { id: docRef.id, prayer_type: prayer.prayer_type });
       
       // 將服務端時間戳轉換為 ISO 字符串格式
       const newPrayer = this.convertDocToPrayer(newDocSnapshot);

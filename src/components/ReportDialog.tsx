@@ -9,7 +9,7 @@ import {
 } from './ui/dialog';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
-import { reportService } from '../services';
+import { firebaseReportService as reportService } from '../services';
 import { CreateReportData } from '../types/common';
 import { useToast } from './ui/use-toast';
 
@@ -72,7 +72,7 @@ export const ReportDialog: React.FC<ReportDialogProps> = ({
 
       try {
         // 嘗試使用正式的檢舉服務
-        const result = await reportService.createReport(reportData);
+        const result = await reportService.getInstance().createReport(reportData);
         console.log('✅ 檢舉提交成功:', result);
       } catch (serviceError: unknown) {
         console.warn('⚠️ 檢舉服務失敗，使用臨時存儲:', serviceError);

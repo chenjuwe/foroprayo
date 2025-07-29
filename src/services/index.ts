@@ -15,6 +15,9 @@ import { SuperAdminService } from './admin/SuperAdminService';
 import { PrayerImageService } from './prayer/PrayerImageService';
 import { backgroundSyncService } from './sync/BackgroundSyncService';
 import { cacheService } from './sync/CacheService';
+import { FirebaseBaptismService } from './prayer/FirebaseBaptismService';
+import { FirebaseJourneyService } from './prayer/FirebaseJourneyService';
+import { FirebaseMiracleService } from './prayer/FirebaseMiracleService';
 
 export { 
   BaseService, 
@@ -33,32 +36,45 @@ export {
   SuperAdminService, 
   PrayerImageService,
   backgroundSyncService,
-  cacheService
+  cacheService,
+  FirebaseBaptismService,
+  FirebaseJourneyService,
+  FirebaseMiracleService
 };
 
 // 使用懶加載模式創建單例
 // 這樣服務只會在第一次被使用時初始化，避免不必要的實例創建
 // let _prayerService: PrayerService | null = null;
+let _firebaseAuthService: FirebaseAuthService | null = null;
+let _firebaseUserService: FirebaseUserService | null = null;
 let _firebasePrayerService: FirebasePrayerService | null = null;
 let _firebasePrayerResponseService: FirebasePrayerResponseService | null = null;
-let _prayerResponseService: PrayerResponseService | null = null;
-let _authService: AuthService | null = null;
-let _reportService: ReportService | null = null;
+let _firebasePrayerImageService: FirebasePrayerImageService | null = null;
 let _firebaseReportService: FirebaseReportService | null = null;
+let _superAdminService: SuperAdminService | null = null;
 let _backgroundService: BackgroundService | null = null;
 let _avatarService: AvatarService | null = null;
-let _superAdminService: SuperAdminService | null = null;
-let _prayerImageService: PrayerImageService | null = null;
+let _firebaseBaptismService: FirebaseBaptismService | null = null;
+let _firebaseJourneyService: FirebaseJourneyService | null = null;
+let _firebaseMiracleService: FirebaseMiracleService | null = null;
 
-// 導出服務的 getter 函數，確保單例模式
-// export const prayerService = {
-//   getInstance: (): PrayerService => {
-//     if (!_prayerService) {
-//       _prayerService = new PrayerService();
-//     }
-//     return _prayerService;
-//   }
-// };
+export const firebaseAuthService = {
+  getInstance: (): FirebaseAuthService => {
+    if (!_firebaseAuthService) {
+      _firebaseAuthService = new FirebaseAuthService();
+    }
+    return _firebaseAuthService;
+  }
+};
+
+export const firebaseUserService = {
+  getInstance: (): FirebaseUserService => {
+    if (!_firebaseUserService) {
+      _firebaseUserService = new FirebaseUserService();
+    }
+    return _firebaseUserService;
+  }
+};
 
 export const firebasePrayerService = {
   getInstance: (): FirebasePrayerService => {
@@ -78,30 +94,12 @@ export const firebasePrayerResponseService = {
   }
 };
 
-export const prayerResponseService = {
-  getInstance: (): PrayerResponseService => {
-    if (!_prayerResponseService) {
-      _prayerResponseService = new PrayerResponseService();
+export const firebasePrayerImageService = {
+  getInstance: (): FirebasePrayerImageService => {
+    if (!_firebasePrayerImageService) {
+      _firebasePrayerImageService = new FirebasePrayerImageService();
     }
-    return _prayerResponseService;
-  }
-};
-
-export const authService = {
-  getInstance: (): AuthService => {
-    if (!_authService) {
-      _authService = new AuthService();
-    }
-    return _authService;
-  }
-};
-
-export const reportService = {
-  getInstance: (): ReportService => {
-    if (!_reportService) {
-      _reportService = new ReportService();
-    }
-    return _reportService;
+    return _firebasePrayerImageService;
   }
 };
 
@@ -111,6 +109,15 @@ export const firebaseReportService = {
       _firebaseReportService = new FirebaseReportService();
     }
     return _firebaseReportService;
+  }
+};
+
+export const superAdminService = {
+  getInstance: (): SuperAdminService => {
+    if (!_superAdminService) {
+      _superAdminService = new SuperAdminService('SuperAdminService');
+    }
+    return _superAdminService;
   }
 };
 
@@ -132,20 +139,29 @@ export const avatarService = {
   }
 };
 
-export const superAdminService = {
-  getInstance: (): SuperAdminService => {
-    if (!_superAdminService) {
-      _superAdminService = new SuperAdminService();
+export const firebaseBaptismService = {
+  getInstance: (): FirebaseBaptismService => {
+    if (!_firebaseBaptismService) {
+      _firebaseBaptismService = new FirebaseBaptismService();
     }
-    return _superAdminService;
+    return _firebaseBaptismService;
   }
 };
 
-export const prayerImageService = {
-  getInstance: (): PrayerImageService => {
-    if (!_prayerImageService) {
-      _prayerImageService = new PrayerImageService();
+export const firebaseJourneyService = {
+  getInstance: (): FirebaseJourneyService => {
+    if (!_firebaseJourneyService) {
+      _firebaseJourneyService = new FirebaseJourneyService();
     }
-    return _prayerImageService;
+    return _firebaseJourneyService;
+  }
+};
+
+export const firebaseMiracleService = {
+  getInstance: (): FirebaseMiracleService => {
+    if (!_firebaseMiracleService) {
+      _firebaseMiracleService = new FirebaseMiracleService();
+    }
+    return _firebaseMiracleService;
   }
 }; 

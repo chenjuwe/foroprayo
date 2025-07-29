@@ -4,15 +4,31 @@ import { GUEST_DEFAULT_BACKGROUND } from '@/constants';
 import { useFirebaseAvatar } from '@/hooks/useFirebaseAvatar';
 import { log } from '@/lib/logger';
 import { PrayerForm } from '@/components/PrayerForm';
-import { useCreatePrayer } from '@/hooks/usePrayersOptimized';
-import { FirebasePrayerImageService } from '@/services/prayer/FirebasePrayerImageService';
+import { useBaptismPosts, useCreateBaptismPost, useDeleteBaptismPost } from '@/hooks/useBaptismPosts';
 import { BackgroundService } from '@/services/background/BackgroundService';
+import PrayerPost from '@/components/PrayerPost';
+import { PrayerPostSkeletonList } from '@/components/ui/skeleton';
+import type { BaptismPost } from '@/types/prayer';
+import { BACKGROUND_OPTIONS } from '@/constants';
 
 export default function Baptism() {
   const { user, isLoggedIn, avatarUrl } = useFirebaseAvatar();
   const [isGuestMode, setIsGuestMode] = useState(false);
-  const createPrayerMutation = useCreatePrayer(); // 使用 Firebase 的版本
+  const createBaptismPostMutation = useCreateBaptismPost();
+  const deleteBaptismPostMutation = useDeleteBaptismPost();
   
+  // 獲取受洗見證列表
+  const { 
+    data: posts = [], 
+    isLoading: postsLoading, 
+    error: postsError,
+  } = useBaptismPosts();
+  
+  const [isScrolled, setIsScrolled] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  // 當 posts 變化時不需要額外的本地狀態，可以直接使用 useQuery 的 data
+
   // 檢查訪客模式
   useEffect(() => {
     try {
@@ -48,24 +64,145 @@ export default function Baptism() {
   const [showBackgroundSelector, setShowBackgroundSelector] = useState(false);
   const [customBackgroundImage, setCustomBackgroundImage] = useState<string>('');
   const [customBackgroundSize, setCustomBackgroundSize] = useState('');
-  
+
   // 新增給 PrayerForm 的狀態
   const [prayerText, setPrayerText] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
 
-  const getCurrentBackgroundStyle = (): React.CSSProperties => {
-    const bgOption = { id: 'guest', style: '', bgColor: '#F4E4DD' };
+  const backgroundService = React.useRef(new BackgroundService()).current;
+
+  // 優化的 loadBackground 函數 - 從 Prayers 頁面複製
+  const loadBackground = useCallback(async () => {
+    // 首先檢查是否有緩存的用戶資料
+    const cachedUser = localStorage.getItem('auth_user');
+    let userId = user?.uid;
     
+    // 如果沒有用戶但有緩存，使用緩存的用戶 ID
+    if (!userId && cachedUser) {
+      try {
+        const userData = JSON.parse(cachedUser);
+        if (userData.uid) {
+          userId = userData.uid;
+        }
+      } catch (e) {
+        // 忽略解析錯誤
+      }
+    }
+    
+    // 訪客模式或沒有用戶 ID 時使用訪客背景
+    if (isGuestMode || !userId) {
+      setSelectedBackground(GUEST_DEFAULT_BACKGROUND);
+      return;
+    }
+    
+    try {
+      // 嘗試從 localStorage 加載已保存的背景設置
+      const savedBackground = localStorage.getItem(`background_${userId}`);
+      
+      // 如果有已保存的背景，使用它
+      if (savedBackground) {
+        setSelectedBackground(savedBackground);
+        
+        const savedCustomBackground = localStorage.getItem(`customBackground_${userId}`);
+        if (savedBackground === 'custom' && savedCustomBackground) {
+          setCustomBackgroundImage(savedCustomBackground);
+          
+          const savedCustomBackgroundSize = localStorage.getItem(`customBackgroundSize_${userId}`);
+          if (savedCustomBackgroundSize) {
+            setCustomBackgroundSize(savedCustomBackgroundSize);
+          }
+        }
+        return;
+      }
+      
+      // 如果本地沒有背景設置，使用默認背景
+      setSelectedBackground(GUEST_DEFAULT_BACKGROUND);
+      
+      // 非同步獲取遠端背景設置，不阻塞頁面載入
+      if (navigator.onLine) {
+        backgroundService.getUserBackground(userId).then(remote => {
+          if (remote) {
+            setSelectedBackground(remote.background_id);
+            if (remote.background_id === 'custom' && remote.custom_background) {
+              setCustomBackgroundImage(remote.custom_background);
+              if (remote.custom_background_size) {
+                setCustomBackgroundSize(remote.custom_background_size);
+              }
+            }
+            
+            // 保存到 localStorage
+            localStorage.setItem(`background_${userId}`, remote.background_id);
+            if (remote.background_id === 'custom' && remote.custom_background) {
+              localStorage.setItem(`customBackground_${userId}`, remote.custom_background);
+              if (remote.custom_background_size) {
+                localStorage.setItem(`customBackgroundSize_${userId}`, remote.custom_background_size);
+              }
+            }
+          }
+        }).catch(() => {
+          // 忽略錯誤
+        });
+      }
+    } catch (error) {
+      // 出錯時使用訪客背景，不中斷頁面載入
+      setSelectedBackground(GUEST_DEFAULT_BACKGROUND);
+    }
+  }, [isLoggedIn, user?.uid, isGuestMode, backgroundService]);
+  
+  // 初始化背景設置
+  useEffect(() => {
+    // 立即載入背景
+    loadBackground();
+    
+    // 監聽全局背景同步事件
+    const handler = () => loadBackground();
+    window.addEventListener('prayforo-background-updated', handler);
+    return () => window.removeEventListener('prayforo-background-updated', handler);
+  }, [loadBackground]);
+
+
+  // 監聽滾動事件
+  useEffect(() => {
+    const node = scrollContainerRef.current;
+    if (node) {
+      const handleScroll = () => {
+        setIsScrolled(node.scrollTop > 10);
+      };
+      node.addEventListener('scroll', handleScroll);
+      return () => node.removeEventListener('scroll', handleScroll);
+    }
+  }, []);
+
+  const handlePostDeleted = useCallback((deletedPostId: string) => {
+    deleteBaptismPostMutation.mutate(deletedPostId);
+  }, [deleteBaptismPostMutation]);
+
+  const getCurrentBackgroundStyle = (): React.CSSProperties => {
+    if (selectedBackground === 'custom' && customBackgroundImage) {
+      return {
+        backgroundImage: `url(${customBackgroundImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        position: 'fixed' as const,
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: -1,
+      };
+    }
+    
+    const option = BACKGROUND_OPTIONS.find(opt => opt.id === selectedBackground);
     return {
-      background: bgOption.bgColor || '#F4E4DD',
-      height: '100%',
-      minHeight: '100vh',
-      width: '100%',
-      position: 'fixed',
+      backgroundColor: option?.bgColor || '#FFE5D9',
+      position: 'fixed' as const,
       top: 0,
       left: 0,
-      zIndex: -10
+      width: '100%',
+      height: '100%',
+      zIndex: -1,
     };
   };
 
@@ -74,7 +211,7 @@ export default function Baptism() {
     if (!prayerText.trim()) return;
 
     // 調試日誌
-    console.log('🔍 開始提交見證', { prayerText, isAnonymous, isLoggedIn, isGuestMode });
+    log.debug('Submitting baptism post', { prayerText, isAnonymous, isLoggedIn, isGuestMode });
 
     // 獲取用戶資料
     let userData = {};
@@ -97,9 +234,9 @@ export default function Baptism() {
         is_anonymous: isAnonymous,  // 明確設定匿名狀態
       };
       
-      console.log('👤 用戶資料準備完成', userData);
+      log.debug('User data prepared', userData);
       
-      log.debug('用戶發布見證', {
+      log.debug('User published testimony', {
         isLoggedIn,
         isAnonymous,
         userName,
@@ -110,24 +247,23 @@ export default function Baptism() {
         savedAvatar
       }, 'Baptism');
     } else {
-      console.log('👤 訪客模式提交', { isLoggedIn, isGuestMode });
-      log.debug('訪客發布見證', { isLoggedIn, isGuestMode }, 'Baptism');
+      log.debug('Guest mode submission', { isLoggedIn, isGuestMode });
+      log.debug('Guest published testimony', { isLoggedIn, isGuestMode }, 'Baptism');
     }
 
     // 確保匿名狀態正確設定
-    console.log('📝 發布見證前檢查:', { isLoggedIn, isAnonymous, isGuestMode, userData });
+    log.debug('Checking prayer submission before publishing', { isLoggedIn, isAnonymous, isGuestMode, userData });
     
     try {
-      console.log('🚀 調用 createPrayerMutation.mutate');
-      createPrayerMutation.mutate({
+      log.debug('Calling createBaptismPostMutation.mutate');
+      createBaptismPostMutation.mutate({
         content: prayerText,
-        // 未登入訪客必須匿名，以避免 DB 約束錯誤
         is_anonymous: isLoggedIn ? isAnonymous : true,
         ...userData,
         image_url: imageUrl || null,
       }, {
         onSuccess: () => {
-          console.log('✅ 見證發布成功');
+          log.info('Baptism post submission successful');
           setPrayerText('');
           setImageUrl(undefined);
           if(isLoggedIn) {
@@ -135,18 +271,41 @@ export default function Baptism() {
           }
         },
         onError: (error) => {
-          console.error('❌ 見證發布失敗', error);
+          log.error('Failed to submit baptism post', error);
         }
       });
     } catch (error) {
-      console.error('❌ 發布見證時發生錯誤', error);
+      log.error('Error submitting baptism post', error);
     }
   };
 
+  // 新增 useEffect 設定 body 背景色
+  useEffect(() => {
+    const prev = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = '#FFE5D9';
+    return () => { document.body.style.backgroundColor = prev; };
+  }, []);
+
   return (
-    <div className="min-h-screen">
+    <div className="h-screen w-screen overflow-hidden">
       {/* 背景 */}
       <div style={getCurrentBackgroundStyle()} />
+
+      {/* 玻璃遮罩層 */}
+      <div 
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '98px',
+          backgroundColor: isScrolled ? 'rgba(255, 255, 255, 0.5)' : 'transparent',
+          backdropFilter: isScrolled ? 'blur(8px)' : 'none',
+          WebkitBackdropFilter: isScrolled ? 'blur(8px)' : 'none',
+          zIndex: 40,
+          transition: 'background-color 0.3s ease, backdrop-filter 0.3s ease',
+        }}
+      />
 
       {/* Header */}
       <Header
@@ -155,38 +314,72 @@ export default function Baptism() {
         isGuestMode={isGuestMode}
       />
 
-      <main className="pt-[82px] pb-20 px-4 max-w-[390px] mx-auto">
-        <div className="mt-6">
-          <h1 className="text-2xl font-bold mb-6 text-center">受洗故事</h1>
-          
-          {/* 分享您的代禱卡片 - 從 Prayers 頁面複製 */}
-          <div className="bg-white w-full px-4 pt-4 pb-[12px] shadow-sm mb-4 rounded-xl">
-            <PrayerForm
-              prayerText={prayerText}
-              isAnonymous={isAnonymous}
-              isLoggedIn={isLoggedIn || isGuestMode}
-              onTextChange={setPrayerText}
-              onAnonymousChange={setIsAnonymous}
-              onSubmit={handlePrayerSubmit}
-              isSubmitting={createPrayerMutation.isPending}
-              placeholder="快速分享你的受洗見證"
-              rows={1}
-              setShowBackgroundSelector={setShowBackgroundSelector}
-              imageUrl={imageUrl}
-              setImageUrl={setImageUrl}
-              isAnswered={false}
-            />
+      <main 
+        ref={scrollContainerRef} 
+        className="h-full w-full overflow-y-auto pb-20"
+        style={{ paddingTop: '98px' }}
+      >
+        <section aria-labelledby="baptism-heading" className="w-full px-4">
+          <div className="flex flex-col max-w-[358px] mx-auto">
+            {/* 分享您的代禱卡片 */}
+            <div className="bg-white w-full px-4 pt-4 pb-[12px] shadow-sm">
+              <PrayerForm
+                prayerText={prayerText}
+                isAnonymous={isAnonymous}
+                isLoggedIn={isLoggedIn || isGuestMode}
+                onTextChange={setPrayerText}
+                onAnonymousChange={setIsAnonymous}
+                onSubmit={handlePrayerSubmit}
+                isSubmitting={createBaptismPostMutation.isPending}
+                placeholder="快速分享你的受洗見證"
+                rows={1}
+                setShowBackgroundSelector={setShowBackgroundSelector}
+                imageUrl={imageUrl}
+                setImageUrl={setImageUrl}
+                isAnswered={false}
+              />
+            </div>
+            
+            {/* 代禱列表區域 */}
+            <div className="mt-4">
+              {postsLoading && (
+                <PrayerPostSkeletonList count={3} />
+              )}
+              
+              {postsError && (
+                <div className="text-center py-8">
+                  <div className="text-red-500">載入見證時發生錯誤，請稍後再試</div>
+                  <pre className="mt-2 text-xs text-gray-500 break-all">
+                    {postsError.message}
+                  </pre>
+                </div>
+              )}
+
+              {!postsLoading && !postsError && posts.length > 0 ? (
+                <div className="space-y-1" role="feed" aria-label="見證列表">
+                  {posts.map((post) => {
+                    return (
+                      <PrayerPost
+                        key={post.id}
+                        prayer={post} // No longer need casting
+                        onUpdate={() => {
+                          log.info('Update triggered for post:', post.id);
+                        }}
+                        onDeleted={handlePostDeleted}
+                        isLoggedIn={isLoggedIn || isGuestMode}
+                        initialResponseCount={post.response_count || 0}
+                      />
+                    );
+                  })}
+                </div>
+              ) : !postsLoading && !postsError ? (
+                <div className="text-center py-8 text-gray-500">
+                  目前還沒有任何見證
+                </div>
+              ) : null}
+            </div>
           </div>
-          
-          <div className="bg-white rounded-xl p-4 shadow-md mb-4">
-            <p className="text-gray-700 mb-4">
-              歡迎來到受洗故事頁面。這裡將分享信徒受洗的經歷和見證，展示神在每個人生命中的奇妙工作。
-            </p>
-            <p className="text-gray-700">
-              此頁面正在建設中，即將推出更多精彩內容。敬請期待！
-            </p>
-          </div>
-        </div>
+        </section>
       </main>
     </div>
   );

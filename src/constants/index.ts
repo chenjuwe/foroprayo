@@ -164,12 +164,15 @@ export const ROUTES = {
 
 // 查詢鍵常數
 export const QUERY_KEYS = {
-  PRAYERS: ['prayers'],
-  PRAYER_RESPONSES: (prayerId: string) => ['prayer-responses', prayerId],
+  PRAYERS: ['prayers'] as const,
+  PRAYER_RESPONSES: (prayerId: string) => ['prayer_responses', prayerId],
   USER_PROFILE: (userId: string) => ['user-profile', userId],
-  PRAYER_BOOKMARKS: ['prayer-bookmarks'],
-  SOCIAL_FEATURES: ['social-features'],
-} as const;
+  PRAYER_BOOKMARKS: ['prayer-bookmarks'] as const,
+  SOCIAL_FEATURES: ['social-features'] as const,
+  BAPTISM_POSTS: ['baptism-posts'] as const,
+  JOURNEY_POSTS: ['journey-posts'] as const,
+  MIRACLE_POSTS: ['miracle-posts'] as const,
+};
 
 // 頁面類型常數
 export const PAGE_TYPES = {

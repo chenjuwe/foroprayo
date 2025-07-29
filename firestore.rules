@@ -48,5 +48,48 @@ service cloud.firestore {
       // 放寬權限：允許任何人點讚
       allow write: if true;
     }
+
+    // ============================================================
+    // 新增的集合規則
+    // ============================================================
+
+    // 受洗 (Baptism) 集合
+    match /baptism/{postId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.user_id;
+    }
+
+    match /baptism_responses/{responseId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.user_id;
+    }
+
+    // 旅程 (Journey) 集合
+    match /journey/{postId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.user_id;
+    }
+
+    match /journey_responses/{responseId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.user_id;
+    }
+
+    // 神蹟 (Miracle) 集合
+    match /miracle/{postId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.user_id;
+    }
+
+    match /miracle_responses/{responseId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.user_id;
+    }
   }
 } 

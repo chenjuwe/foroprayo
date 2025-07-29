@@ -12,8 +12,7 @@ import { Trash2 } from "lucide-react";
 import { superAdminService } from "@/services";
 import { QUERY_KEYS } from "@/constants";
 import { useQueryClient } from "@tanstack/react-query";
-import type { CreateResponseRequest } from "@/types/prayer";
-import type { Prayer as PrayerType } from "@/services/prayerService";
+import type { CreateResponseRequest, Prayer, BaptismPost, JourneyPost, MiraclePost } from "@/types/prayer";
 import UserInfo from "./UserInfo"; // 修正導入方式
 import { LikeButton } from "./LikeButton";
 import { PostActionButtons } from "./PostActionButtons";
@@ -28,8 +27,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+type PostType = Prayer | BaptismPost | JourneyPost | MiraclePost;
+
 interface PrayerPostProps {
-  prayer: PrayerType;
+  prayer: PostType;
   onUpdate: () => void;
   isLoggedIn: boolean;
   initialResponseCount: number;
