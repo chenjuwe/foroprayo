@@ -1,6 +1,9 @@
 import { BaseService } from '../base/BaseService';
 import { log } from '@/lib/logger';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { getAuth } from "firebase/auth";
+import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db } from '@/integrations/firebase/client';
 
 export interface UserAvatar {
   user_id: string;
@@ -15,35 +18,42 @@ interface UploadableBlob {
   size: 'l' | 'm' | 's';
 }
 
-export class AvatarService extends BaseService {
-  private supabase: SupabaseClient<any, any, any>;
-  private readonly BUCKET_NAME = 'avatars';
+// 定義一個確保返回值類型的輔助類型
+type AvatarUrls = {
+  avatar_url_96?: string | undefined;
+  avatar_url_48?: string | undefined;
+  avatar_url_30?: string | undefined;
+};
 
-  constructor(supabase: SupabaseClient<any, any, any>) {
+export class AvatarService extends BaseService {
+  private readonly STORAGE_PATH = 'avatars';
+
+  constructor() {
     super('AvatarService');
-    this.supabase = supabase;
   }
 
   private async getUserSerialNumber(userId: string): Promise<number> {
     try {
       log.debug('嘗試獲取用戶註冊序號', { userId }, this.serviceName);
       
-      if (!this.supabase?.rpc) {
-        log.error('Supabase 客戶端未初始化或不包含 rpc 方法', null, this.serviceName);
-        return this.getFallbackSerialNumber();
+      const firestore = getFirestore();
+      const userCounterRef = doc(firestore, 'counters', 'users');
+      const counterDoc = await getDoc(userCounterRef);
+      
+      if (counterDoc.exists()) {
+        const userData = await getDoc(doc(firestore, 'users', userId));
+        if (userData.exists()) {
+          const createdAt = userData.data().createdAt?.toDate?.() || new Date();
+          const createdTimestamp = createdAt.getTime();
+          // 使用創建時間的毫秒數生成一個較為唯一的序號
+          const serialNumber = Math.floor((createdTimestamp % 10000000) / 100);
+          log.debug('成功基於用戶創建時間獲取序號', { serialNumber }, this.serviceName);
+          return serialNumber;
+        }
       }
       
-      const { data, error } = await this.supabase.rpc('get_user_serial_number', {
-        p_user_id: userId,
-      });
-      
-      if (error) {
-        log.error('無法獲取用戶註冊序號，使用備用序號', error, this.serviceName);
-        return this.getFallbackSerialNumber();
-      }
-      
-      log.debug('成功獲取用戶註冊序號', { serialNumber: data }, this.serviceName);
-      return data;
+      // 如果沒有找到用戶數據或計數器，使用備用序號
+      return this.getFallbackSerialNumber();
     } catch (error) {
       log.error('獲取用戶註冊序號時發生未知錯誤，使用備用序號', error, this.serviceName);
       return this.getFallbackSerialNumber();
@@ -60,14 +70,12 @@ export class AvatarService extends BaseService {
   public async uploadAndRegisterAvatars(
     userId: string,
     blobs: { l: Blob; m: Blob; s: Blob }
-  ): Promise<Pick<UserAvatar, 'avatar_url_96' | 'avatar_url_48' | 'avatar_url_30'>> {
+  ): Promise<AvatarUrls> {
     try {
       log.debug('開始上傳頭像流程', { userId }, this.serviceName);
 
-      if (!this.supabase?.storage) {
-        log.error('Supabase 客戶端未初始化或不包含 storage 方法', null, this.serviceName);
-        throw new Error('Supabase 客戶端未初始化或不包含 storage 方法');
-      }
+      const storage = getStorage();
+      const firestore = getFirestore();
 
       const serialNumber = await this.getUserSerialNumber(userId);
       const timestamp = new Date().toISOString().replace(/[-:.]/g, '').slice(0, 14);
@@ -76,53 +84,48 @@ export class AvatarService extends BaseService {
       const uploadPromises = Object.entries(blobs).map(async ([sizeKey, blob]) => {
         const size = sizeKey as 'l' | 'm' | 's';
         const fileName = `${paddedSerial}-a-${timestamp}-${size}.webp`;
-        const filePath = `${userId}/${fileName}`;
+        const filePath = `${this.STORAGE_PATH}/${userId}/${fileName}`;
 
-        const { data, error } = await this.supabase.storage
-          .from(this.BUCKET_NAME)
-          .upload(filePath, blob, {
-            contentType: 'image/webp',
-            upsert: true,
-          });
-
-        if (error) {
-          throw new Error(`上傳 ${size} 尺寸頭像失敗: ${error.message}`);
-        }
+        // 上傳到 Firebase Storage
+        const storageRef = ref(storage, filePath);
+        await uploadBytes(storageRef, blob, {
+          contentType: 'image/webp',
+        });
         
-        const { data: { publicUrl } } = this.supabase.storage
-          .from(this.BUCKET_NAME)
-          .getPublicUrl(data.path);
-          
+        // 獲取下載 URL
+        const publicUrl = await getDownloadURL(storageRef);
+        
         return { size, publicUrl };
       });
 
       const results = await Promise.all(uploadPromises);
       log.debug('頭像上傳成功', { userId, results }, this.serviceName);
 
-      const newUrls: Partial<UserAvatar> = {
+      const newUrls: Partial<UserAvatar> & AvatarUrls = {
         user_id: userId,
       };
+      
       results.forEach(result => {
         if (result.size === 'l') newUrls.avatar_url_96 = result.publicUrl;
         if (result.size === 'm') newUrls.avatar_url_48 = result.publicUrl;
         if (result.size === 's') newUrls.avatar_url_30 = result.publicUrl;
       });
 
-      if (!this.supabase?.from) {
-        log.error('Supabase 客戶端未初始化或不包含 from 方法', null, this.serviceName);
-        throw new Error('Supabase 客戶端未初始化或不包含 from 方法');
-      }
+      // 更新 Firestore 中的頭像記錄
+      await setDoc(doc(firestore, 'avatars', userId), {
+        ...newUrls,
+        updated_at: new Date().toISOString()
+      }, { merge: true });
 
-      const { error: upsertError } = await this.supabase
-        .from('user_avatars')
-        .upsert(newUrls, { onConflict: 'user_id' });
-
-      if (upsertError) {
-        throw new Error(`更新 user_avatars 表失敗: ${upsertError.message}`);
-      }
-
-      log.debug('成功更新 user_avatars 表', { userId, newUrls }, this.serviceName);
+      log.debug('成功更新 avatars 集合', { userId, newUrls }, this.serviceName);
       
+      // 同時更新用戶檔案中的頭像 URL
+      await setDoc(doc(firestore, 'users', userId), {
+        photoURL: newUrls.avatar_url_96,
+        lastAvatarUpdate: new Date()
+      }, { merge: true });
+
+      // 返回部分對象，確保類型安全
       return {
         avatar_url_96: newUrls.avatar_url_96,
         avatar_url_48: newUrls.avatar_url_48,
@@ -138,24 +141,36 @@ export class AvatarService extends BaseService {
     if (!userId) return null;
     
     try {
-      // 檢查 supabase 客戶端是否初始化且有 from 方法
-      if (!this.supabase?.from) {
-        log.error('Supabase 客戶端未初始化或不包含 from 方法', null, this.serviceName);
+      const firestore = getFirestore();
+      const avatarRef = doc(firestore, 'avatars', userId);
+      const avatarDoc = await getDoc(avatarRef);
+
+      if (!avatarDoc.exists()) {
+        // 如果沒有專門的頭像文檔，嘗試從用戶檔案獲取
+        const userRef = doc(firestore, 'users', userId);
+        const userDoc = await getDoc(userRef);
+        
+        if (userDoc.exists() && userDoc.data().photoURL) {
+          return {
+            user_id: userId,
+            avatar_url_96: userDoc.data().photoURL,
+            avatar_url_48: userDoc.data().photoURL, // 如果沒有中尺寸，使用大尺寸
+            avatar_url_30: userDoc.data().photoURL, // 如果沒有小尺寸，使用大尺寸
+            updated_at: userDoc.data().lastAvatarUpdate?.toDate?.()?.toISOString() || new Date().toISOString()
+          };
+        }
+        
         return null;
       }
       
-      const { data, error } = await this.supabase
-        .from('user_avatars')
-        .select('avatar_url_96, avatar_url_48, avatar_url_30, updated_at')
-        .eq('user_id', userId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') { // PGRST116: no rows found
-        log.error(`獲取用戶 ${userId} 頭像失敗`, error, this.serviceName);
-        throw error;
-      }
-      
-      return data ? { ...data, user_id: userId } : null;
+      const data = avatarDoc.data();
+      return {
+        user_id: userId,
+        avatar_url_96: data.avatar_url_96,
+        avatar_url_48: data.avatar_url_48,
+        avatar_url_30: data.avatar_url_30,
+        updated_at: data.updated_at
+      };
     } catch (error) {
       log.error('獲取用戶頭像時發生未知錯誤', error, this.serviceName);
       return null;

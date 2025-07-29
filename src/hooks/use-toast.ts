@@ -42,11 +42,11 @@ type Action =
     }
   | {
       type: ActionType["DISMISS_TOAST"]
-      toastId?: ToasterToast["id"]
+      toastId: string | undefined
     }
   | {
       type: ActionType["REMOVE_TOAST"]
-      toastId?: ToasterToast["id"]
+      toastId: string | undefined
     }
 
 interface State {
@@ -169,23 +169,37 @@ function toast({ ...props }: Toast) {
 }
 
 function useToast() {
-  const [state, setState] = React.useState<State>(memoryState)
+  // 確保 React 已經載入並初始化
+  if (!React || typeof React.useState !== 'function') {
+    console.error('React not properly initialized in useToast');
+    return { 
+      toasts: [], 
+      toast, 
+      dismiss: (toastId?: string) => {
+        dispatch({ type: "DISMISS_TOAST", toastId: toastId });
+      }
+    };
+  }
+  
+  const [state, setState] = React.useState<State>(memoryState);
 
   React.useEffect(() => {
-    listeners.push(setState)
+    listeners.push(setState);
     return () => {
-      const index = listeners.indexOf(setState)
+      const index = listeners.indexOf(setState);
       if (index > -1) {
-        listeners.splice(index, 1)
+        listeners.splice(index, 1);
       }
-    }
-  }, [state])
+    };
+  }, [state]);
 
   return {
     ...state,
     toast,
-    dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
-  }
+    dismiss: (toastId?: string) => {
+      dispatch({ type: "DISMISS_TOAST", toastId: toastId });
+    },
+  };
 }
 
 export { useToast, toast }
