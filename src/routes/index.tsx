@@ -6,7 +6,6 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import Index from "../pages/Index";
 import Auth from "../pages/Auth";
 import Prayers from "../pages/Prayers";
-import NewFire from "../pages/NewFire";
 import New from "../pages/New";
 import Log from "../pages/Log";
 import Message from "../pages/Message";
@@ -52,14 +51,6 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    path: "/new-original",
-    element: (
-      <ErrorBoundary>
-        <NewFire />
-      </ErrorBoundary>
-    ),
-  },
-  {
     path: "/auth",
     element: (
       <ErrorBoundary>
@@ -67,6 +58,7 @@ export const router = createBrowserRouter([
       </ErrorBoundary>
     ),
   },
+
   {
     path: "/profile",
     element: (

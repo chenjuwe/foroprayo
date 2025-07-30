@@ -80,7 +80,7 @@ export default function Miracle() {
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-blue-50">
+    <div className="h-screen w-screen overflow-hidden">
       <div 
         style={{
           position: 'fixed',

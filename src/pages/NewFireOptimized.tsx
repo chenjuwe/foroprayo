@@ -283,9 +283,8 @@ export default function NewFire() {
       };
     }
     
-    const option = BACKGROUND_OPTIONS.find(opt => opt.id === selectedBackground);
+    // 使用全局背景色，不再設置自己的背景色
     return {
-      backgroundColor: option?.bgColor || '#FFE5D9',
       position: 'fixed' as const,
       top: 0,
       left: 0,

@@ -262,9 +262,8 @@ export default function Prayers() {
       };
     }
     
-    const option = BACKGROUND_OPTIONS.find(opt => opt.id === selectedBackground);
+    // 使用全局背景色，不再設置自己的背景色
     return {
-      backgroundColor: option?.bgColor || '#FFE5D9',
       position: 'fixed' as const,
       top: 0,
       left: 0,
@@ -513,12 +512,7 @@ export default function Prayers() {
 
   const backgroundStyle = getCurrentBackgroundStyle();
 
-  // 新增 useEffect 設定 body 背景色
-  useEffect(() => {
-    const prev = document.body.style.backgroundColor;
-    document.body.style.backgroundColor = '#FFE5D9';
-    return () => { document.body.style.backgroundColor = prev; };
-  }, []);
+  // 移除 useEffect 設定 body 背景色，因為已經在 App.tsx 中全局設置
 
   return (
     <div className="h-screen w-screen overflow-hidden">

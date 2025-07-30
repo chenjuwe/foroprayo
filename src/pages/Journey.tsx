@@ -30,6 +30,22 @@ export default function Journey() {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
 
+  // 明確強制設置頁面背景色
+  useEffect(() => {
+    // 保存原始背景色，以便在組件卸載時恢復
+    const originalBackgroundColor = document.body.style.backgroundColor;
+    
+    // 強制設置背景色為 #FFE5D9
+    document.body.style.backgroundColor = '#FFE5D9';
+    document.documentElement.style.backgroundColor = '#FFE5D9';
+    
+    return () => {
+      // 組件卸載時恢復原始背景色
+      document.body.style.backgroundColor = originalBackgroundColor;
+      document.documentElement.style.backgroundColor = '';
+    };
+  }, []);
+
   useEffect(() => {
     const guestMode = localStorage.getItem('guestMode') === 'true';
     setIsGuestMode(guestMode);
@@ -84,7 +100,27 @@ export default function Journey() {
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-gray-100">
+    <div className="h-screen w-screen overflow-hidden" style={{ backgroundColor: '#FFE5D9' }}>
+      {/* 明確設置背景色為 #FFE5D9，提高 z-index 確保覆蓋其他元素 */}
+      <div 
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: '#FFE5D9',
+          zIndex: -1,
+        }}
+      />
+
+      {/* 使用正確的 React 樣式方式設置全局樣式 */}
+      <style>{`
+        body, html, #root, .App {
+          background-color: #FFE5D9 !important;
+        }
+      `}</style>
+
       <div 
         style={{
           position: 'fixed',
@@ -100,8 +136,8 @@ export default function Journey() {
         }}
       />
       <Header currentPage="community" isLoggedIn={isLoggedIn} isGuestMode={isGuestMode} />
-      <main ref={scrollContainerRef} className="h-full w-full overflow-y-auto pb-20 pt-[98px]">
-        <section aria-labelledby="journey-heading" className="w-full px-4">
+      <main ref={scrollContainerRef} className="h-full w-full overflow-y-auto pb-20 pt-[98px]" style={{ backgroundColor: '#FFE5D9' }}>
+        <section aria-labelledby="journey-heading" className="w-full px-4" style={{ backgroundColor: '#FFE5D9' }}>
           <div className="flex flex-col max-w-[358px] mx-auto">
             <div className="bg-white w-full px-4 pt-4 pb-[12px] shadow-sm">
               <PrayerForm

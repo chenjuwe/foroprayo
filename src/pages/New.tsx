@@ -295,10 +295,8 @@ export default function New() {
       };
     }
     
-    const option = BACKGROUND_OPTIONS.find(opt => opt.id === selectedBackground);
-    return {
-      backgroundColor: option?.bgColor || '#FFE5D9',
-    };
+    // 使用全局背景色，不再設置自己的背景色
+    return {};
   };
   
   // 使用 FirebasePrayerImageService 處理圖片上傳

@@ -50,26 +50,16 @@ export default function Auth() {
     initFirebaseAuth();
   }, [initFirebaseAuth]);
   
-  // 超高速跳轉函數 - 使用最快的方式跳轉
+  // 完全重寫的跳轉函數 - 使用最簡單直接的方式
   const ultraFastRedirect = (userId?: string) => {
     if (isRedirecting) return; // 防止重複跳轉
     setIsRedirecting(true);
     
-    // 使用內聯腳本技術，將會立即執行，比 setTimeout 更快
-    const script = document.createElement('script');
-    script.textContent = `
-      try {
-        // 記錄跳轉開始時間 (用於性能監控)
-        window.__redirectStart = Date.now();
-        
-        // 使用 location.replace 提供最快的跳轉（不會增加瀏覽歷史）
-        window.location.replace('/prayers');
-      } catch(e) {
-        // 降級方案
-        window.location.href = '/prayers'; 
-      }
-    `;
-    document.body.appendChild(script);
+    // 直接使用 window.location.href - 這是最可靠的跨瀏覽器方法
+    window.location.href = '/prayers';
+    
+    // 記錄操作
+    console.log('執行頁面跳轉到 /prayers');
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -266,8 +256,8 @@ export default function Auth() {
               timestamp: Date.now()
             }, 'Auth');
             
-            // 使用 replace 而不是 href，避免瀏覽器歷史記錄問題
-            window.location.replace('/prayers');
+                      // 使用最直接的導航方式
+          window.location.href = '/prayers';
           }, 1500); // 增加到 1.5 秒
         } else {
           toast({ title: "註冊完成", description: "請檢查你的電子信箱以完成帳號啟用" });
@@ -326,31 +316,26 @@ export default function Auth() {
 
   const handleGuestAccess = () => {
     try {
-      log.debug('嘗試進入訪客模式', { currentPath: window.location.pathname }, 'Auth');
-      
       // 設置訪客模式
       localStorage.setItem('guestMode', 'true');
       
       // 顯示訪客登入成功提示
       toast({ title: "訪客登入中...", description: "請稍候" });
       
-      // 確保頁面重新導向
-      console.log('準備導航到訪客模式 /prayers 頁面');
+      // 記錄操作
+      log.debug('執行訪客模式跳轉到 /prayers', null, 'Auth');
       
-      // 使用 setTimeout 確保 localStorage 設置有時間完成
-      setTimeout(() => {
-        // 使用直接的導航方式
-        window.location.href = '/prayers';
-      }, 100);
+      // 使用最直接的導航方式
+      window.location.href = '/prayers';
     } catch (error) {
       console.error('訪客模式導航失敗', error);
-      // 降級方案 - 如果發生錯誤，使用最簡單的跳轉
+      // 如果出現錯誤，仍然使用同樣的方法
       window.location.href = '/prayers';
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#FFE5D9' }}>
+    <div className="min-h-screen flex flex-col">
       <div className="flex-1 flex flex-col items-center px-6 py-8">
         <div className="relative z-10 w-full max-w-sm">
           <AuthForm 

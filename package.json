@@ -1,10 +1,10 @@
 {
   "name": "prayforo",
-  "version": "0.3.66",
+  "version": "0.3.67",
   "description": "Pray for others - A prayer sharing platform",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "tsc && vite build",
     "build:stats": "vite build",
     "build:dev": "vite build --mode development",

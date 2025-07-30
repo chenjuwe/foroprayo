@@ -10,15 +10,11 @@ import fs from 'fs';
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    // 簡化服務器配置
-    host: '127.0.0.1',
+    // 允許所有網路介面連線
+    host: true,
     port: 5173, 
     strictPort: false,
-    hmr: {
-      // 移除 clientPort 讓 Vite 自動處理
-      host: '127.0.0.1',
-      protocol: 'ws'
-    },
+    // 移除 hmr 設定，讓 Vite 自動處理
     headers:
       mode === 'development'
         ? {
