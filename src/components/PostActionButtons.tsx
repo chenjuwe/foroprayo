@@ -1,9 +1,10 @@
 import React from 'react';
 import { PostActions } from './PostActions';
+import { useLocation } from 'react-router-dom';
 
 interface PostActionButtonsProps {
   postId: string;
-  prayerUserId?: string;
+  prayerUserId: string;
   prayerContent: string;
   prayerUserName?: string;
   prayerUserAvatar?: string;
@@ -24,19 +25,22 @@ export const PostActionButtons: React.FC<PostActionButtonsProps> = ({
   onEdit,
   onDelete
 }) => {
+  const location = useLocation();
+  const isPrayersPage = location.pathname === '/prayers';
+  
   return (
     <div className="relative" style={{ width: '40px', height: '32px' }}>
-      <div className="absolute" style={{ right: '0.5px', top: '-6px', position: 'relative', left: '6px' }}>
+      <div className="absolute" style={{ right: '2px', top: isPrayersPage ? '-3px' : '-2px' }}>
         <PostActions 
           prayerId={postId}
           prayerUserId={prayerUserId}
           prayerContent={prayerContent}
-          prayerUserName={prayerUserName}
-          prayerUserAvatar={prayerUserAvatar}
+          {...(prayerUserName ? { prayerUserName } : {})}
+          {...(prayerUserAvatar ? { prayerUserAvatar } : {})}
           isOwner={isOwner}
-          onShare={onShare}
-          onEdit={onEdit}
-          onDelete={onDelete}
+          {...(onShare ? { onShare } : {})}
+          {...(onEdit ? { onEdit } : {})}
+          {...(onDelete ? { onDelete } : {})}
         />
       </div>
     </div>

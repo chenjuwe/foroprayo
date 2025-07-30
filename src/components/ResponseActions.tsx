@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Edit, Forward, Trash2, Flag } from 'lucide-react';
+import { Edit, Forward, Trash2, Flag, Heart } from 'lucide-react';
 import { Menu, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from './ui/menu';
 import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
+import { usePrayerLikes, useTogglePrayerLike } from '../hooks/useSocialFeatures';
 
 import { ReportDialog } from './ReportDialog';
 import { useDeletePrayerResponse } from '../hooks/usePrayerResponsesOptimized';
@@ -56,10 +57,42 @@ export const ResponseActions: React.FC<ResponseActionsProps> = ({
   const deleteResponseMutation = useDeletePrayerResponse();
   const toggleResponseAnsweredMutation = useToggleResponseAnswered();
 
+  // 愛心功能
+  const { data: likes = [] } = usePrayerLikes(responseId);
+  const toggleLikeMutation = useTogglePrayerLike();
+
   useEffect(() => {
     // 直接使用 currentUser，不需要在 useEffect 中調用 hook
     setCurrentUserId(currentUser?.uid || null);
   }, [currentUser]);
+
+  // 檢查當前用戶是否已經按過愛心
+  const userLike = currentUserId ? likes.find((like: any) => like.user_id === currentUserId) : null;
+  const isLiked = !!userLike;
+  const likeCount = likes.length;
+
+  const handleLike = () => {
+    if (!currentUserId) {
+      notify.warning('請先登入以使用愛心功能');
+      return;
+    }
+    
+    if (toggleLikeMutation.isPending) {
+      return; // 正在處理中，避免重複點擊
+    }
+    
+    log.debug('點擊回應愛心按鈕', { responseId, isLiked, likeId: userLike?.id }, 'ResponseActions');
+    
+    // 切換愛心狀態
+    toggleLikeMutation.mutate({
+      prayerId: responseId, // 使用 responseId 代替 prayerId
+      isLiked,
+      ...(userLike?.id ? { likeId: userLike.id } : {})
+    });
+    
+    // 關閉菜單
+    setMenuOpen(false);
+  };
 
   const handleForward = () => {
     if (onShare) {
@@ -124,11 +157,11 @@ export const ResponseActions: React.FC<ResponseActionsProps> = ({
 
   return (
     <>
-      <div className="flex items-center gap-2" style={{ transform: 'translateX(5px) translateY(1px)' }}>
+      <div className="flex items-center gap-2" style={{ transform: 'translateX(1px) translateY(0px)' }}>
         <Menu isOpen={menuOpen} onOpenChange={setMenuOpen}>
           <MenuTrigger>
             <button
-              className={`p-1 transition-colors ${className}`}
+              className={`cursor-pointer transition-opacity ${className}`}
               aria-label="更多選項"
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               onClick={() => setMenuOpen((v) => !v)}
@@ -136,14 +169,12 @@ export const ResponseActions: React.FC<ResponseActionsProps> = ({
               <img
                 src={TwoLineEditIconSrc}
                 alt="編輯選項"
-                width="14"
-                height="14"
-                className="text-gray-600"
+                width="20"
+                height="20"
                 style={{
                   display: 'block',
-                  imageRendering: 'crisp-edges',
-                  transform: 'translateZ(0)',
-                  filter: 'invert(55%) sepia(88%) saturate(1488%) hue-rotate(170deg) brightness(91%) contrast(91%)'
+                  width: '20px',
+                  height: '20px'
                 }}
               />
             </button>
@@ -181,6 +212,15 @@ export const ResponseActions: React.FC<ResponseActionsProps> = ({
                 <MenuSeparator />
               </>
             )}
+            {/* 新增愛心選項 */}
+            <MenuItem 
+              onClick={handleLike} 
+              className="flex items-center gap-2 px-4 py-2 w-full"
+            >
+              <Heart size={14} className={isLiked ? 'fill-red-500 text-red-500' : ''} />
+              {isLiked ? '取消愛心' : '給愛心'}
+              {likeCount > 0 && <span className="text-xs text-gray-500 ml-1">({likeCount})</span>}
+            </MenuItem>
             <MenuItem onClick={handleForward} className="flex items-center gap-2 px-4 py-2 w-full">
               轉寄
             </MenuItem>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Edit, Forward, Bookmark, Trash2, Heart, Flag } from 'lucide-react';
 import TwoLineEditIconSrc from '../assets/icons/TwoLineEditIcon.svg';
 import { Menu, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from './ui/menu';
-// import { useTogglePrayerBookmark, usePrayerLikes, useTogglePrayerLike, useSendFriendRequest, useToggleFollow } from '../hooks/useSocialFeatures';
+import { usePrayerLikes, useTogglePrayerLike } from '../hooks/useSocialFeatures';
 import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
 
 import { Button } from './ui/button';
@@ -47,12 +47,12 @@ export const PostActions: React.FC<PostActionsProps> = ({
   onShare,
   className = ""
 }) => {
-  // 暫時停用社交功能
-  const toggleBookmarkMutation = { mutate: () => {}, isPending: false };
-  const toggleLikeMutation = { mutate: () => {}, isPending: false };
-  const sendFriendRequestMutation = { mutate: () => {}, isPending: false };
-  const toggleFollowMutation = { mutate: () => {}, isPending: false };
-  const likes: any[] = [];
+  // 啟用社交功能
+  const toggleBookmarkMutation = { mutate: () => {}, isPending: false }; // 書籤暫時不啟用
+  const { data: likes = [] } = usePrayerLikes(prayerId);
+  const toggleLikeMutation = useTogglePrayerLike();
+  const sendFriendRequestMutation = { mutate: () => {}, isPending: false }; // 好友請求暫時不啟用
+  const toggleFollowMutation = { mutate: () => {}, isPending: false }; // 追蹤暫時不啟用
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -76,7 +76,9 @@ export const PostActions: React.FC<PostActionsProps> = ({
     setIsBookmarked(false);
   }, [currentUser, prayerId]);
 
-  const isLiked = currentUserId ? likes.some((like: any) => like.user_id && like.user_id === currentUserId) : false;
+  // 檢查當前用戶是否已經按過愛心
+  const userLike = currentUserId ? likes.find((like: any) => like.user_id === currentUserId) : null;
+  const isLiked = !!userLike;
   const likeCount = likes.length;
 
   const handleBookmark = () => {
@@ -94,7 +96,7 @@ export const PostActions: React.FC<PostActionsProps> = ({
     
     if (!currentUserId) {
       console.log('❌ 使用者未登入，無法按愛心');
-      // 可以在這裡顯示登入提示
+      notify.warning('請先登入以使用愛心功能');
       return;
     }
     
@@ -104,7 +106,16 @@ export const PostActions: React.FC<PostActionsProps> = ({
     }
     
     console.log('✅ 執行愛心切換', { prayerId, isLiked });
-    // 暫時停用愛心功能
+    
+    // 執行愛心功能
+    toggleLikeMutation.mutate({
+      prayerId,
+      isLiked,
+      ...(userLike?.id ? { likeId: userLike.id } : {})
+    });
+    
+    // 關閉菜單
+    setMenuOpen(false);
   };
 
   const handleForward = () => {
@@ -185,7 +196,7 @@ export const PostActions: React.FC<PostActionsProps> = ({
         <Menu isOpen={menuOpen} onOpenChange={setMenuOpen}>
           <MenuTrigger>
             <button
-              className={`p-1 transition-colors ${className}`}
+              className={`cursor-pointer transition-opacity ${className}`}
               aria-label="更多選項"
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               onClick={() => setMenuOpen((v) => !v)} // 控制菜單開關
@@ -193,14 +204,12 @@ export const PostActions: React.FC<PostActionsProps> = ({
               <img 
                 src={TwoLineEditIconSrc} 
                 alt="編輯選項" 
-                width="14" 
-                height="14" 
-                className="text-prayfor" 
+                width="20" 
+                height="20" 
                 style={{ 
                   display: 'block',
-                  imageRendering: 'crisp-edges',
-                  transform: 'translateZ(0)',
-                  filter: 'invert(55%) sepia(88%) saturate(1488%) hue-rotate(170deg) brightness(91%) contrast(91%)'
+                  width: '20px',
+                  height: '20px'
                 }}
               />
             </button>
@@ -239,6 +248,15 @@ export const PostActions: React.FC<PostActionsProps> = ({
                 <MenuSeparator />
               </>
             )}
+            {/* 新增愛心選項 */}
+            <MenuItem 
+              onClick={() => handleLike({ preventDefault: () => {}, stopPropagation: () => {} } as React.MouseEvent)} 
+              className="flex items-center gap-2 px-4 py-2 w-full"
+            >
+              <Heart size={14} className={isLiked ? 'fill-red-500 text-red-500' : ''} />
+              {isLiked ? '取消愛心' : '給愛心'}
+              {likeCount > 0 && <span className="text-xs text-gray-500 ml-1">({likeCount})</span>}
+            </MenuItem>
             <MenuItem onClick={handleForward} className="flex items-center gap-2 px-4 py-2 w-full">
               <Forward size={14} />
               轉寄
