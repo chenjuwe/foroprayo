@@ -95,7 +95,11 @@ export default function Miracle() {
           transition: 'background-color 0.3s ease, backdrop-filter 0.3s ease',
         }}
       />
-      <Header currentPage="community" isLoggedIn={isLoggedIn} isGuestMode={isGuestMode} />
+      <Header 
+        currentPage="miracle"
+        isLoggedIn={isLoggedIn} 
+        isGuestMode={isGuestMode} 
+      />
       <main ref={scrollContainerRef} className="h-full w-full overflow-y-auto pb-20 pt-[98px]">
         <section aria-labelledby="miracle-heading" className="w-full px-4">
           <div className="flex flex-col max-w-[358px] mx-auto">

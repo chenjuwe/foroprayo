@@ -6,13 +6,21 @@ import SocialIcon from '../assets/icons/SocialIcon.svg';
 import PrayforLogo from '../assets/icons/PrayforLogo.svg';
 import MessageIcon from '../assets/icons/MessageIcon.svg';
 import FriendIcon from '../assets/icons/FriendIcon.svg';
+// 導入新的圖標
+import NewIcon from '../assets/icons/NewIcon.svg';
+import PrayersIcon from '../assets/icons/PrayersIcon.svg';
+import BaptismIcon from '../assets/icons/BaptismIcon.svg';
+import MiracleIcon from '../assets/icons/MiracleIcon.svg';
+import ProfileIcon from '../assets/icons/ProfileIcon.svg';
+import LogIcon from '../assets/icons/LogIcon.svg';
+import JourneyIcon from '../assets/icons/JourneyIcon.svg';
 
 import { useFirebaseAvatar } from '@/hooks/useFirebaseAvatar'; // 使用 Firebase 頭像 hook
 import { ROUTES } from '@/constants';
 import { log } from '@/lib/logger';
 
 interface HeaderProps {
-  currentPage?: 'publish' | 'community';
+  currentPage?: 'publish' | 'community' | 'baptism' | 'miracle';
   isLoggedIn?: boolean;
   isGuestMode?: boolean; // 新增訪客模式參數
   onLoginClick?: () => void;
@@ -290,21 +298,35 @@ export const Header: React.FC<HeaderProps> = ({
       case 'publish':
         return (
           <>
-            <img src={ReleasePrayerIcon} alt="" style={{ width: 16, height: 16, pointerEvents: 'none' }} />
+            <img src={NewIcon} alt="" style={{ width: 16, height: 16, pointerEvents: 'none' }} />
             <span style={{ pointerEvents: 'none' }}>發布代禱</span>
           </>
         );
       case 'community':
         return (
           <>
-            <img src={SocialIcon} alt="" style={{ width: 16, height: 16, pointerEvents: 'none' }} />
+            <img src={PrayersIcon} alt="" style={{ width: 16, height: 16, pointerEvents: 'none' }} />
             <span style={{ pointerEvents: 'none' }}>代禱社群</span>
+          </>
+        );
+      case 'baptism':
+        return (
+          <>
+            <img src={BaptismIcon} alt="" style={{ width: 16, height: 16, pointerEvents: 'none' }} />
+            <span style={{ pointerEvents: 'none' }}>受洗故事</span>
+          </>
+        );
+      case 'miracle':
+        return (
+          <>
+            <img src={MiracleIcon} alt="" style={{ width: 16, height: 16, pointerEvents: 'none' }} />
+            <span style={{ pointerEvents: 'none' }}>神蹟經驗</span>
           </>
         );
       default:
         return (
           <>
-            <img src={ReleasePrayerIcon} alt="" style={{ width: 16, height: 16, pointerEvents: 'none' }} />
+            <img src={NewIcon} alt="" style={{ width: 16, height: 16, pointerEvents: 'none' }} />
             <span style={{ pointerEvents: 'none' }}>發布代禱</span>
           </>
         );
@@ -447,17 +469,33 @@ export const Header: React.FC<HeaderProps> = ({
     label: '發布代禱',
     color: '#FEE25F',
     hoverColor: '#FEE25F',
-    icon: ReleasePrayerIcon,
+    icon: NewIcon, // 使用新的 NewIcon
     action: 'publish',
   };
-  // 只有在 /prayers 時才顯示橘色
+  // 檢查不同路徑顯示對應選項
   if (location.pathname === '/prayers') {
     prayerButton = {
       label: '代禱社群',
       color: '#FF9B50',
       hoverColor: '#FF9B50',
-      icon: SocialIcon,
+      icon: PrayersIcon, // 使用新的 PrayersIcon
       action: 'community',
+    };
+  } else if (location.pathname === '/baptism' || location.pathname.startsWith('/baptism')) {
+    prayerButton = {
+      label: '受洗故事',
+      color: '#95d2f4', // 淺藍色背景
+      hoverColor: '#95d2f4',
+      icon: BaptismIcon, // 使用 BaptismIcon
+      action: 'baptism',
+    };
+  } else if (location.pathname === '/miracle' || location.pathname.startsWith('/miracle')) {
+    prayerButton = {
+      label: '神蹟經驗',
+      color: '#4D9BD9', // 深藍色背景
+      hoverColor: '#4D9BD9',
+      icon: MiracleIcon, // 使用 MiracleIcon
+      action: 'miracle',
     };
   }
 
@@ -467,6 +505,7 @@ export const Header: React.FC<HeaderProps> = ({
     color: '#C87806',
     hoverColor: '#C87806',
     action: 'profile',
+    icon: ProfileIcon, // 使用新圖標
   };
   if (location.pathname.startsWith('/log')) {
     mainButton = {
@@ -474,6 +513,7 @@ export const Header: React.FC<HeaderProps> = ({
       color: '#9594f4',
       hoverColor: '#9594f4',
       action: 'log',
+      icon: LogIcon, // 使用新圖標
     };
   } else if (location.pathname.startsWith('/message')) {
     mainButton = {
@@ -481,6 +521,15 @@ export const Header: React.FC<HeaderProps> = ({
       color: '#3DCC00',
       hoverColor: '#3DCC00',
       action: 'message',
+      icon: MessageIcon, // 使用已有的圖標
+    };
+  } else if (location.pathname.startsWith('/journey')) {
+    mainButton = {
+      label: '恩典之路',
+      color: '#E53935', // 更紅的顏色
+      hoverColor: '#E53935', // 更紅的顏色
+      action: 'journey',
+      icon: JourneyIcon, // 使用新圖標
     };
   }
 
@@ -531,7 +580,7 @@ export const Header: React.FC<HeaderProps> = ({
                   aria-label="個人資料選單"
                   data-extra-menu-trigger="true"
                 >
-                  <img src={SocialIcon} alt="" style={{ width: 16, height: 16 }} />
+                  <img src={mainButton.icon} alt="" style={{ width: 16, height: 16 }} />
                   <span>{mainButton.label}</span>
                 </button>
               </div>
@@ -620,10 +669,10 @@ export const Header: React.FC<HeaderProps> = ({
           position={menuPosition} 
           onMenuItemClick={handleMenuItemClick}
           items={[
-            { action: 'publish', label: '發布代禱', icon: ReleasePrayerIcon, color: '#FEE25F', hoverColor: '#FEE25F' },
-            { action: 'community', label: '代禱社群', icon: SocialIcon, color: '#FF9B50', hoverColor: '#FF9B50' },
-            { action: 'baptism', label: '受洗故事', icon: ReleasePrayerIcon, color: '#95d2f4', hoverColor: '#95d2f4' },
-            { action: 'miracle', label: '神蹟經驗', icon: SocialIcon, color: '#4D9BD9', hoverColor: '#4D9BD9' }
+            { action: 'publish', label: '發布代禱', icon: NewIcon, color: '#FEE25F', hoverColor: '#FEE25F' },
+            { action: 'community', label: '代禱社群', icon: PrayersIcon, color: '#FF9B50', hoverColor: '#FF9B50' },
+            { action: 'baptism', label: '受洗故事', icon: BaptismIcon, color: '#95d2f4', hoverColor: '#95d2f4' },
+            { action: 'miracle', label: '神蹟經驗', icon: MiracleIcon, color: '#4D9BD9', hoverColor: '#4D9BD9' }
           ]}
         />
         
@@ -633,10 +682,10 @@ export const Header: React.FC<HeaderProps> = ({
           position={extraMenuPosition} 
           onMenuItemClick={handleExtraMenuItemClick}
           items={[
-            { action: 'profile', label: '個人資料', icon: SocialIcon, color: '#C87806', hoverColor: '#C87806' },
-            { action: 'log', label: '代禱紀錄', icon: ReleasePrayerIcon, color: '#9594f4', hoverColor: '#9594f4' },
+            { action: 'profile', label: '個人資料', icon: ProfileIcon, color: '#C87806', hoverColor: '#C87806' },
+            { action: 'log', label: '代禱紀錄', icon: LogIcon, color: '#9594f4', hoverColor: '#9594f4' },
             { action: 'message', label: '好友訊息', icon: MessageIcon, color: '#3DCC00', hoverColor: '#3DCC00' },
-            { action: 'journey', label: '恩典之路', icon: ReleasePrayerIcon, color: '#E57373', hoverColor: '#E57373' }
+            { action: 'journey', label: '恩典之路', icon: JourneyIcon, color: '#E53935', hoverColor: '#E53935' }
           ]}
         />
       </div>

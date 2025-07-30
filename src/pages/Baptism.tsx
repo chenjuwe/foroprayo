@@ -304,7 +304,7 @@ export default function Baptism() {
 
       {/* Header */}
       <Header
-        currentPage="community"
+        currentPage="baptism"
         isLoggedIn={isLoggedIn}
         isGuestMode={isGuestMode}
       />
