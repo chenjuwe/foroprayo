@@ -279,7 +279,7 @@ export const PrayerForm: React.FC<PrayerFormProps> = ({
 
         <div 
           className="flex items-center justify-end mt-[10px]"
-          style={{ gap: variant === 'response' ? '20px' : '30px' }}
+          style={{ gap: '36px' }}
         >
           <button
             type="button"
