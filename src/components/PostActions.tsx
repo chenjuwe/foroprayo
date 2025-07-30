@@ -4,6 +4,7 @@ import TwoLineEditIconSrc from '../assets/icons/TwoLineEditIcon.svg';
 import { Menu, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from './ui/menu';
 import { usePrayerLikes, useTogglePrayerLike } from '../hooks/useSocialFeatures';
 import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
+import { useLocation } from 'react-router-dom';
 
 import { Button } from './ui/button';
 import { ReportDialog } from './ReportDialog';
@@ -59,6 +60,9 @@ export const PostActions: React.FC<PostActionsProps> = ({
   const deletePrayerMutation = useDeletePrayer();
   const togglePrayerAnsweredMutation = useTogglePrayerAnswered();
   const [menuOpen, setMenuOpen] = useState(false); // 新增菜單開關狀態
+  const location = useLocation();
+  const isPrayersPage = location.pathname === '/prayers';
+  const isLogPage = location.pathname === '/log';
   
   // 在組件頂層調用 useFirebaseAuth
   const { currentUser } = useFirebaseAuth();
@@ -192,7 +196,7 @@ export const PostActions: React.FC<PostActionsProps> = ({
 
   return (
     <>
-      <div style={{ transform: 'translateX(5px) translateY(1px)' }}>
+      <div style={{ transform: `translateX(5px) translateY(${isPrayersPage || isLogPage ? '1px' : '1px'})` }}>
         <Menu isOpen={menuOpen} onOpenChange={setMenuOpen}>
           <MenuTrigger>
             <button

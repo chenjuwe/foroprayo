@@ -27,10 +27,14 @@ export const PostActionButtons: React.FC<PostActionButtonsProps> = ({
 }) => {
   const location = useLocation();
   const isPrayersPage = location.pathname === '/prayers';
+  const isLogPage = location.pathname === '/log';
+  
+  // 統一樣式，讓 prayers 和 log 頁面都使用相同的樣式
+  const useUnifiedStyle = isPrayersPage || isLogPage;
   
   return (
     <div className="relative" style={{ width: '40px', height: '32px' }}>
-      <div className="absolute" style={{ right: '2px', top: isPrayersPage ? '-3px' : '-2px' }}>
+      <div className="absolute" style={{ right: '2px', top: useUnifiedStyle ? '-3px' : '-2px' }}>
         <PostActions 
           prayerId={postId}
           prayerUserId={prayerUserId}

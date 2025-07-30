@@ -1,5 +1,16 @@
 import { db } from '@/integrations/firebase/client';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  serverTimestamp,
+  collection,
+  query,
+  where,
+  getDocs,
+  writeBatch,
+} from 'firebase/firestore';
 import { log } from '@/lib/logger';
 import { auth } from '@/integrations/firebase/client';
 import { updateProfile } from 'firebase/auth';
@@ -243,6 +254,35 @@ export class FirebaseUserService {
     } catch (error) {
       log.error('確保用戶名稱持久化失敗', error, 'FirebaseUserService');
       return null;
+    }
+  }
+
+  static async updateAllUserNames(userId: string, newName: string): Promise<void> {
+    log.debug('開始批次更新用戶名稱', { userId, newName }, 'FirebaseUserService');
+    const batch = writeBatch(db());
+
+    try {
+      // 1. 更新 'prayers' 集合
+      const prayersQuery = query(collection(db(), 'prayers'), where('user_id', '==', userId));
+      const prayersSnapshot = await getDocs(prayersQuery);
+      prayersSnapshot.forEach(doc => {
+        batch.update(doc.ref, { user_name: newName });
+      });
+      log.debug(`找到 ${prayersSnapshot.size} 則代禱進行更新`, null, 'FirebaseUserService');
+
+      // 2. 更新 'prayer_responses' 集合
+      const responsesQuery = query(collection(db(), 'prayer_responses'), where('user_id', '==', userId));
+      const responsesSnapshot = await getDocs(responsesQuery);
+      responsesSnapshot.forEach(doc => {
+        batch.update(doc.ref, { user_name: newName });
+      });
+      log.debug(`找到 ${responsesSnapshot.size} 則回應進行更新`, null, 'FirebaseUserService');
+
+      await batch.commit();
+      log.info('用戶名稱批次更新成功', { userId, newName }, 'FirebaseUserService');
+    } catch (error) {
+      log.error('批次更新用戶名稱失敗', error, 'FirebaseUserService');
+      throw new Error('更新用戶相關資料時發生錯誤');
     }
   }
 }

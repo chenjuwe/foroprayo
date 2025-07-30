@@ -52,7 +52,7 @@ export const LikeButton: React.FC<LikeButtonProps> = ({ prayerId, currentUserId 
       aria-label={isLiked ? "取消愛心" : "給愛心"}
       disabled={!currentUserId || toggleLikeMutation.isPending}
       style={{ 
-        transform: `translateX(${isPrayersPage ? '5px' : '-3px'})`,
+        transform: `translateX(${isPrayersPage || isLogPage ? '5px' : '-3px'})`,
         top: isPrayersPage ? '-6px' : isLogPage ? '0px' : '-8px'
       }}
     >

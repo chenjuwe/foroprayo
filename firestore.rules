@@ -45,8 +45,20 @@ service cloud.firestore {
     match /prayer_likes/{likeId} {
       // 讀取限制
       allow read: if true;
-      // 放寬權限：允許任何人點讚
-      allow write: if true;
+      // 只有登入用戶可以創建自己的讚
+      allow create: if request.auth != null && request.resource.data.user_id == request.auth.uid;
+      // 只有讚的作者可以刪除
+      allow delete: if request.auth != null && resource.data.user_id == request.auth.uid;
+      // 不允許更新
+      allow update: if false;
+    }
+
+    // 回應的讚集合
+    match /prayer_response_likes/{likeId} {
+      allow read: if true;
+      allow create: if request.auth != null && request.resource.data.user_id == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow update: if false;
     }
 
     // ============================================================

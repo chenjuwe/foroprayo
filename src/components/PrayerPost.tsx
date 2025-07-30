@@ -39,13 +39,33 @@ interface PrayerPostProps {
 
 // 建立一個新的子元件來處理回應區塊的邏輯
 // 這樣，獲取回應的 usePrayerResponses Hook 只會在需要時（即此元件被渲染時）才被調用
-const ResponseSection = ({ prayerId, currentUserId, isSuperAdmin, isLoggedIn, isAnswered, onResponseAdded }: { prayerId: string; currentUserId: string | null; isSuperAdmin: boolean; isLoggedIn: boolean; isAnswered: boolean; onResponseAdded?: () => void; }) => {
+const ResponseSection = ({ 
+  prayerId, 
+  currentUserId, 
+  isSuperAdmin, 
+  isLoggedIn, 
+  isAnswered, 
+  responses, 
+  isLoading,
+  refetchResponses,
+  onResponseAdded 
+}: { 
+  prayerId: string; 
+  currentUserId: string | null; 
+  isSuperAdmin: boolean; 
+  isLoggedIn: boolean; 
+  isAnswered: boolean; 
+  responses: any[]; 
+  isLoading: boolean;
+  refetchResponses: () => void;
+  onResponseAdded?: () => void; 
+}) => {
   const [responseText, setResponseText] = useState('');
   const [isResponseAnonymous, setIsResponseAnonymous] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined); // 添加圖片URL狀態
   
-  // 使用 usePrayerResponses 鉤子獲取回應數據
-  const { data: responses = [], isLoading: isResponsesLoading, refetch: refetchResponses } = usePrayerResponses(prayerId);
+  // 使用傳入的數據
+  const isResponsesLoading = isLoading;
   
   // 添加一個狀態來控制內容顯示，避免骨架屏幕閃爍
   const [showContent, setShowContent] = useState(false);
@@ -330,59 +350,26 @@ const PrayerPost = ({ prayer, onUpdate, isLoggedIn, initialResponseCount, onDele
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const queryClient = useQueryClient(); // 獲取 queryClient 實例
+
+  // 直接從 hook 獲取回應數據和數量
+  const { 
+    data: responses = [], 
+    isLoading: isResponsesLoading, 
+    refetch: refetchResponses 
+  } = usePrayerResponses(prayer.id);
+
+  const responseCount = responses.length;
+
+  // 移除本地回應計數狀態和相關邏輯
+  // const [responseCount, setResponseCount] = useState(initialResponseCount);
   
-  // 本地回應計數狀態
-  const [responseCount, setResponseCount] = useState(initialResponseCount);
+  // const handleResponseAdded = useCallback(() => {
+  //   setResponseCount(prev => prev + 1);
+  //   onUpdate();
+  //   log.debug('...', {}, 'PrayerPost');
+  // }, [prayer.id, responseCount, onUpdate]);
   
-  // 處理回應添加成功的回調
-  const handleResponseAdded = useCallback(() => {
-    // 增加本地回應計數
-    setResponseCount(prev => prev + 1);
-    
-    // 通知父組件更新
-    onUpdate();
-    
-    log.debug('回應添加成功，更新計數', { 
-      prayerId: prayer.id, 
-      newCount: responseCount + 1 
-    }, 'PrayerPost');
-  }, [prayer.id, responseCount, onUpdate]);
-  
-  // 使用 useEffect 監聽回應數據變化
-  useEffect(() => {
-    const responseKey = QUERY_KEYS.PRAYER_RESPONSES(prayer.id);
-    
-    // 初始化時獲取當前回應數量
-    const currentResponses = queryClient.getQueryData<any[]>(responseKey);
-    if (currentResponses) {
-      setResponseCount(currentResponses.length);
-    }
-    
-    const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
-      // 檢查是否是該代禱的回應查詢發生了變化
-      if (event.query.queryKey[0] === responseKey[0] && 
-          event.query.queryKey[1] === responseKey[1] && 
-          event.type === 'updated') {
-        // 獲取最新的回應數據
-        const responses = queryClient.getQueryData<any[]>(responseKey);
-        if (responses !== undefined) {
-          // 更新本地回應數量
-          setResponseCount(responses.length);
-          
-          log.debug('檢測到回應數據變化', { 
-            prayerId: prayer.id, 
-            newCount: responses.length 
-          }, 'PrayerPost');
-        }
-      }
-    });
-    
-    return () => {
-      unsubscribe();
-    };
-  }, [prayer.id, queryClient]);
-  
-  // 我們不再在這裡直接呼叫 usePrayerResponses
+  // 移除監聽 query cache 的 useEffect
 
   useEffect(() => {
     const fetchUserAndCheckAdmin = async () => {
@@ -540,13 +527,16 @@ const PrayerPost = ({ prayer, onUpdate, isLoggedIn, initialResponseCount, onDele
 
             {/* 動態載入區塊 - 精確控制上方間距 */}
             {isResponseSectionVisible && (
-              <ResponseSection 
+              <ResponseSection
                 prayerId={prayer.id}
                 currentUserId={currentUserId}
                 isSuperAdmin={isSuperAdmin}
                 isLoggedIn={isLoggedIn}
                 isAnswered={prayer.is_answered || false}
-                onResponseAdded={handleResponseAdded}
+                responses={responses}
+                isLoading={isResponsesLoading}
+                refetchResponses={refetchResponses}
+                onResponseAdded={onUpdate} // 直接傳遞 onUpdate
               />
             )}
           </div>

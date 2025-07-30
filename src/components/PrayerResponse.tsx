@@ -9,11 +9,12 @@ import { Trash2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import { superAdminService } from '@/services';
 import { toast } from 'sonner';
-// import { usePrayerLikes, useTogglePrayerLike } from '../hooks/useSocialFeatures';
+import { usePrayerResponseLikes, useTogglePrayerResponseLike } from '../hooks/useSocialFeatures';
 // import { supabase } from '../integrations/supabase/client';
 import { getUnifiedUserName } from '@/lib/getUnifiedUserName';
 import { useQueryClient } from '@tanstack/react-query';
 import { QUERY_KEYS } from '@/constants';
+import { useLocation } from 'react-router-dom';
 
 interface PrayerResponseProps {
   response: PrayerResponseType;
@@ -40,6 +41,8 @@ const PrayerResponseComponent: React.FC<PrayerResponseProps> = ({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const queryClient = useQueryClient(); // 獲取 queryClient 實例
+  const location = useLocation();
+  const isPrayersPage = location.pathname === '/prayers';
   
   // 設定最大行數和行高
   const lineHeight = 24; // 根據實際行高進行調整，單位為像素
@@ -62,13 +65,36 @@ const PrayerResponseComponent: React.FC<PrayerResponseProps> = ({
 
   const displayName = response.user_name || '訪客';
 
-  // 回應愛心功能 - 暫時停用
-  const likes: any[] = [];
-  const isLiked = false;
-  const likeCount = 0;
+  // 啟用回應愛心功能
+  const { data: likes = [] } = usePrayerResponseLikes(response.id);
+  const toggleLikeMutation = useTogglePrayerResponseLike();
+  
+  // 檢查當前用戶是否已經按過愛心
+  const userLike = currentUserId 
+    ? likes.find((like: any) => like.user_id === currentUserId)
+    : null;
+  
+  const isLiked = !!userLike;
+  const likeCount = likes.length;
 
   const handleLikeClick = () => {
-    // 暫時停用愛心功能
+    if (!currentUserId) {
+      log.debug('用戶未登入，無法按愛心', {}, 'PrayerResponse');
+      return;
+    }
+    
+    if (toggleLikeMutation.isPending) {
+      return; // 正在處理中，避免重複點擊
+    }
+    
+    log.debug('點擊回應愛心按鈕', { responseId: response.id, isLiked, likeId: userLike?.id }, 'PrayerResponse');
+    
+    // 切換愛心狀態
+    toggleLikeMutation.mutate({
+      responseId: response.id, // 使用 responseId
+      isLiked,
+      ...(userLike?.id ? { likeId: userLike.id } : {})
+    });
   };
 
   // 超級管理員刪除回應
@@ -140,8 +166,8 @@ const PrayerResponseComponent: React.FC<PrayerResponseProps> = ({
             onClick={handleLikeClick}
             className="flex items-center gap-1 p-2 rounded-full cursor-pointer mr-2"
             aria-label={isLiked ? "取消愛心" : "給愛心"}
-            style={{ position: 'relative', top: '1px', left: '2px' }}
-            disabled={!currentUserId}
+            style={{ position: 'relative', top: isPrayersPage ? '-3px' : '1px', left: isPrayersPage ? '-3px' : '2px', zIndex: 10 }}
+            disabled={!currentUserId || toggleLikeMutation.isPending}
           >
             {likeCount > 0 && (
               <span className="text-xs text-gray-600">{likeCount}</span>
@@ -150,18 +176,22 @@ const PrayerResponseComponent: React.FC<PrayerResponseProps> = ({
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
             </svg>
           </button>
-          <ResponseActions
-            responseId={response.id}
-            responseUserId={response.user_id || ''}
-            responseContent={response.content}
-            responseUserName={displayName || ''}
-            responseUserAvatar={response.user_avatar || ''}
-            prayerId={response.prayer_id || ''}
-            isOwner={currentUserId === response.user_id}
-            onShare={onShare || (() => {})}
-            onEdit={() => onEdit?.(response.id)}
-            onDelete={() => onDelete?.(response.id)}
-          />
+          <div className="relative" style={{ width: '40px', height: '32px' }}>
+            <div className="absolute" style={{ right: '2px', top: isPrayersPage ? '1px' : '-2px' }}>
+              <ResponseActions
+                responseId={response.id}
+                responseUserId={response.user_id || ''}
+                responseContent={response.content}
+                responseUserName={displayName || ''}
+                responseUserAvatar={response.user_avatar || ''}
+                prayerId={response.prayer_id || ''}
+                isOwner={currentUserId === response.user_id}
+                onShare={onShare || (() => {})}
+                onEdit={() => onEdit?.(response.id)}
+                onDelete={() => onDelete?.(response.id)}
+              />
+            </div>
+          </div>
         </div>
       </div>
       <div className="text-sm text-black font-normal leading-6 md:leading-7 mt-4 md:mt-4 mb-4 text-left">

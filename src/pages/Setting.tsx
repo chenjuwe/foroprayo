@@ -19,7 +19,7 @@ export default function Setting() {
   const queryClient = useQueryClient();
   const { user, isAuthLoading, refreshAvatar } = useFirebaseAvatar();
 
-  const [newUsername, setNewUsername] = useState('');
+  const [newUsername, setNewUsername] = useState(user?.displayName || '');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -53,11 +53,14 @@ export default function Setting() {
   const tempDisplayName = useTempUserStore(state => (userId ? state.tempDisplayNames[userId] : ''));
 
   useEffect(() => {
-    if (tempDisplayName) {
+    // 優先使用 user.displayName，如果不存在則嘗試從 temp store 同步
+    if (user?.displayName) {
+      setNewUsername(user.displayName);
+    } else if (tempDisplayName) {
       setNewUsername(tempDisplayName);
       log.debug('從 tempUserStore 同步用戶名稱到本地狀態', { userId, tempDisplayName }, 'Setting');
     }
-  }, [tempDisplayName, userId]);
+  }, [user, tempDisplayName, userId]);
 
   // 提取保存用戶名稱的核心邏輯到一個非 debounce 函數
   const saveUsername = async (username: string) => {
@@ -72,10 +75,18 @@ export default function Setting() {
       // 2. 同步更新 Firestore 用戶資料
       await FirebaseUserService.setUserData(user.uid, { displayName: username });
 
+      // 3. 非同步批次更新所有相關文件
+      FirebaseUserService.updateAllUserNames(user.uid, username).catch(error => {
+        log.error('非同步批次更新用戶名稱失敗', error, 'Setting');
+        // 這裡可以選擇性地加入一個全局錯誤監控，以便追蹤後台更新失敗的情況
+      });
+
+      // 使相關查詢失效，以觸發UI更新
       await queryClient.invalidateQueries({ queryKey: ['prayers'] });
+      await queryClient.invalidateQueries({ queryKey: ['prayer_responses'] }); // 新增：使所有回應查詢失效
       await queryClient.invalidateQueries({ queryKey: ['friend-requests'] });
       
-      // 3. 保存成功後，直接更新 Zustand store，這將觸發所有組件更新
+      // 4. 保存成功後，直接更新 Zustand store，這將觸發所有組件更新
       setTempDisplayName(user.uid, username);
       
       // 將新用戶名保存到 localStorage，確保頁面刷新後仍然顯示

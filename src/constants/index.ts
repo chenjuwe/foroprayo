@@ -165,8 +165,10 @@ export const ROUTES = {
 // 查詢鍵常數
 export const QUERY_KEYS = {
   PRAYERS: ['prayers'] as const,
-  PRAYER_RESPONSES: (prayerId: string) => ['prayer_responses', prayerId],
-  USER_PROFILE: (userId: string) => ['user-profile', userId],
+  PRAYER_RESPONSES: (prayerId: string) => ['prayer_responses', prayerId] as const,
+  PRAYER_LIKES: (prayerId: string | undefined) => ['prayer_likes', prayerId] as const,
+  PRAYER_RESPONSE_LIKES: (responseId: string | undefined) => ['prayer_response_likes', responseId] as const,
+  USER_PROFILE: (userId: string) => ['user_profile', userId] as const,
   PRAYER_BOOKMARKS: ['prayer-bookmarks'] as const,
   SOCIAL_FEATURES: ['social-features'] as const,
   BAPTISM_POSTS: ['baptism-posts'] as const,

@@ -3,6 +3,7 @@ import { Edit, Forward, Trash2, Flag, Heart } from 'lucide-react';
 import { Menu, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from './ui/menu';
 import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
 import { usePrayerLikes, useTogglePrayerLike } from '../hooks/useSocialFeatures';
+import { useLocation } from 'react-router-dom';
 
 import { ReportDialog } from './ReportDialog';
 import { useDeletePrayerResponse } from '../hooks/usePrayerResponsesOptimized';
@@ -56,6 +57,8 @@ export const ResponseActions: React.FC<ResponseActionsProps> = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const deleteResponseMutation = useDeletePrayerResponse();
   const toggleResponseAnsweredMutation = useToggleResponseAnswered();
+  const location = useLocation();
+  const isPrayersPage = location.pathname === '/prayers';
 
   // 愛心功能
   const { data: likes = [] } = usePrayerLikes(responseId);
@@ -157,7 +160,9 @@ export const ResponseActions: React.FC<ResponseActionsProps> = ({
 
   return (
     <>
-      <div className="flex items-center gap-2" style={{ transform: 'translateX(1px) translateY(0px)' }}>
+      <div style={{ 
+        transform: `translateX(5px) translateY(${isPrayersPage ? '1px' : '1px'})` 
+      }}>
         <Menu isOpen={menuOpen} onOpenChange={setMenuOpen}>
           <MenuTrigger>
             <button
