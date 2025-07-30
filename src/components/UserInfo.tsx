@@ -4,7 +4,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { log } from '@/lib/logger';
 import { useFirebaseAvatar } from '@/hooks/useFirebaseAvatar';
 import { GuestAvatar } from './ui/guest-avatar'; // 修正 GuestAvatar 的導入路徑
-import { useUserDisplayName } from '@/hooks/useUserDisplayName';
 import { formatDistanceToNow, format, differenceInHours, differenceInSeconds } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
 
@@ -47,8 +46,11 @@ const UserInfo: React.FC<UserInfoProps> = ({
 }) => {
   const navigate = useNavigate();
   
-  // 使用響應式的 useUserDisplayName hook
-  const displayName = useUserDisplayName({ name: userName }, isAnonymous, userId);
+  // 不再使用 useUserDisplayName hook
+  // const displayName = useUserDisplayName({ name: userName }, isAnonymous, userId);
+  
+  // 直接使用傳入的用戶名
+  const displayName = isAnonymous ? '訪客' : userName || '用戶';
   
   // 使用 useFirebaseAvatar hook 獲取頭像
   const { avatarUrl } = useFirebaseAvatar(userId);

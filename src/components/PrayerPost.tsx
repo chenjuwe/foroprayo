@@ -316,6 +316,7 @@ const ResponseSection = ({ prayerId, currentUserId, isSuperAdmin, isLoggedIn, is
         imageUrl={imageUrl} // 添加圖片URL屬性
         setImageUrl={setImageUrl} // 添加設置圖片URL方法
         isAnswered={isAnswered} // 傳遞神已應允狀態
+        variant="response" // 添加 variant 屬性，指定為回應卡片
       />
     </div>
   );

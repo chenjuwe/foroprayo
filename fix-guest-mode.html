@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>修復訪客模式</title>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        button { padding: 10px 15px; background: #1694da; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .status { margin: 20px 0; padding: 10px; border-radius: 4px; }
+        .guest { background-color: #ffeeee; }
+        .normal { background-color: #eeffee; }
+    </style>
+</head>
+<body>
+    <h1>訪客模式修復工具</h1>
+    
+    <div id="status" class="status"></div>
+    
+    <button onclick="clearGuestMode()">清除訪客模式</button>
+    <button onclick="checkStatus()">檢查狀態</button>
+    <button onclick="window.location.href='/prayers'">返回應用</button>
+    
+    <script>
+        function checkStatus() {
+            const guestMode = localStorage.getItem('guestMode');
+            const statusDiv = document.getElementById('status');
+            
+            if (guestMode === 'true') {
+                statusDiv.innerHTML = '<strong>當前狀態:</strong> 訪客模式已啟用 (guestMode = true)';
+                statusDiv.className = 'status guest';
+            } else {
+                statusDiv.innerHTML = '<strong>當前狀態:</strong> 正常用戶模式 (guestMode 未設置或為 false)';
+                statusDiv.className = 'status normal';
+            }
+        }
+        
+        function clearGuestMode() {
+            localStorage.removeItem('guestMode');
+            alert('訪客模式已清除！');
+            checkStatus();
+        }
+        
+        // 頁面載入時檢查狀態
+        window.onload = checkStatus;
+    </script>
+</body>
+</html> 

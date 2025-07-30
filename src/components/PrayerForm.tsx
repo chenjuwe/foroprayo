@@ -34,6 +34,7 @@ interface PrayerFormProps {
   imageUrl?: string | undefined;
   setImageUrl?: (url: string | undefined) => void;
   isAnswered?: boolean; // 新增：是否為神已應允的卡片
+  variant?: 'default' | 'response'; // 新增：用於區分快速發布卡片和回應卡片
 
   // 新增的背景相關屬性
   setPrayerText?: React.Dispatch<React.SetStateAction<string>>;
@@ -74,6 +75,7 @@ export const PrayerForm: React.FC<PrayerFormProps> = ({
   imageUrl,
   setImageUrl,
   isAnswered = false,
+  variant = 'default', // 預設值為 'default'
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -242,7 +244,7 @@ export const PrayerForm: React.FC<PrayerFormProps> = ({
       />
 
       <div className="flex w-full items-start gap-2 pt-3 md:pt-4">
-        <div className="flex items-start gap-2 md:gap-3">
+        <div className="flex items-start gap-2 md:gap-3 flex-1">
           {isLoggedIn && (
             <>
               <input
@@ -276,8 +278,8 @@ export const PrayerForm: React.FC<PrayerFormProps> = ({
         </div>
 
         <div 
-          className="relative flex items-center gap-6 mt-[10px] flex-shrink-0"
-          style={{ paddingLeft: '24px', left: '30px' }}
+          className="flex items-center justify-end mt-[10px]"
+          style={{ gap: variant === 'response' ? '20px' : '30px' }}
         >
           <button
             type="button"
@@ -285,26 +287,31 @@ export const PrayerForm: React.FC<PrayerFormProps> = ({
             className="cursor-pointer transition-opacity"
             title="上傳圖片"
             disabled={uploading}
-            style={{ transform: 'translateX(-19px)' }}
           >
             <img
               src={CameraIcon}
               alt="上傳圖片"
-              className="w-5 h-5 md:w-5 md:h-5"
+              style={{ 
+                width: '20px',
+                height: '20px' 
+              }}
             />
           </button>
           
           <button
             type="submit"
-            className="relative flex items-center justify-center disabled:cursor-not-allowed flex-shrink-0"
+            className="relative flex items-center justify-center disabled:cursor-not-allowed"
             aria-label="送出代禱"
             disabled={!prayerText.trim() || isSubmitting || uploading}
-            style={{ transform: 'translateX(1px)' }}
+            style={{ transform: 'translateX(-4px)' }}
           >
             <img
               src={SendArrowIcon}
               alt="送出"
-              className="w-5 h-5 md:w-6 md:h-6"
+              style={{ 
+                width: '20px',
+                height: '20px'
+              }}
             />
           </button>
         </div>

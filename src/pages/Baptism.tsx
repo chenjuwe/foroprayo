@@ -332,6 +332,7 @@ export default function Baptism() {
                 imageUrl={imageUrl}
                 setImageUrl={setImageUrl}
                 isAnswered={false}
+                variant="default" // 明確指定為默認變體
               />
             </div>
             

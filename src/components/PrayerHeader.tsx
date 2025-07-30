@@ -1,5 +1,5 @@
-import React from 'react';
-import { UserInfo } from './UserInfo';
+import React, { useEffect, useState } from 'react';
+import UserInfo from './UserInfo';
 import { PostActionButtons } from './PostActionButtons';
 import { LikeButton } from './LikeButton';
 import type { Prayer } from '@/services/prayerService';
@@ -22,24 +22,47 @@ export const PrayerHeader: React.FC<PrayerHeaderProps> = ({
   onEdit,
   onDelete,
 }) => {
+  // 使用 state 保存當前的訪客模式狀態
+  const [isGuestMode, setIsGuestMode] = useState(false);
+  
+  // 在組件加載時檢查訪客模式
+  useEffect(() => {
+    const guestMode = localStorage.getItem('guestMode') === 'true';
+    setIsGuestMode(guestMode);
+    
+    // 監聽存儲變更
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'guestMode') {
+        setIsGuestMode(e.newValue === 'true');
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+  
   // 如果是用戶自己的貼文，使用臨時名稱
   const { tempDisplayName } = useTempUserStore();
-  const displayName = isOwner && currentUserId === prayer.user_id && tempDisplayName
-    ? tempDisplayName // 用戶自己的貼文且有臨時名稱時使用臨時名稱
-    : prayer.user_name || '訪客';
+  
+  // 檢查是否應顯示為匿名用戶
+  const shouldShowAnonymous = prayer.is_anonymous || false;
+  
+  // 獲取正確的顯示名稱 - 直接使用邏輯而不依賴 getUnifiedUserName
+  const displayName = shouldShowAnonymous 
+    ? '訪客' // 匿名貼文顯示為訪客
+    : isOwner && currentUserId === prayer.user_id && tempDisplayName
+      ? tempDisplayName // 用戶自己的貼文且有臨時名稱時使用臨時名稱
+      : prayer.user_name || '用戶';
 
   return (
     <div className="flex w-full items-center justify-between gap-4">
       <div className="flex-shrink-0 min-w-fit">
         <UserInfo
-          isAnonymous={prayer.is_anonymous || false}
+          isAnonymous={shouldShowAnonymous}
           userName={displayName}
-          userAvatar={prayer.user_avatar_48 || prayer.user_avatar || ''}
+          userAvatarUrl={prayer.user_avatar_48 || prayer.user_avatar || ''}
           userId={prayer.user_id || ''}
           createdAt={prayer.created_at}
-          isOwner={isOwner}
-          currentUserId={currentUserId}
-          showActions={true}
         />
       </div>
       <div className="flex items-center ml-auto flex-shrink-0">

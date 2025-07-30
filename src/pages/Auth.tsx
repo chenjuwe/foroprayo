@@ -98,6 +98,9 @@ export default function Auth() {
               // 存儲當前郵箱作為最後使用的用戶
               localStorage.setItem('last_user', email);
               
+              // 清除訪客模式
+              localStorage.removeItem('guestMode');
+              
               // 立即跳轉
               ultraFastRedirect(cachedUser.uid);
               
@@ -164,6 +167,10 @@ export default function Auth() {
             
             // 正常登入流程
             initFirebaseAuth();
+            
+            // 清除訪客模式標記
+            localStorage.removeItem('guestMode');
+            
             toast({ title: "登入成功", description: "歡迎回來！" });
             ultraFastRedirect(user.uid);
             
@@ -227,6 +234,9 @@ export default function Auth() {
           
           // 確保 Firebase Auth 狀態更新
           initFirebaseAuth();
+          
+          // 清除訪客模式標記
+          localStorage.removeItem('guestMode');
           
           // 強制刷新頭像
           refreshUserAvatar();

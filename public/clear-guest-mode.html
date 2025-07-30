@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>清除訪客模式</title>
+    <style>
+        body {
+            font-family: 'PingFang TC', 'Helvetica Neue', Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        h1 { color: #1694da; margin-bottom: 30px; }
+        .card {
+            background-color: #f9f9f9;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .status {
+            font-size: 18px;
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .status.guest { background-color: #ffeeee; color: #e53935; }
+        .status.normal { background-color: #e8f5e9; color: #2e7d32; }
+        button {
+            background-color: #1694da;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0d7bb5;
+        }
+        button.secondary {
+            background-color: #95d2f4;
+        }
+        button.secondary:hover {
+            background-color: #7bc0e8;
+        }
+        .info {
+            font-size: 14px;
+            color: #666;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <h1>訪客模式狀態檢查工具</h1>
+    
+    <div class="card">
+        <div id="status" class="status">檢查中...</div>
+        
+        <div>
+            <button onclick="clearGuestMode()">清除訪客模式</button>
+            <button onclick="checkStatus()" class="secondary">重新檢查</button>
+        </div>
+        
+        <div class="buttons" style="margin-top: 20px;">
+            <button onclick="window.location.href='/prayers'">返回應用</button>
+        </div>
+    </div>
+    
+    <div class="info">
+        <p>如果您發現用戶名稱顯示錯誤，請使用此工具清除訪客模式，然後重新登入。</p>
+        <p>清除訪客模式後，您可能需要重新整理頁面或重新登入以看到變更。</p>
+    </div>
+    
+    <script>
+        // 在頁面載入時檢查狀態
+        window.onload = checkStatus;
+        
+        function checkStatus() {
+            const guestMode = localStorage.getItem('guestMode');
+            const statusDiv = document.getElementById('status');
+            
+            if (guestMode === 'true') {
+                statusDiv.innerHTML = '<strong>當前狀態:</strong> 訪客模式已啟用 (guestMode = true)';
+                statusDiv.className = 'status guest';
+            } else {
+                statusDiv.innerHTML = '<strong>當前狀態:</strong> 正常用戶模式 (guestMode 未設置或為 false)';
+                statusDiv.className = 'status normal';
+            }
+        }
+        
+        function clearGuestMode() {
+            localStorage.removeItem('guestMode');
+            alert('訪客模式已清除！');
+            checkStatus();
+        }
+    </script>
+</body>
+</html> 
