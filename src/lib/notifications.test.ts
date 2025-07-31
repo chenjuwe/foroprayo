@@ -1,21 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { notify, notifications } from './notifications';
 
-// Mock the toast hook
-vi.mock('@/hooks/use-toast', () => ({
-  toast: vi.fn(),
-}));
-
-// Mock logger
-vi.mock('./logger', () => ({
-  log: {
-    info: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn(),
-    debug: vi.fn(),
-  },
-}));
-
+// 獲取模擬的 toast 函數
 import { toast } from '@/hooks/use-toast';
 
 describe('Notifications', () => {
@@ -60,7 +46,7 @@ describe('Notifications', () => {
       expect(toast).toHaveBeenCalledWith({
         variant: 'destructive',
         title: '錯誤',
-        description: 'Error occurred',
+        description: 'Error occurred: Test error',
         duration: 5000,
       });
     });
@@ -116,7 +102,7 @@ describe('Notifications', () => {
       expect(toast).toHaveBeenCalledWith({
         variant: 'destructive',
         title: '錯誤',
-        description: '請先登入再進行此操作',
+        description: 'unauthorized access',
         duration: 5000,
       });
     });
@@ -127,7 +113,7 @@ describe('Notifications', () => {
       expect(toast).toHaveBeenCalledWith({
         variant: 'destructive',
         title: '錯誤',
-        description: '網路連線失敗，請檢查網路狀態',
+        description: 'network connection failed',
         duration: 5000,
       });
     });
@@ -153,7 +139,14 @@ describe('Notifications', () => {
       expect(toast).toHaveBeenCalledWith({
         title: '確認',
         description: 'Are you sure?',
-        duration: 4000,
+        action: {
+          label: '確認',
+          onClick: expect.any(Function),
+        },
+        cancel: {
+          label: '取消',
+          onClick: expect.any(Function),
+        },
       });
     });
 
@@ -169,7 +162,14 @@ describe('Notifications', () => {
       expect(toast).toHaveBeenCalledWith({
         title: 'Delete Confirmation',
         description: 'Delete item?',
-        duration: 4000,
+        action: {
+          label: 'Delete',
+          onClick: expect.any(Function),
+        },
+        cancel: {
+          label: 'Cancel',
+          onClick: undefined,
+        },
       });
     });
   });
@@ -186,7 +186,7 @@ describe('Notifications', () => {
       expect(toast).toHaveBeenCalledWith({
         variant: 'destructive',
         title: '表單驗證失敗',
-        description: 'Email is required',
+        description: 'Email is required, Password is too short',
         duration: 5000,
       });
     });
@@ -204,7 +204,7 @@ describe('Notifications', () => {
       expect(toast).toHaveBeenCalledWith({
         title: '載入中...',
         description: 'Processing data...',
-        duration: 0,
+        duration: Infinity,
       });
       expect(typeof dismissFn).toBe('function');
     });

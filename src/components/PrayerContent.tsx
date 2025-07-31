@@ -116,10 +116,12 @@ const PrayerContentComponent: React.FC<PrayerContentProps> = ({
   }
 
   return (
-    <div className="mt-4 text-left">
-      <ExpandableText maxLines={9} lineHeight={24}>
-        {prayer.content}
-      </ExpandableText>
+    <div data-testid="prayer-content" className="mt-4 text-left">
+      <div data-testid="prayer-text">
+        <ExpandableText maxLines={9} lineHeight={24}>
+          {prayer.content}
+        </ExpandableText>
+      </div>
     </div>
   );
 };

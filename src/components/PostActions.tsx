@@ -223,7 +223,7 @@ export const PostActions: React.FC<PostActionsProps> = ({
 
   return (
     <>
-      <div style={{ transform: `translateX(5px) translateY(${isPrayersPage || isLogPage ? '1px' : '1px'})` }}>
+      <div data-testid="post-actions" style={{ transform: `translateX(5px) translateY(${isPrayersPage || isLogPage ? '1px' : '1px'})` }}>
         <Menu isOpen={menuOpen} onOpenChange={setMenuOpen}>
           <MenuTrigger>
             <button
@@ -264,7 +264,7 @@ export const PostActions: React.FC<PostActionsProps> = ({
                   </svg>
                   {togglePrayerAnsweredMutation.isPending ? '處理中...' : '神已應允'}
                 </MenuItem>
-                <MenuItem onClick={handleEdit} className="flex items-center gap-2 px-4 py-2 w-full">
+                <MenuItem onClick={handleEdit} className="flex items-center gap-2 px-4 py-2 w-full" data-testid="edit-button">
                   <Edit size={14} />
                   編輯
                 </MenuItem>
@@ -272,6 +272,7 @@ export const PostActions: React.FC<PostActionsProps> = ({
                 <MenuItem 
                   onClick={handleDeleteClick} 
                   className="flex items-center gap-2 px-4 py-2 w-full text-red-600 hover:text-red-700"
+                  data-testid="delete-button"
                 >
                   <Trash2 size={14} />
                   刪除
@@ -300,6 +301,7 @@ export const PostActions: React.FC<PostActionsProps> = ({
             <MenuItem 
               onClick={handleReport} 
               className="flex items-center gap-2 px-4 py-2 w-full text-red-600 hover:text-red-700"
+              data-testid="report-button"
             >
               <Flag size={14} />
               檢舉不當發言

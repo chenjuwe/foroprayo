@@ -8,8 +8,9 @@ const mockNavigate = vi.fn();
 vi.mock('react-router-dom', () => ({
   Navigate: ({ to, replace }: { to: string; replace?: boolean }) => {
     mockNavigate(to, { replace });
-    return null;
+    return <div data-testid="navigate">Redirecting to {to}</div>;
   },
+  BrowserRouter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
 describe('Index Page', () => {

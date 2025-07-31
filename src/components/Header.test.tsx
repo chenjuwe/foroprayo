@@ -1,113 +1,102 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Header } from './Header';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { BrowserRouter } from 'react-router-dom';
+import { vi, describe, it, expect, beforeEach, type Mock } from 'vitest';
+import { Header } from './Header';
+import * as useFirebaseAvatarModule from '@/hooks/useFirebaseAvatar';
 
-const mockNavigate = vi.fn();
-vi.mock('react-router-dom', async () => ({
-  ...(await vi.importActual('react-router-dom')),
-  useNavigate: () => mockNavigate,
+// Mock components
+vi.mock('@/components/profile/ProfileAvatar', () => ({
+  ProfileAvatar: ({ user, onClick }: any) => (
+    <div data-testid="profile-avatar" onClick={onClick}>
+      {user ? 'User Avatar' : 'Guest Avatar'}
+    </div>
+  ),
 }));
 
-// Mock Firebase Auth Context
-const mockUseFirebaseAuth = vi.fn();
-vi.mock('@/contexts/FirebaseAuthContext', () => ({
-  useFirebaseAuth: () => mockUseFirebaseAuth(),
-}));
-
-// 完整模擬 useFirebaseAvatar
-vi.mock('@/hooks/useFirebaseAvatar', () => ({
-  useFirebaseAvatar: () => ({
-    firebaseAvatarUrl: '/test-avatar.png',
-    firebaseAvatarUrl30: '/test-avatar-30.png',
-    firebaseAvatarUrl48: '/test-avatar-48.png',
-    firebaseAvatarUrl96: '/test-avatar-96.png',
-    isLoading: false,
-    error: null,
-    refreshAvatar: vi.fn(),
-    data: null
-  }),
-}));
-
-describe('Header Component', () => {
-  const mockUser = {
-    uid: 'test-uid',
-    email: 'test@example.com',
-    displayName: 'Test User',
-    photoURL: '/test-avatar.png',
+// Mock router
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useLocation: vi.fn(() => ({ pathname: '/prayers' })),
+    useNavigate: vi.fn(() => vi.fn()),
   };
-  
+});
+
+// Mock logger
+vi.mock('@/lib/logger', () => ({
+  log: {
+    debug: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
+const renderWithRouter = (component: React.ReactElement) => {
+  return render(<BrowserRouter>{component}</BrowserRouter>);
+};
+
+describe('Header', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    
-    // 默認為未登入狀態
-    mockUseFirebaseAuth.mockReturnValue({
-      currentUser: null,
-      isLoading: false,
-    });
-    
-    // 模擬 localStorage
-    Object.defineProperty(window, 'localStorage', {
-      value: {
-        getItem: vi.fn(() => null),
-        setItem: vi.fn(),
-      },
-      writable: true
-    });
   });
 
-  it('should render login/signup button when user is not logged in', async () => {
-    // 確保模擬未登入狀態
-    mockUseFirebaseAuth.mockReturnValue({
-      currentUser: null,
-      isLoading: false,
-    });
-    
-    render(
-      <MemoryRouter>
-        <Header />
-      </MemoryRouter>
-    );
-    
-    // 使用簡單的文本搜索，避免使用特定角色
-    const element = await screen.findByText(/登入|註冊/i);
-    expect(element).toBeInTheDocument();
+  it('應該正確渲染 Header 組件', () => {
+    vi.spyOn(useFirebaseAvatarModule, 'useFirebaseAvatar').mockReturnValue({
+      user: null,
+      isLoggedIn: false,
+      avatarUrl30: null,
+      refreshAvatar: vi.fn().mockResolvedValue(true),
+    } as any);
+    renderWithRouter(<Header />);
+    expect(screen.getByTestId('header')).toBeInTheDocument();
   });
 
-  it('should navigate to new prayer page when "發布代禱" button is clicked', async () => {
-    const header = render(
-      <MemoryRouter>
-        <Header />
-      </MemoryRouter>
-    );
-    
-    // 使用更直接的方式測試導航功能，直接調用組件的 handlePublish 方法
-    const headerInstance = header.container.querySelector('[data-testid="header"]');
-    expect(headerInstance).not.toBeNull();
+  it('應該包含 Logo', () => {
+    vi.spyOn(useFirebaseAvatarModule, 'useFirebaseAvatar').mockReturnValue({
+      user: null,
+      isLoggedIn: false,
+      avatarUrl30: null,
+      refreshAvatar: vi.fn().mockResolvedValue(true),
+    } as any);
+    renderWithRouter(<Header />);
+    const logo = screen.getByAltText('Logo');
+    expect(logo).toBeInTheDocument();
+  });
 
-    // 找到包含發布代禱的按鈕並模擬點擊
-    const menuTrigger = await screen.findByLabelText('發布代禱菜單');
-    expect(menuTrigger).toBeInTheDocument();
-    
-    // 修改為直接調用 navigate
-    const onPublishClickProp = vi.fn(() => mockNavigate('/prayer/new'));
-    
-    // 重新渲染，使用模擬的 onPublishClick prop
-    header.rerender(
-      <MemoryRouter>
-        <Header onPublishClick={onPublishClickProp} />
-      </MemoryRouter>
-    );
-    
-    // 點擊按鈕
-    fireEvent.click(menuTrigger);
-    
-    // 在真實環境中，用戶會點擊出現的菜單中的發布代禱項目
-    // 這裡我們直接調用 onPublishClickProp 來模擬
-    onPublishClickProp();
-    
-    // 驗證導航到新代禱頁面
-    expect(mockNavigate).toHaveBeenCalledWith('/prayer/new');
+  it('在未登入時，應該顯示「登入 | 註冊」按鈕', () => {
+    vi.spyOn(useFirebaseAvatarModule, 'useFirebaseAvatar').mockReturnValue({
+      user: null,
+      isLoggedIn: false,
+      avatarUrl30: null,
+      refreshAvatar: vi.fn().mockResolvedValue(true),
+    } as any);
+    renderWithRouter(<Header />);
+    expect(screen.getByText('登入 | 註冊')).toBeInTheDocument();
+  });
+
+  it('在登入時，應該顯示用戶頭像', () => {
+    vi.spyOn(useFirebaseAvatarModule, 'useFirebaseAvatar').mockReturnValue({
+      user: { uid: '123', displayName: 'Test User' },
+      isLoggedIn: true,
+      avatarUrl30: 'http://example.com/avatar.png',
+      refreshAvatar: vi.fn().mockResolvedValue(true),
+    } as any);
+    renderWithRouter(<Header />);
+    expect(screen.getByTestId('user-avatar-container')).toBeInTheDocument();
+  });
+
+  it('點擊「登入 | 註冊」按鈕時，應該會導航到登入頁面', () => {
+    vi.spyOn(useFirebaseAvatarModule, 'useFirebaseAvatar').mockReturnValue({
+      user: null,
+      isLoggedIn: false,
+      avatarUrl30: null,
+      refreshAvatar: vi.fn().mockResolvedValue(true),
+    } as any);
+    const navigate = vi.fn();
+    (vi.mocked(require('react-router-dom')).useNavigate as Mock).mockReturnValue(navigate);
+    renderWithRouter(<Header />);
+    fireEvent.click(screen.getByText('登入 | 註冊'));
+    expect(navigate).toHaveBeenCalledWith('/auth');
   });
 }); 

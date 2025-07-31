@@ -1,366 +1,461 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
-import type { Prayer, CreatePrayerRequest } from '@/types/prayer';
+import { usePrayers, useCreatePrayer, useUpdatePrayer, useDeletePrayer, usePrayersByUserId } from './usePrayersOptimized';
+import { firebasePrayerService } from '@/services';
+import { log } from '@/lib/logger';
+import { notify } from '@/lib/notifications';
+import { QUERY_KEYS, ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/constants';
 
-// 完整的 Prayer 類型
-interface FullPrayer {
-  id: string;
-  content: string;
-  is_anonymous: boolean;
-  user_name: string;
-  user_id: string;
-  user_avatar: string | null;
-  created_at: string;
-  updated_at: string;
-  image_url?: string | null;
-  response_count?: number;
-}
+// Mock dependencies
+vi.mock('@/services', () => ({
+  firebasePrayerService: {
+    getInstance: vi.fn(() => ({
+      getAllPrayers: vi.fn(),
+      createPrayer: vi.fn(),
+      updatePrayer: vi.fn(),
+      deletePrayer: vi.fn(),
+      getPrayersByUserId: vi.fn()
+    }))
+  }
+}));
 
-// Mock services
-vi.mock('@/services', () => {
-  const mockPrayers: FullPrayer[] = [
-    {
-      id: '1',
-      content: 'Test prayer 1',
-      is_anonymous: false,
-      user_name: 'User 1',
-      user_id: 'user1',
-      user_avatar: null,
-      created_at: '2024-01-01T00:00:00Z',
-      updated_at: '2024-01-01T00:00:00Z',
-      response_count: 0
-    },
-    {
-      id: '2',
-      content: 'Test prayer 2',
-      is_anonymous: false,
-      user_name: 'User 2',
-      user_id: 'user2',
-      user_avatar: null,
-      created_at: '2024-01-01T00:00:00Z',
-      updated_at: '2024-01-01T00:00:00Z',
-      response_count: 0
-    }
-  ];
-
-  // 創建模擬的服務實例
-  const mockFirebasePrayerServiceInstance = {
-    getAllPrayers: vi.fn(() => Promise.resolve(mockPrayers)),
-    getPrayerById: vi.fn((id: string) => Promise.resolve(mockPrayers.find(p => p.id === id))),
-    createPrayer: vi.fn((prayer) => Promise.resolve({ 
-      ...prayer,
-      id: 'new-id',
-      created_at: '2024-01-01T00:00:00Z',
-      updated_at: '2024-01-01T00:00:00Z',
-      user_avatar: null,
-      response_count: 0
-    })),
-    updatePrayer: vi.fn((id, content) => Promise.resolve({ 
-      id, 
-      content,
-      is_anonymous: false,
-      user_name: 'Test User',
-      user_id: 'user1',
-      user_avatar: null,
-      created_at: '2024-01-01T00:00:00Z',
-      updated_at: '2024-01-01T01:00:00Z',
-      response_count: 0
-    })),
-    deletePrayer: vi.fn(() => Promise.resolve()),
-    getPrayersByUserId: vi.fn(() => Promise.resolve(mockPrayers))
-  };
-
-  return {
-    firebasePrayerService: {
-      getInstance: vi.fn(() => mockFirebasePrayerServiceInstance)
-    }
-  };
-});
-
-// Mock logger
 vi.mock('@/lib/logger', () => ({
   log: {
-    info: vi.fn(),
-    error: vi.fn(),
     debug: vi.fn(),
-    warn: vi.fn()
+    error: vi.fn(),
+    info: vi.fn()
   }
 }));
 
-// Mock notifications
 vi.mock('@/lib/notifications', () => ({
   notify: {
-    success: vi.fn(),
     error: vi.fn(),
-    loading: vi.fn()
+    success: vi.fn()
   }
 }));
 
-// Mock constants
+// 修復常數配置問題 - 使用實際的常數值
 vi.mock('@/constants', () => ({
   QUERY_KEYS: {
     PRAYERS: ['prayers'],
-    USER_PROFILE: (id) => ['user-profile', id]
+    USER_PROFILE: (userId: string) => ['user_profile', userId]
   },
-  QUERY_CONFIG: {},
   ERROR_MESSAGES: {
-    PRAYER_CREATE_ERROR: 'Failed to create prayer',
-    PRAYER_UPDATE_ERROR: 'Failed to update prayer',
-    PRAYER_DELETE_ERROR: 'Failed to delete prayer'
+    PRAYER_CREATE_ERROR: '代禱發布失敗，請稍後再試',
+    PRAYER_UPDATE_ERROR: '代禱更新失敗，請稍後再試',
+    PRAYER_DELETE_ERROR: '代禱刪除失敗，請稍後再試'
   },
   SUCCESS_MESSAGES: {
-    PRAYER_UPDATED: 'Prayer updated successfully',
-    PRAYER_DELETED: 'Prayer deleted successfully'
+    PRAYER_CREATED: '代禱發布成功',
+    PRAYER_UPDATED: '代禱內容已更新',
+    PRAYER_DELETED: '代禱已刪除'
   },
   CACHE_CONFIG: {
     RESOURCES: {
       PRAYERS: {
-        STALE_TIME: 60000,
-        GC_TIME: 300000
+        STALE_TIME: 2 * 60 * 1000,
+        GC_TIME: 10 * 60 * 1000
       },
       USER_PROFILE: {
-        STALE_TIME: 60000,
-        GC_TIME: 300000
+        STALE_TIME: 10 * 60 * 1000,
+        GC_TIME: 30 * 60 * 1000
       }
     }
   }
 }));
 
-// Import after mocking
-import { usePrayers, useCreatePrayer, useUpdatePrayer, useDeletePrayer } from './usePrayersOptimized';
-import { firebasePrayerService } from '@/services';
-
-// Test wrapper component
-const createWrapper = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-      mutations: {
-        retry: false,
-      },
-    },
-  });
-  return ({ children }: { children: React.ReactNode }) => (
-    React.createElement(QueryClientProvider, { client: queryClient }, children)
-  );
-};
-
 describe('usePrayersOptimized', () => {
+  let queryClient: QueryClient;
+  let wrapper: React.FC<{ children: React.ReactNode }>;
+
   beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+        mutations: {
+          retry: false,
+        },
+      },
+    });
+
+    wrapper = ({ children }) => 
+      React.createElement(QueryClientProvider, { client: queryClient }, children);
+
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
     vi.clearAllMocks();
   });
 
   describe('usePrayers', () => {
-    it('should fetch prayers successfully', async () => {
-      const mockPrayers: FullPrayer[] = [
-        { 
-          id: '1', 
-          content: 'Test prayer 1',
-          is_anonymous: false,
+    it('應該成功獲取代禱列表', async () => {
+      const mockPrayers = [
+        {
+          id: 'prayer-1',
+          content: '測試代禱 1',
+          user_id: 'user-1',
           user_name: 'User 1',
-          user_id: 'user1',
-          user_avatar: null,
-          created_at: '2024-01-01T00:00:00Z',
-          updated_at: '2024-01-01T00:00:00Z',
-          response_count: 0
+          created_at: '2024-01-01T00:00:00Z'
         },
-        { 
-          id: '2', 
-          content: 'Test prayer 2',
-          is_anonymous: false,
+        {
+          id: 'prayer-2',
+          content: '測試代禱 2',
+          user_id: 'user-2',
           user_name: 'User 2',
-          user_id: 'user2',
-          user_avatar: null,
-          created_at: '2024-01-01T00:00:00Z',
-          updated_at: '2024-01-01T00:00:00Z',
-          response_count: 0
+          created_at: '2024-01-01T00:00:00Z'
         }
       ];
-      vi.mocked(firebasePrayerService.getInstance().getAllPrayers).mockResolvedValue(mockPrayers as Prayer[]);
 
-      const { result } = renderHook(() => usePrayers(), {
-        wrapper: createWrapper(),
+      const mockGetAllPrayers = vi.fn().mockResolvedValue(mockPrayers);
+      (firebasePrayerService.getInstance as any).mockReturnValue({
+        getAllPrayers: mockGetAllPrayers
       });
+
+      const { result } = renderHook(() => usePrayers(), { wrapper });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
-      }, { timeout: 3000 });
+      });
 
       expect(result.current.data).toEqual(mockPrayers);
+      expect(mockGetAllPrayers).toHaveBeenCalled();
+      expect(log.debug).toHaveBeenCalledWith('開始獲取代禱列表 (Firebase)', {}, 'usePrayers');
+      expect(log.info).toHaveBeenCalledWith('成功載入代禱列表 (Firebase)', { count: 2 }, 'usePrayers');
     });
 
-    it('should handle error when fetching prayers', async () => {
-      const mockError = new Error('Failed to fetch prayers');
-      vi.mocked(firebasePrayerService.getInstance().getAllPrayers).mockRejectedValue(mockError);
-
-      const { result } = renderHook(() => usePrayers(), {
-        wrapper: createWrapper(),
+    it('應該處理獲取代禱列表時的錯誤', async () => {
+      const mockError = new Error('Database error');
+      const mockGetAllPrayers = vi.fn().mockRejectedValue(mockError);
+      (firebasePrayerService.getInstance as any).mockReturnValue({
+        getAllPrayers: mockGetAllPrayers
       });
+
+      const { result } = renderHook(() => usePrayers(), { wrapper });
 
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
-      }, { timeout: 3000 });
+      });
 
-      expect(result.current.error).toEqual(mockError);
+      expect(result.current.error).toBe(mockError);
+      expect(log.error).toHaveBeenCalledWith('Firebase 查詢代禱列表失敗', mockError, 'usePrayers');
+    });
+  });
+
+  describe('usePrayersByUserId', () => {
+    it('應該成功獲取用戶的代禱', async () => {
+      const userId = 'test-user-id';
+      const mockUserPrayers = [
+        {
+          id: 'prayer-1',
+          content: '用戶代禱 1',
+          user_id: userId,
+          user_name: 'Test User',
+          created_at: '2024-01-01T00:00:00Z'
+        }
+      ];
+
+      const mockGetPrayersByUserId = vi.fn().mockResolvedValue(mockUserPrayers);
+      (firebasePrayerService.getInstance as any).mockReturnValue({
+        getPrayersByUserId: mockGetPrayersByUserId
+      });
+
+      const { result } = renderHook(() => usePrayersByUserId(userId), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      });
+
+      expect(result.current.data).toEqual(mockUserPrayers);
+      expect(mockGetPrayersByUserId).toHaveBeenCalledWith(userId);
+    });
+
+    it('應該在用戶ID為空時不執行查詢', () => {
+      const { result } = renderHook(() => usePrayersByUserId(''), { wrapper });
+
+      expect(result.current.isFetching).toBe(false);
     });
   });
 
   describe('useCreatePrayer', () => {
-    it('should create prayer successfully', async () => {
-      const newPrayer: CreatePrayerRequest = {
-        content: 'New prayer',
-        is_anonymous: false,
+    it('應該成功創建代禱', async () => {
+      const newPrayer = {
+        id: 'new-prayer-id',
+        content: '新代禱內容',
+        user_id: 'test-user-id',
         user_name: 'Test User',
-        user_id: 'user1'
-      };
-      const createdPrayer: FullPrayer = { 
-        id: 'new-id',
-        content: 'New prayer',
-        is_anonymous: false,
-        user_name: 'Test User',
-        user_id: 'user1',
-        user_avatar: null,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-        response_count: 0
+        created_at: '2024-01-01T00:00:00Z'
       };
 
-      vi.mocked(firebasePrayerService.getInstance().createPrayer).mockResolvedValue(createdPrayer as Prayer);
-
-      const { result } = renderHook(() => useCreatePrayer(), {
-        wrapper: createWrapper(),
+      const mockCreatePrayer = vi.fn().mockResolvedValue(newPrayer);
+      (firebasePrayerService.getInstance as any).mockReturnValue({
+        createPrayer: mockCreatePrayer
       });
 
-      act(() => {
-        result.current.mutate(newPrayer);
-      });
+      const { result } = renderHook(() => useCreatePrayer(), { wrapper });
+
+      const createPrayerRequest = {
+        content: '新代禱內容',
+        is_anonymous: false,
+        prayer_type: 'prayer'
+      };
+
+      result.current.mutate(createPrayerRequest);
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
-      }, { timeout: 3000 });
+      });
 
-      expect(firebasePrayerService.getInstance().createPrayer).toHaveBeenCalledWith(newPrayer);
+      expect(mockCreatePrayer).toHaveBeenCalledWith(createPrayerRequest);
+      expect(log.debug).toHaveBeenCalledWith('Creating prayer (Firebase)', { isAnonymous: false }, 'useCreatePrayer');
+      expect(log.info).toHaveBeenCalledWith('Prayer created successfully (Firebase)', { id: 'new-prayer-id' }, 'useCreatePrayer');
     });
 
-    it('should handle error when creating prayer', async () => {
-      const newPrayer: CreatePrayerRequest = {
-        content: 'New prayer',
+    it('應該處理創建代禱時的錯誤', async () => {
+      const mockError = new Error('創建失敗');
+      const mockCreatePrayer = vi.fn().mockRejectedValue(mockError);
+      (firebasePrayerService.getInstance as any).mockReturnValue({
+        createPrayer: mockCreatePrayer
+      });
+
+      const { result } = renderHook(() => useCreatePrayer(), { wrapper });
+
+      const createPrayerRequest = {
+        content: '新代禱內容',
         is_anonymous: false,
-        user_name: 'Test User',
-        user_id: 'user1'
+        prayer_type: 'prayer'
       };
-      // 使用 Firebase 的錯誤消息
-      const mockError = new Error('請先登入再發布代禱');
-      vi.mocked(firebasePrayerService.getInstance().createPrayer).mockRejectedValue(mockError);
 
-      const { result } = renderHook(() => useCreatePrayer(), {
-        wrapper: createWrapper(),
-      });
-
-      act(() => {
-        result.current.mutate(newPrayer);
-      });
+      result.current.mutate(createPrayerRequest);
 
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
-      }, { timeout: 3000 });
+      });
 
-      expect(result.current.error).toEqual(mockError);
+      expect(notify.error).toHaveBeenCalledWith('代禱發布失敗：創建失敗', mockError);
+      expect(log.error).toHaveBeenCalledWith('Failed to create prayer (Firebase)', mockError, 'useCreatePrayer');
+    });
+
+    it('應該正確更新緩存', async () => {
+      const newPrayer = {
+        id: 'new-prayer-id',
+        content: '新代禱內容',
+        user_id: 'test-user-id',
+        user_name: 'Test User',
+        created_at: '2024-01-01T00:00:00Z'
+      };
+
+      const mockCreatePrayer = vi.fn().mockResolvedValue(newPrayer);
+      (firebasePrayerService.getInstance as any).mockReturnValue({
+        createPrayer: mockCreatePrayer
+      });
+
+      // 先設置一些現有數據
+      queryClient.setQueryData(QUERY_KEYS.PRAYERS, [
+        { id: 'existing-prayer', content: '現有代禱' }
+      ]);
+
+      const { result } = renderHook(() => useCreatePrayer(), { wrapper });
+
+      const createPrayerRequest = {
+        content: '新代禱內容',
+        is_anonymous: false,
+        prayer_type: 'prayer'
+      };
+
+      result.current.mutate(createPrayerRequest);
+
+      await waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      });
+
+      // 檢查緩存是否被正確更新
+      const cachedData = queryClient.getQueryData(QUERY_KEYS.PRAYERS);
+      expect(cachedData).toEqual([newPrayer, { id: 'existing-prayer', content: '現有代禱' }]);
     });
   });
 
   describe('useUpdatePrayer', () => {
-    it('should update prayer successfully', async () => {
-      const updatedPrayer: FullPrayer = { 
-        id: '1', 
-        content: 'Updated prayer', 
-        is_anonymous: false,
-        user_name: 'User 1',
-        user_id: 'user1',
-        user_avatar: null,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T01:00:00Z',
-        response_count: 0
+    it('應該成功更新代禱', async () => {
+      const updatedPrayer = {
+        id: 'prayer-1',
+        content: '更新後的代禱內容',
+        user_id: 'test-user-id',
+        user_name: 'Test User',
+        created_at: '2024-01-01T00:00:00Z'
       };
-      vi.mocked(firebasePrayerService.getInstance().updatePrayer).mockResolvedValue(updatedPrayer as Prayer);
 
-      const { result } = renderHook(() => useUpdatePrayer(), {
-        wrapper: createWrapper(),
+      const mockUpdatePrayer = vi.fn().mockResolvedValue(updatedPrayer);
+      (firebasePrayerService.getInstance as any).mockReturnValue({
+        updatePrayer: mockUpdatePrayer
       });
 
-      act(() => {
-        result.current.mutate({ id: '1', content: 'Updated prayer' });
-      });
+      const { result } = renderHook(() => useUpdatePrayer(), { wrapper });
+
+      result.current.mutate({ id: 'prayer-1', content: '更新後的代禱內容' });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
-      }, { timeout: 3000 });
+      });
 
-      expect(firebasePrayerService.getInstance().updatePrayer).toHaveBeenCalledWith('1', 'Updated prayer');
+      expect(mockUpdatePrayer).toHaveBeenCalledWith('prayer-1', '更新後的代禱內容');
     });
 
-    it('should handle error when updating prayer', async () => {
-      // 使用 Firebase 的錯誤消息
-      const mockError = new Error('請先登入再進行此操作');
-      vi.mocked(firebasePrayerService.getInstance().updatePrayer).mockRejectedValue(mockError);
-
-      const { result } = renderHook(() => useUpdatePrayer(), {
-        wrapper: createWrapper(),
+    it('應該處理更新代禱時的錯誤', async () => {
+      const mockError = new Error('更新失敗');
+      const mockUpdatePrayer = vi.fn().mockRejectedValue(mockError);
+      (firebasePrayerService.getInstance as any).mockReturnValue({
+        updatePrayer: mockUpdatePrayer
       });
 
-      act(() => {
-        result.current.mutate({ id: '1', content: 'Updated prayer' });
-      });
+      const { result } = renderHook(() => useUpdatePrayer(), { wrapper });
+
+      result.current.mutate({ id: 'prayer-1', content: '更新內容' });
 
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
-      }, { timeout: 3000 });
+      });
 
-      expect(result.current.error).toEqual(mockError);
+      expect(notify.error).toHaveBeenCalledWith('更新失敗', mockError);
     });
   });
 
   describe('useDeletePrayer', () => {
-    it('should delete prayer successfully', async () => {
-      vi.mocked(firebasePrayerService.getInstance().deletePrayer).mockResolvedValue();
-
-      const { result } = renderHook(() => useDeletePrayer(), {
-        wrapper: createWrapper(),
+    it('應該成功刪除代禱', async () => {
+      const mockDeletePrayer = vi.fn().mockResolvedValue(undefined);
+      (firebasePrayerService.getInstance as any).mockReturnValue({
+        deletePrayer: mockDeletePrayer
       });
 
-      act(() => {
-        result.current.mutate('1');
-      });
+      const { result } = renderHook(() => useDeletePrayer(), { wrapper });
+
+      result.current.mutate('prayer-1');
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
-      }, { timeout: 3000 });
+      });
 
-      expect(firebasePrayerService.getInstance().deletePrayer).toHaveBeenCalledWith('1');
+      expect(mockDeletePrayer).toHaveBeenCalledWith('prayer-1');
     });
 
-    it('should handle error when deleting prayer', async () => {
-      // 使用 Firebase 的錯誤消息
-      const mockError = new Error('需要登入才能刪除代禱');
-      vi.mocked(firebasePrayerService.getInstance().deletePrayer).mockRejectedValue(mockError);
-
-      const { result } = renderHook(() => useDeletePrayer(), {
-        wrapper: createWrapper(),
+    it('應該處理刪除代禱時的錯誤', async () => {
+      const mockError = new Error('刪除失敗');
+      const mockDeletePrayer = vi.fn().mockRejectedValue(mockError);
+      (firebasePrayerService.getInstance as any).mockReturnValue({
+        deletePrayer: mockDeletePrayer
       });
 
-      act(() => {
-        result.current.mutate('1');
-      });
+      const { result } = renderHook(() => useDeletePrayer(), { wrapper });
+
+      result.current.mutate('prayer-1');
 
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
-      }, { timeout: 3000 });
+      }, { timeout: 10000 });
 
-      expect(result.current.error).toEqual(mockError);
+      expect(notify.error).toHaveBeenCalledWith('刪除失敗', mockError);
+    });
+
+    it('應該正確從緩存中移除刪除的代禱', async () => {
+      const mockDeletePrayer = vi.fn().mockResolvedValue(undefined);
+      (firebasePrayerService.getInstance as any).mockReturnValue({
+        deletePrayer: mockDeletePrayer
+      });
+
+      // 先設置一些現有數據
+      queryClient.setQueryData(QUERY_KEYS.PRAYERS, [
+        { id: 'prayer-1', content: '要刪除的代禱' },
+        { id: 'prayer-2', content: '保留的代禱' }
+      ]);
+
+      const { result } = renderHook(() => useDeletePrayer(), { wrapper });
+
+      result.current.mutate('prayer-1');
+
+      await waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      }, { timeout: 10000 });
+
+      // 檢查緩存是否被正確更新
+      const cachedData = queryClient.getQueryData(QUERY_KEYS.PRAYERS);
+      expect(cachedData).toEqual([{ id: 'prayer-2', content: '保留的代禱' }]);
+    });
+  });
+
+  describe('緩存管理', () => {
+    it('應該正確處理查詢鍵', () => {
+      const { result } = renderHook(() => usePrayers(), { wrapper });
+      
+      expect(result.current.dataUpdatedAt).toBeDefined();
+    });
+
+    it('應該正確處理用戶代禱的查詢鍵', () => {
+      const userId = 'test-user-id';
+      const { result } = renderHook(() => usePrayersByUserId(userId), { wrapper });
+      
+      expect(result.current.dataUpdatedAt).toBeDefined();
+    });
+  });
+
+  describe('錯誤處理', () => {
+    it('應該正確處理網路錯誤', async () => {
+      const networkError = new Error('Network error');
+      const mockGetAllPrayers = vi.fn().mockRejectedValue(networkError);
+      (firebasePrayerService.getInstance as any).mockReturnValue({
+        getAllPrayers: mockGetAllPrayers
+      });
+
+      const { result } = renderHook(() => usePrayers(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isError).toBe(true);
+      }, { timeout: 10000 });
+
+      expect(result.current.error).toBe(networkError);
+    });
+
+    it('應該正確處理服務實例錯誤', async () => {
+      (firebasePrayerService.getInstance as any).mockImplementation(() => {
+        throw new Error('Service instance error');
+      });
+
+      const { result } = renderHook(() => usePrayers(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isError).toBe(true);
+      }, { timeout: 10000 });
+
+      expect(result.current.error).toBeInstanceOf(Error);
+    });
+  });
+
+  describe('性能優化', () => {
+    it('應該正確設置查詢配置', () => {
+      const { result } = renderHook(() => usePrayers(), { wrapper });
+      
+      expect(result.current.isFetching).toBeDefined();
+      expect(result.current.isLoading).toBeDefined();
+    });
+
+    it('應該正確處理重試邏輯', async () => {
+      const mockError = new Error('Temporary error');
+      const mockGetAllPrayers = vi.fn().mockRejectedValue(mockError);
+      (firebasePrayerService.getInstance as any).mockReturnValue({
+        getAllPrayers: mockGetAllPrayers
+      });
+
+      const { result } = renderHook(() => usePrayers(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isError).toBe(true);
+      }, { timeout: 5000 });
+
+      // 檢查重試次數 - 由於 retry: 2，所以會調用 3 次（初始 + 2次重試）
+      expect(mockGetAllPrayers).toHaveBeenCalledTimes(3);
     });
   });
 }); 

@@ -91,12 +91,13 @@ const UserInfo: React.FC<UserInfoProps> = ({
   };
 
   return (
-    <div className="flex items-center gap-3" data-user-id={userId || ''}>
+    <div data-testid="user-info" className="flex items-center gap-3" data-user-id={userId || ''}>
       <div className="flex-shrink-0">
         {isAnonymous ? (
           <GuestAvatar size={getAvatarSize()} />
         ) : (
           <Avatar 
+            data-testid="user-avatar"
             className={`${getAvatarSize()} cursor-pointer transition-transform hover:scale-105`}
             onClick={handleAvatarClick}
           >
@@ -113,6 +114,7 @@ const UserInfo: React.FC<UserInfoProps> = ({
       
       <div className="flex flex-col items-start">
         <span 
+          data-testid="user-name"
           className="font-semibold text-sm cursor-pointer hover:underline"
           onClick={handleNameClick}
         >
