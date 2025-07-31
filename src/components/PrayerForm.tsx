@@ -154,20 +154,21 @@ export const PrayerForm: React.FC<PrayerFormProps> = ({
       
       console.log('圖片上傳成功:', url);
       setImageUrl?.(url);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('圖片上傳失敗:', err);
       // 提供更友好的錯誤信息
       let errorMessage = '圖片上傳失敗';
       
-      if (err.message) {
-        if (err.message.includes('storage/object-too-large')) {
+      if (err && typeof err === 'object' && 'message' in err) {
+        const error = err as { message: string };
+        if (error.message.includes('storage/object-too-large')) {
           errorMessage = '圖片太大，請選擇較小的圖片';
-        } else if (err.message.includes('permission')) {
+        } else if (error.message.includes('permission')) {
           errorMessage = '權限不足，無法上傳圖片';
-        } else if (err.message.includes('network')) {
+        } else if (error.message.includes('network')) {
           errorMessage = '網絡連接問題，請檢查您的網絡';
         } else {
-          errorMessage = err.message;
+          errorMessage = error.message;
         }
       }
       

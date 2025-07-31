@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
@@ -200,7 +200,7 @@ export default function Log() {
     if (user && user.uid) {
       loadData();
     }
-  }, [user, isAuthLoading, activeTab]);
+  }, [user, isAuthLoading, activeTab, loadData, navigate]);
   
   // 使用 Firebase 服務實例
   const prayerService = new FirebasePrayerService();
@@ -404,7 +404,7 @@ export default function Log() {
   };
   
   // 添加 loadData 函數，用於切換標籤時重新加載數據
-  const loadData = () => {
+  const loadData = useCallback(() => {
     setPage(1);
     if (activeTab === 'prayers') {
       prayersQuery.refetch();
@@ -414,7 +414,7 @@ export default function Log() {
       answeredPrayersQuery.refetch();
       answeredResponsesQuery.refetch();
     }
-  };
+  }, [activeTab, prayersQuery, responsesQuery, answeredPrayersQuery, answeredResponsesQuery]);
   
   // 修改卡片點擊行為
   const handlePrayerClick = (prayerId: string) => {

@@ -226,7 +226,7 @@ export default function Users() {
         const likesSnapshot = await getDocs(likesQuery);
         
         // 查找最後活動時間（可能是代禱、回應或點讚中最近的一個）
-        let lastActivity: Timestamp | null = userData.last_active || userData.created_at || null;
+        const lastActivity: Timestamp | null = userData.last_active || userData.created_at || null;
         
         // 序號從1開始，基於在用戶列表中的位置和當前頁數
         const serialNumber = (page - 1) * pageSize + index + 1;

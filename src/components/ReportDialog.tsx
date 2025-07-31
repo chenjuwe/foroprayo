@@ -105,9 +105,9 @@ export const ReportDialog: React.FC<ReportDialogProps> = ({
         error: error,
         message: error instanceof Error ? error.message : '未知錯誤',
         stack: error instanceof Error ? error.stack : undefined,
-        details: (error as any)?.details,
-        hint: (error as any)?.hint,
-        code: (error as any)?.code
+        details: (error as { details?: string })?.details,
+        hint: (error as { hint?: string })?.hint,
+        code: (error as { code?: string })?.code
       });
 
       let errorMessage = '檢舉提交失敗，請稍後再試';

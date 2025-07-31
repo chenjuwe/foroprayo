@@ -1,26 +1,27 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore';
+import { getUserAvatarUrlFromFirebase } from '@/services/background/AvatarService';
 import { log } from '@/lib/logger';
-import { toast } from 'sonner';
-import { getUserAvatarUrlFromFirebase } from '@/services/auth/FirebaseUserService';
 
-// 頭像尺寸常數
 export type AvatarSize = 96 | 48 | 30;
-const AVATAR_SIZE_LARGE = 96;
-const AVATAR_SIZE_MEDIUM = 48;
-const AVATAR_SIZE_SMALL = 30;
 
-// 全局緩存，用於存儲頭像 URL
-const avatarCache: Record<string, string> = {};
+// 定義錯誤類型
+interface AvatarError {
+  message: string;
+  code?: string;
+  [key: string]: unknown;
+}
 
-// 全局快取每個 userId 的頭像狀態
-const globalAvatarState: Record<string, {
-  avatarUrl96: string | null,
-  avatarUrl48: string | null,
-  avatarUrl30: string | null,
-  isLoading: boolean,
-  error: any,
-}> = {};
+// 定義全局狀態類型
+interface GlobalAvatarState {
+  avatarUrl96: string | null;
+  avatarUrl48: string | null;
+  avatarUrl30: string | null;
+  isLoading: boolean;
+  error: AvatarError | null;
+}
+
+const globalAvatarState: Record<string, GlobalAvatarState> = {};
 
 export const useFirebaseAvatar = (userId?: string) => {
   const currentUser = useFirebaseAuthStore(state => state.user);
@@ -29,7 +30,7 @@ export const useFirebaseAvatar = (userId?: string) => {
   const [avatarUrl48, setAvatarUrl48] = useState<string | null>(null);
   const [avatarUrl30, setAvatarUrl30] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<any>(null);
+  const [error, setError] = useState<AvatarError | null>(null);
   const effectiveUserId = userId || currentUser?.uid;
 
   // 添加防抖機制，避免短時間內重複更新

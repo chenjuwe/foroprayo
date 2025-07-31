@@ -59,31 +59,31 @@ export interface BaseResponse {
 }
 
 // 受洗 (Baptism) 相關類型
-export interface BaptismPost extends BasePost {}
+export type BaptismPost = BasePost;
 export interface BaptismResponse extends BaseResponse {
   baptism_id: string;
 }
-export interface CreateBaptismPostRequest extends Omit<CreatePrayerRequest, 'prayer_type'> {}
+export type CreateBaptismPostRequest = Omit<CreatePrayerRequest, 'prayer_type'>;
 export interface CreateBaptismResponseRequest extends Omit<CreateResponseRequest, 'prayer_id'> {
   baptism_id: string;
 }
 
 // 旅程 (Journey) 相關類型
-export interface JourneyPost extends BasePost {}
+export type JourneyPost = BasePost;
 export interface JourneyResponse extends BaseResponse {
   journey_id: string;
 }
-export interface CreateJourneyPostRequest extends Omit<CreatePrayerRequest, 'prayer_type'> {}
+export type CreateJourneyPostRequest = Omit<CreatePrayerRequest, 'prayer_type'>;
 export interface CreateJourneyResponseRequest extends Omit<CreateResponseRequest, 'prayer_id'> {
   journey_id: string;
 }
 
 // 神蹟 (Miracle) 相關類型
-export interface MiraclePost extends BasePost {}
+export type MiraclePost = BasePost;
 export interface MiracleResponse extends BaseResponse {
   miracle_id: string;
 }
-export interface CreateMiraclePostRequest extends Omit<CreatePrayerRequest, 'prayer_type'> {}
+export type CreateMiraclePostRequest = Omit<CreatePrayerRequest, 'prayer_type'>;
 export interface CreateMiracleResponseRequest extends Omit<CreateResponseRequest, 'prayer_id'> {
   miracle_id: string;
 }

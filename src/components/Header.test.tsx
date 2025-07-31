@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Header } from './Header';
-import { render, screen, fireEvent, waitFor } from '../utils/test-utils';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
 
 const mockNavigate = vi.fn();
@@ -63,7 +64,11 @@ describe('Header Component', () => {
       isLoading: false,
     });
     
-    render(<Header />);
+    render(
+      <MemoryRouter>
+        <Header />
+      </MemoryRouter>
+    );
     
     // 使用簡單的文本搜索，避免使用特定角色
     const element = await screen.findByText(/登入|註冊/i);
@@ -71,7 +76,11 @@ describe('Header Component', () => {
   });
 
   it('should navigate to new prayer page when "發布代禱" button is clicked', async () => {
-    const header = render(<Header />);
+    const header = render(
+      <MemoryRouter>
+        <Header />
+      </MemoryRouter>
+    );
     
     // 使用更直接的方式測試導航功能，直接調用組件的 handlePublish 方法
     const headerInstance = header.container.querySelector('[data-testid="header"]');
@@ -85,7 +94,11 @@ describe('Header Component', () => {
     const onPublishClickProp = vi.fn(() => mockNavigate('/prayer/new'));
     
     // 重新渲染，使用模擬的 onPublishClick prop
-    header.rerender(<Header onPublishClick={onPublishClickProp} />);
+    header.rerender(
+      <MemoryRouter>
+        <Header onPublishClick={onPublishClickProp} />
+      </MemoryRouter>
+    );
     
     // 點擊按鈕
     fireEvent.click(menuTrigger);

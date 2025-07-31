@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User } from 'firebase/auth';
 import { FirebaseAuthService } from '@/services/auth/FirebaseAuthService';
 import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore';
@@ -37,7 +37,7 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const initAuth = useFirebaseAuthStore(state => state.initAuth);
 
   // 刷新用戶頭像
-  const refreshUserAvatar = () => {
+  const refreshUserAvatar = useCallback(() => {
     if (currentUser) {
       log.debug('手動刷新用戶頭像', { userId: currentUser.uid }, 'FirebaseAuthContext');
       
@@ -76,7 +76,7 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }, 500);
       });
     }
-  };
+  }, [currentUser]);
 
   // 身份驗證狀態監聽
   useEffect(() => {
@@ -98,22 +98,10 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         log.debug('Firebase 認證狀態變化: 用戶已登入', {
           userId: user.uid,
           email: user.email,
-          displayName: user.displayName,
-          hasPhotoURL: !!user.photoURL
+          displayName: user.displayName
         }, 'FirebaseAuthContext');
         
-        // 登入成功時保存基本資訊到 localStorage
-        try {
-          localStorage.setItem('auth_user', JSON.stringify({
-            uid: user.uid,
-            email: user.email,
-            timestamp: Date.now(),
-          }));
-        } catch (error) {
-          log.error('無法保存用戶資訊到 localStorage', error, 'FirebaseAuthContext');
-        }
-        
-        // 用戶登入時刷新頭像
+        // 登入後延遲刷新頭像，確保用戶資料已完全載入
         setTimeout(() => {
           refreshUserAvatar();
         }, 300);
@@ -123,7 +111,7 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     });
 
     return unsubscribe;
-  }, [setUser, setAuthLoading, initAuth]);
+  }, [setUser, setAuthLoading, initAuth, refreshUserAvatar]);
 
   // 登入方法
   const signIn = async (email: string, password: string): Promise<AuthResult> => {
@@ -206,11 +194,5 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   );
 };
 
-// 創建自定義鉤子
-export const useFirebaseAuth = () => {
-  const context = useContext(FirebaseAuthContext);
-  if (context === undefined) {
-    throw new Error('useFirebaseAuth must be used within a FirebaseAuthProvider');
-  }
-  return context;
-}; 
+// 導出 FirebaseAuthContext
+export { FirebaseAuthContext }; 

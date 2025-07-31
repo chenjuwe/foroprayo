@@ -128,15 +128,18 @@ export class FirebaseAuthService {
       this.saveUserToCache(userCredential.user);
       
       return { user: userCredential.user, error: null, fromCache: false };
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 檢查是否為配額超出或資源不足錯誤
-      if (error.code === 'auth/quota-exceeded' || 
-          error.message?.includes('quota') || 
-          error.message?.includes('metric') || 
-          error.message?.includes('INSUFFICIENT_RESOURCES')) {
+      const errorMessage = error instanceof Error ? error.message : '未知錯誤';
+      const errorCode = (error as { code?: string })?.code;
+      
+      if (errorCode === 'auth/quota-exceeded' || 
+          errorMessage?.includes('quota') || 
+          errorMessage?.includes('metric') || 
+          errorMessage?.includes('INSUFFICIENT_RESOURCES')) {
         
         // 記錄警告
-        log.warn('Firebase 認證資源限制', { retryCount, errorCode: error.code }, 'FirebaseAuthService');
+        log.warn('Firebase 認證資源限制', { retryCount, errorCode }, 'FirebaseAuthService');
         
         // 嘗試從緩存恢復
         const cachedUser = this.getCachedUser(email);
@@ -190,15 +193,15 @@ export class FirebaseAuthService {
       this.saveUserToCache(userCredential.user);
       
       return { user: userCredential.user, error: null };
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 檢查是否為配額超出或資源不足錯誤
-      if (error.code === 'auth/quota-exceeded' || 
-          error.message?.includes('quota') || 
-          error.message?.includes('metric') || 
-          error.message?.includes('INSUFFICIENT_RESOURCES')) {
+      if ((error as { code?: string })?.code === 'auth/quota-exceeded' || 
+          (error as Error).message?.includes('quota') || 
+          (error as Error).message?.includes('metric') || 
+          (error as Error).message?.includes('INSUFFICIENT_RESOURCES')) {
         
         // 記錄警告
-        log.warn('Firebase 註冊資源限制', { retryCount, errorCode: error.code }, 'FirebaseAuthService');
+        log.warn('Firebase 註冊資源限制', { retryCount, errorCode: (error as { code?: string })?.code }, 'FirebaseAuthService');
         
         // 檢查是否還有重試機會
         if (retryCount < MAX_RETRIES) {
@@ -237,7 +240,7 @@ export class FirebaseAuthService {
       // 執行 Firebase 登出
       await firebaseSignOut(auth());
       return { error: null };
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 即使 Firebase 登出失敗，也清除本地緩存
       localStorage.removeItem(CACHE_KEY);
       localStorage.removeItem(LAST_USER_KEY);
@@ -253,7 +256,7 @@ export class FirebaseAuthService {
     try {
       await sendPasswordResetEmail(auth(), email);
       return { error: null };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return { error: this.handleAuthError(error) };
     }
   }
@@ -268,8 +271,9 @@ export class FirebaseAuthService {
   /**
    * 處理身份驗證錯誤
    */
-  private static handleAuthError(error: any): string {
-    const errorCode = error.code;
+  private static handleAuthError(error: unknown): string {
+    const errorCode = (error as { code?: string })?.code;
+    const errorMessage = error instanceof Error ? error.message : '未知錯誤';
     
     switch (errorCode) {
       case 'auth/invalid-email':
@@ -290,10 +294,10 @@ export class FirebaseAuthService {
         return '認證服務暫時不可用，請稍後再試';
       default:
         // 檢查錯誤訊息中是否包含配額相關字眼
-        if (error.message?.includes('quota') || error.message?.includes('limit') || error.message?.includes('INSUFFICIENT_RESOURCES')) {
+        if (errorMessage?.includes('quota') || errorMessage?.includes('limit') || errorMessage?.includes('INSUFFICIENT_RESOURCES')) {
           return '認證服務暫時不可用，請稍後再試';
         }
-        return error.message || '發生未知錯誤';
+        return errorMessage || '發生未知錯誤';
     }
   }
 } 

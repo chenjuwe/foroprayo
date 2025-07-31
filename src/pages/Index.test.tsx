@@ -6,7 +6,10 @@ import { ROUTES } from '@/constants';
 // 模擬路由
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', () => ({
-  useNavigate: () => mockNavigate,
+  Navigate: ({ to, replace }: { to: string; replace?: boolean }) => {
+    mockNavigate(to, { replace });
+    return null;
+  },
 }));
 
 describe('Index Page', () => {

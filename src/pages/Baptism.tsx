@@ -74,81 +74,29 @@ export default function Baptism() {
 
   // 優化的 loadBackground 函數 - 從 Prayers 頁面複製
   const loadBackground = useCallback(async () => {
-    // 首先檢查是否有緩存的用戶資料
-    const cachedUser = localStorage.getItem('auth_user');
-    let userId = user?.uid;
-    
-    // 如果沒有用戶但有緩存，使用緩存的用戶 ID
-    if (!userId && cachedUser) {
-      try {
-        const userData = JSON.parse(cachedUser);
-        if (userData.uid) {
-          userId = userData.uid;
-        }
-      } catch (e) {
-        // 忽略解析錯誤
-      }
-    }
-    
-    // 訪客模式或沒有用戶 ID 時使用訪客背景
-    if (isGuestMode || !userId) {
-      setSelectedBackground(GUEST_DEFAULT_BACKGROUND);
-      return;
-    }
-    
     try {
-      // 嘗試從 localStorage 加載已保存的背景設置
-      const savedBackground = localStorage.getItem(`background_${userId}`);
-      
-      // 如果有已保存的背景，使用它
-      if (savedBackground) {
-        setSelectedBackground(savedBackground);
-        
-        const savedCustomBackground = localStorage.getItem(`customBackground_${userId}`);
-        if (savedBackground === 'custom' && savedCustomBackground) {
-          setCustomBackgroundImage(savedCustomBackground);
-          
-          const savedCustomBackgroundSize = localStorage.getItem(`customBackgroundSize_${userId}`);
-          if (savedCustomBackgroundSize) {
-            setCustomBackgroundSize(savedCustomBackgroundSize);
-          }
-        }
-        return;
-      }
-      
-      // 如果本地沒有背景設置，使用默認背景
-      setSelectedBackground(GUEST_DEFAULT_BACKGROUND);
-      
-      // 非同步獲取遠端背景設置，不阻塞頁面載入
-      if (navigator.onLine) {
-        backgroundService.getUserBackground(userId).then(remote => {
-          if (remote) {
-            setSelectedBackground(remote.background_id);
-            if (remote.background_id === 'custom' && remote.custom_background) {
-              setCustomBackgroundImage(remote.custom_background);
-              if (remote.custom_background_size) {
-                setCustomBackgroundSize(remote.custom_background_size);
-              }
-            }
-            
-            // 保存到 localStorage
-            localStorage.setItem(`background_${userId}`, remote.background_id);
-            if (remote.background_id === 'custom' && remote.custom_background) {
-              localStorage.setItem(`customBackground_${userId}`, remote.custom_background);
-              if (remote.custom_background_size) {
-                localStorage.setItem(`customBackgroundSize_${userId}`, remote.custom_background_size);
-              }
-            }
-          }
-        }).catch(() => {
-          // 忽略錯誤
-        });
+      if (isLoggedIn && user?.uid) {
+        // 登入用戶：從背景服務獲取個人化背景
+        const background = await backgroundService.getBackground(user.uid);
+        setSelectedBackground(background.selectedBackground || 'default');
+        setCustomBackgroundImage(background.customBackgroundImage || '');
+        setCustomBackgroundSize(background.customBackgroundSize || 'cover');
+      } else if (isGuestMode) {
+        // 訪客模式：使用訪客背景
+        setSelectedBackground(GUEST_DEFAULT_BACKGROUND);
+        setCustomBackgroundImage('');
+        setCustomBackgroundSize('cover');
+      } else {
+        // 未登入且非訪客：使用預設背景
+        setSelectedBackground('default');
+        setCustomBackgroundImage('');
+        setCustomBackgroundSize('cover');
       }
     } catch (error) {
       // 出錯時使用訪客背景，不中斷頁面載入
       setSelectedBackground(GUEST_DEFAULT_BACKGROUND);
     }
-  }, [isLoggedIn, user?.uid, isGuestMode, backgroundService]);
+  }, [user?.uid, isGuestMode, backgroundService, isLoggedIn]);
   
   // 初始化背景設置
   useEffect(() => {

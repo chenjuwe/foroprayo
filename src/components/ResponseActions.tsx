@@ -1,26 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { Edit, Forward, Trash2, Flag, Heart } from 'lucide-react';
-import { Menu, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from './ui/menu';
-import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
-import { usePrayerLikes, useTogglePrayerLike } from '../hooks/useSocialFeatures';
-import { useLocation } from 'react-router-dom';
-
-import { ReportDialog } from './ReportDialog';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { 
+  MoreHorizontal, 
+  Heart, 
+  MessageCircle, 
+  Share2, 
+  Bookmark, 
+  Edit, 
+  Trash2, 
+  UserPlus, 
+  UserCheck, 
+  Flag,
+  CheckCircle
+} from 'lucide-react';
+import { usePrayerResponseLikes, useTogglePrayerResponseLike } from '../hooks/useSocialFeatures';
 import { useDeletePrayerResponse } from '../hooks/usePrayerResponsesOptimized';
-import { useToggleResponseAnswered } from '../hooks/usePrayerAnswered';
-import { notify } from '@/lib/notifications';
+import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { log } from '@/lib/logger';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "./ui/alert-dialog";
-import TwoLineEditIconSrc from '../assets/icons/TwoLineEditIcon.svg';
+import { notify } from '@/lib/notifications';
+import { ReportDialog } from './ReportDialog';
+import { useLocation } from 'react-router-dom';
+import { useTogglePrayerResponseAnswered } from '../hooks/usePrayerAnswered';
+import { Menu, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from './ui/menu';
+
+// 定義 Like 對象類型
+interface Like {
+  id: string;
+  user_id: string;
+  response_id: string;
+  created_at: string;
+  [key: string]: unknown;
+}
 
 interface ResponseActionsProps {
   responseId: string;
@@ -61,8 +75,8 @@ export const ResponseActions: React.FC<ResponseActionsProps> = ({
   const isPrayersPage = location.pathname === '/prayers';
 
   // 愛心功能
-  const { data: likes = [] } = usePrayerLikes(responseId);
-  const toggleLikeMutation = useTogglePrayerLike();
+  const { data: likes = [] } = usePrayerResponseLikes(responseId);
+  const toggleLikeMutation = useTogglePrayerResponseLike();
 
   useEffect(() => {
     // 直接使用 currentUser，不需要在 useEffect 中調用 hook
@@ -70,7 +84,7 @@ export const ResponseActions: React.FC<ResponseActionsProps> = ({
   }, [currentUser]);
 
   // 檢查當前用戶是否已經按過愛心
-  const userLike = currentUserId ? likes.find((like: any) => like.user_id === currentUserId) : null;
+  const userLike = currentUserId ? likes.find((like: Like) => like.user_id === currentUserId) : null;
   const isLiked = !!userLike;
   const likeCount = likes.length;
 

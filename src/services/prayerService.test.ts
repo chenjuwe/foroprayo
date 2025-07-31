@@ -64,7 +64,7 @@ describe('PrayerService', () => {
     // 設置 useFirebaseAuthStore.getState() 的返回值
     vi.mocked(useFirebaseAuthStore.getState).mockReturnValue({
       user: mockUser
-    } as any);
+    } as { user: { uid: string; email: string; displayName: string } });
   });
 
   it('should get all prayers', async () => {

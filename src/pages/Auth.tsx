@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AuthForm } from '@/components/auth/AuthForm';
-import { AuthFooter } from '@/components/auth/AuthFooter';
-import { useToast } from '@/hooks/use-toast';
-import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { toast } from 'sonner';
+import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore';
 import { log } from '@/lib/logger';
 import { useFirebaseAvatar } from '@/hooks/useFirebaseAvatar';
+import { AuthForm } from '@/components/auth/AuthForm';
 
 // 頁面預加載函數 - 這會在模組層級執行，而不是在組件內部
 (() => {
@@ -32,7 +31,6 @@ import { useFirebaseAvatar } from '@/hooks/useFirebaseAvatar';
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { signIn, signUp, refreshUserAvatar } = useFirebaseAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -335,12 +333,12 @@ export default function Auth() {
       // 記錄操作
       log.debug('執行訪客模式跳轉到 /prayers', null, 'Auth');
       
-      // 使用最直接的導航方式
-      window.location.href = '/prayers';
+      // 使用 React Router 的 navigate 進行導航
+      navigate('/prayers');
     } catch (error) {
       console.error('訪客模式導航失敗', error);
-      // 如果出現錯誤，仍然使用同樣的方法
-      window.location.href = '/prayers';
+      // 如果出現錯誤，使用備用方法
+      navigate('/prayers');
     }
   };
 

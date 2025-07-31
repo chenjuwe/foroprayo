@@ -11,7 +11,7 @@ export function cn(...inputs: ClassValue[]) {
  * @param delay 延遲時間（毫秒）
  * @returns 延遲執行的函數
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   fn: T,
   delay: number
 ): (...args: Parameters<T>) => void {
@@ -81,7 +81,7 @@ export const browserDetection = {
   isIOS(): boolean {
     return typeof navigator !== 'undefined' && 
       /iPad|iPhone|iPod/.test(navigator.userAgent) && 
-      !(window as any).MSStream;
+      !(window as { MSStream?: unknown }).MSStream;
   },
 
   /**

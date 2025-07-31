@@ -295,8 +295,8 @@ export default FirebaseUserService;
 export async function getUserAvatarUrlFromFirebase(userId: string): Promise<{ large: string; medium: string; small: string }> {
   const userData = await FirebaseUserService.getUserData(userId);
   let baseUrl = '';
-  if (userData && (userData as any).photoURL) {
-    baseUrl = (userData as any).photoURL;
+  if (userData && userData.photoURL) {
+    baseUrl = userData.photoURL;
   }
   if (!baseUrl) {
     // 沒有頭像就用預設

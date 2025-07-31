@@ -414,7 +414,7 @@ export class FirebasePrayerService extends BaseService {
    * 更新代禱的任意字段
    * 用於內部服務調用，不進行權限檢查
    */
-  async updatePrayerFields(id: string, fields: Record<string, any>): Promise<Prayer | null> {
+  async updatePrayerFields(id: string, fields: Record<string, unknown>): Promise<Prayer | null> {
     this.logOperation('updatePrayerFields', { id, fields: Object.keys(fields) });
     
     try {

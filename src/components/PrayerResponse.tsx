@@ -16,6 +16,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import { QUERY_KEYS } from '@/constants';
 import { useLocation } from 'react-router-dom';
 
+// 定義 Like 對象類型
+interface Like {
+  id: string;
+  user_id: string;
+  response_id: string;
+  created_at: string;
+  [key: string]: unknown;
+}
+
 interface PrayerResponseProps {
   response: PrayerResponseType;
   currentUserId: string | null;
@@ -71,7 +80,7 @@ const PrayerResponseComponent: React.FC<PrayerResponseProps> = ({
   
   // 檢查當前用戶是否已經按過愛心
   const userLike = currentUserId 
-    ? likes.find((like: any) => like.user_id === currentUserId)
+    ? likes.find((like: Like) => like.user_id === currentUserId)
     : null;
   
   const isLiked = !!userLike;

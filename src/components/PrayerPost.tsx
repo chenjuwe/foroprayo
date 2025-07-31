@@ -27,6 +27,28 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+// 定義 Response 對象類型
+interface Response {
+  id: string;
+  prayer_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  is_anonymous: boolean;
+  user_name?: string;
+  user_avatar?: string;
+  [key: string]: unknown;
+}
+
+// 定義 Like 對象類型
+interface Like {
+  id: string;
+  user_id: string;
+  prayer_id: string;
+  created_at: string;
+  [key: string]: unknown;
+}
+
 type PostType = Prayer | BaptismPost | JourneyPost | MiraclePost;
 
 interface PrayerPostProps {
@@ -55,7 +77,7 @@ const ResponseSection = ({
   isSuperAdmin: boolean; 
   isLoggedIn: boolean; 
   isAnswered: boolean; 
-  responses: any[]; 
+  responses: Response[]; 
   isLoading: boolean;
   refetchResponses: () => void;
   onResponseAdded?: () => void; 
@@ -246,7 +268,7 @@ const ResponseSection = ({
     }
     
     // 在請求中添加訪客模式標記，方便服務層處理
-    (responseRequest as any).isGuestMode = isGuestMode;
+    (responseRequest as CreateResponseRequest & { isGuestMode?: boolean }).isGuestMode = isGuestMode;
     
     log.debug('提交回應請求', {
       ...responseRequest,

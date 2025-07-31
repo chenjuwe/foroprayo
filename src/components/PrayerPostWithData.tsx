@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { PrayerForm } from './PrayerForm';
 import { usePrayerResponses, useCreatePrayerResponse } from '../hooks/usePrayerResponsesOptimized';
-import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
+import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 
 import { notify } from '@/lib/notifications';
 import { log } from '@/lib/logger';

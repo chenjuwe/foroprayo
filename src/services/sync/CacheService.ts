@@ -40,7 +40,7 @@ class CacheService {
         persister: this.persister,
         maxAge: CACHE_CONFIG.INDEXED_DB_TTL, // 持久化緩存最大壽命
         dehydrateOptions: {
-          shouldDehydrateQuery: (query: any) => {
+          shouldDehydrateQuery: (query: { queryKey: unknown[] }) => {
             // 只持久化特定的查詢，避免存儲敏感或不需要持久化的數據
             const queryKey = query.queryKey[0];
             const persistableKeys = ['prayers', 'prayer-responses', 'user-profile'];

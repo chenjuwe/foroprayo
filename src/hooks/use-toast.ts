@@ -169,18 +169,6 @@ function toast({ ...props }: Toast) {
 }
 
 function useToast() {
-  // 確保 React 已經載入並初始化
-  if (!React || typeof React.useState !== 'function') {
-    console.error('React not properly initialized in useToast');
-    return { 
-      toasts: [], 
-      toast, 
-      dismiss: (toastId?: string) => {
-        dispatch({ type: "DISMISS_TOAST", toastId: toastId });
-      }
-    };
-  }
-  
   const [state, setState] = React.useState<State>(memoryState);
 
   React.useEffect(() => {
@@ -191,7 +179,7 @@ function useToast() {
         listeners.splice(index, 1);
       }
     };
-  }, [state]);
+  }, []); // 移除 state 依賴項，避免無限循環
 
   return {
     ...state,

@@ -1,3 +1,15 @@
+/* eslint-disable react-refresh/only-export-components */
+import React, { PropsWithChildren } from 'react';
+import { render, RenderOptions } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { User as FirebaseUser } from 'firebase/auth';
+import { FirebaseAuthProvider } from '@/contexts/FirebaseAuthContext';
+import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
+import { mockUser, mockPrayers, mockResponses } from './test-constants';
+import { vi } from 'vitest';
+import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore';
+import { createTestQueryClient, mockFirebaseAuthStore } from './test-helpers';
 
 // 首先放置所有 vi.mock 調用，確保它們在任何導入之前
 vi.mock('@/integrations/firebase/client', () => ({
@@ -59,165 +71,6 @@ vi.mock('firebase/storage', () => ({
   uploadBytes: vi.fn(),
   getDownloadURL: vi.fn()
 }));
-
-// 然後是其他導入
-import React, { PropsWithChildren } from 'react';
-import { render, RenderOptions } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { User as FirebaseUser } from 'firebase/auth';
-import { FirebaseAuthProvider, useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
-import { Prayer } from '@/types/prayer';
-import { PrayerResponse } from '@/types/prayer';
-import { vi } from 'vitest';
-import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore';
-
-// 創建一個模擬的 QueryClient
-export const createTestQueryClient = () => 
-  new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-        gcTime: Infinity,
-        staleTime: Infinity,
-      },
-    },
-  });
-
-// 模擬用戶數據 - Firebase 版本
-export const mockUser: FirebaseUser = {
-  uid: 'test-user-id-123',
-  email: 'test@example.com',
-  displayName: '測試用戶',
-  photoURL: 'https://example.com/avatar.png',
-  emailVerified: true,
-  isAnonymous: false,
-  metadata: {
-    creationTime: '2025-01-01',
-    lastSignInTime: '2025-01-01'
-  },
-  providerData: [],
-  refreshToken: 'test-refresh-token',
-  tenantId: null,
-  delete: vi.fn(),
-  getIdToken: vi.fn(),
-  getIdTokenResult: vi.fn(),
-  reload: vi.fn(),
-  toJSON: vi.fn()
-} as unknown as FirebaseUser;
-
-// 定義一個通用的測試用戶（簡化版，用於模擬）
-export const genericUser = {
-  uid: 'test-user-id-123',
-  email: 'test@example.com',
-  displayName: '測試用戶',
-};
-
-// 模擬代禱數據
-export const mockPrayers: Prayer[] = [
-    {
-    id: 'prayer-1',
-    content: '第一個測試代禱內容',
-    user_id: 'test-user-id-123',
-      user_name: '測試用戶',
-    user_avatar: 'https://example.com/avatar.png',
-    created_at: '2025-01-01T10:00:00Z',
-    updated_at: '2025-01-01T10:00:00Z',
-    is_anonymous: false,
-    response_count: 2,
-  },
-  {
-    id: 'prayer-2',
-    content: '第二個測試代禱內容',
-    user_id: 'other-user-id',
-    user_name: '其他用戶',
-    user_avatar: 'https://example.com/avatar2.png',
-    created_at: '2025-01-02T10:00:00Z',
-    updated_at: '2025-01-02T10:00:00Z',
-      is_anonymous: false,
-    response_count: 0,
-    },
-  {
-    id: 'prayer-3',
-    content: '匿名代禱內容',
-    user_id: 'anon-user-id',
-    user_name: '匿名用戶',
-    user_avatar: '',
-    created_at: '2025-01-03T10:00:00Z',
-    updated_at: '2025-01-03T10:00:00Z',
-    is_anonymous: true,
-    response_count: 1,
-  },
-];
-
-// 模擬代禱回應數據
-export const mockResponses: PrayerResponse[] = [
-  {
-    id: 'response-1',
-    prayer_id: 'prayer-1',
-    content: '第一個回應內容',
-    user_id: 'other-user-id',
-    user_name: '其他用戶',
-    user_avatar: 'https://example.com/avatar2.png',
-    created_at: '2025-01-04T10:00:00Z',
-    updated_at: '2025-01-04T10:00:00Z',
-    is_anonymous: false,
-  },
-  {
-    id: 'response-2',
-    prayer_id: 'prayer-1',
-    content: '第二個回應內容',
-    user_id: 'test-user-id-123',
-    user_name: '測試用戶',
-    user_avatar: 'https://example.com/avatar.png',
-    created_at: '2025-01-05T10:00:00Z',
-    updated_at: '2025-01-05T10:00:00Z',
-    is_anonymous: false,
-  },
-];
-
-// 模擬 Zustand Firebase 認證存儲
-export const mockFirebaseAuthStore = () => {
-  const originalUseFirebaseAuthStore = useFirebaseAuthStore;
-  
-  // 模擬登入狀態
-  const mockLoggedInState = {
-    user: mockUser,
-    isAuthLoading: false,
-    displayName: '測試用戶',
-    setUser: vi.fn(),
-    setAuthLoading: vi.fn(),
-    setDisplayName: vi.fn(),
-    initAuth: vi.fn().mockResolvedValue(undefined),
-    signOut: vi.fn().mockResolvedValue(undefined),
-  };
-  
-  // 模擬未登入狀態
-  const mockLoggedOutState = {
-    user: null,
-    isAuthLoading: false,
-    displayName: '',
-    setUser: vi.fn(),
-    setAuthLoading: vi.fn(),
-    setDisplayName: vi.fn(),
-    initAuth: vi.fn().mockResolvedValue(undefined),
-    signOut: vi.fn().mockResolvedValue(undefined),
-  };
-  
-  // 創建模擬函數
-  const mockStore = (isLoggedIn = true) => {
-    vi.spyOn(useFirebaseAuthStore, 'getState').mockReturnValue(
-      isLoggedIn ? mockLoggedInState : mockLoggedOutState
-    );
-    
-    return vi.fn().mockImplementation((selector) => {
-      const state = isLoggedIn ? mockLoggedInState : mockLoggedOutState;
-      return selector(state);
-    });
-  };
-  
-  return { originalUseFirebaseAuthStore, mockStore };
-};
 
 // 模擬 FirebaseAuthProvider 和 useFirebaseAuth
 vi.mock('@/contexts/FirebaseAuthContext', () => {
@@ -318,7 +171,7 @@ interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
   queryClient?: QueryClient;
   initialEntries?: string[];
   authenticatedUser?: boolean;
-  user?: FirebaseUser | null; // 可以直接傳入用戶對象
+  user?: FirebaseUser | null;
 }
 
 export function renderWithProviders(
@@ -344,8 +197,4 @@ export function renderWithProviders(
     ),
     ...renderOptions,
   });
-}
-
-// 導出所有測試庫函數
-export * from '@testing-library/react';
-export { renderWithProviders as render }; 
+} 

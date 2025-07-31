@@ -70,8 +70,9 @@ export default function NewFire() {
       
       const url = await FirebasePrayerImageService.uploadPrayerImage(uploadUserId, file);
       setImageUrl(url);
-    } catch (err: any) {
-      setUploadError(err.message || '圖片上傳失敗');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : '圖片上傳失敗';
+      setUploadError(errorMessage);
     } finally {
       setUploading(false);
     }

@@ -1,9 +1,26 @@
 import React, { useState } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { log } from '@/lib/logger';
-import { formatDistanceToNow, format, differenceInHours, differenceInSeconds } from 'date-fns';
+import { format, formatDistanceToNow, differenceInHours, differenceInSeconds } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { log } from '@/lib/logger';
+
+// 定義用戶資料類型
+interface UserProfile {
+  username?: string;
+  display_name?: string;
+  avatar_url?: string;
+  [key: string]: unknown;
+}
+
+// 定義頭像類型
+interface UserAvatar {
+  avatar_url_30?: string;
+  avatar_url_48?: string;
+  avatar_url_96?: string;
+  [key: string]: unknown;
+}
 
 interface FriendRequest {
   id: string;
@@ -14,8 +31,8 @@ interface FriendRequest {
   sender_name?: string;
   sender_name_at_time?: string;
   sender_avatar?: string;
-  original_sender_profile?: any;
-  original_sender_avatar?: any;
+  original_sender_profile?: UserProfile;
+  original_sender_avatar?: UserAvatar;
 }
 
 interface FriendRequestCardProps {

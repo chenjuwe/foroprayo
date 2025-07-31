@@ -63,7 +63,7 @@ export default function Setting() {
   }, [user, tempDisplayName, userId]);
 
   // 提取保存用戶名稱的核心邏輯到一個非 debounce 函數
-  const saveUsername = async (username: string) => {
+  const saveUsername = React.useCallback(async (username: string) => {
     if (!user || !username.trim()) return;
     
     if (username.trim() === user.displayName) return;
@@ -104,13 +104,18 @@ export default function Setting() {
       log.error('用戶名稱更新失敗', error, 'Setting');
       return false; // 返回失敗標誌
     }
-  };
+  }, [user, queryClient, setTempDisplayName, refreshAvatar]);
 
   const debouncedSaveUsername = React.useCallback(
-    debounce(async (username: string) => {
-      await saveUsername(username);
-    }, 1000),
-    [user, refreshAvatar, queryClient, setTempDisplayName]
+    (username: string) => {
+      const timeoutId = setTimeout(async () => {
+        await saveUsername(username);
+      }, 1000);
+      
+      // 清理之前的 timeout
+      return () => clearTimeout(timeoutId);
+    },
+    [saveUsername]
   );
 
   const handleUsernameChange = (value: string) => {
@@ -222,7 +227,7 @@ export default function Setting() {
       
       // 確保立即跳轉
       window.location.href = '/auth';
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 清除計時器
       toast.dismiss();
       toast.error('登出處理中', { description: "正在重新導向..." });

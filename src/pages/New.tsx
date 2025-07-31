@@ -43,7 +43,7 @@ export default function New() {
   
   // 新增錯誤狀態
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [debugInfo, setDebugInfo] = useState<{ message: string; data?: unknown } | null>(null);
 
   const backgroundService = React.useRef(new BackgroundService()).current;
 
@@ -75,8 +75,9 @@ export default function New() {
       
       const url = await FirebasePrayerImageService.uploadPrayerImage(uploadUserId, file);
       setImageUrl(url);
-    } catch (err: any) {
-      setUploadError(err.message || '圖片上傳失敗');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : '圖片上傳失敗';
+      setUploadError(errorMessage);
     } finally {
       setUploading(false);
     }
@@ -258,23 +259,31 @@ export default function New() {
           notify.success('代禱發布成功！');
           navigate(ROUTES.PRAYERS);
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
           console.error('❌ 代禱發布失敗:', error);
-          setSubmitError(error?.message || '發布失敗，請稍後再試');
+          const errorMessage = error instanceof Error ? error.message : '發布失敗，請稍後再試';
+          setSubmitError(errorMessage);
           setDebugInfo({
-            errorType: error?.name,
-            errorStack: error?.stack,
-            prayerData
+            message: errorMessage,
+            data: {
+              errorType: error instanceof Error ? error.name : 'Unknown',
+              errorStack: error instanceof Error ? error.stack : undefined,
+              prayerData
+            }
           });
-          notify.error('代禱發布失敗：' + (error?.message || '請稍後再試'));
+          notify.error('代禱發布失敗：' + errorMessage);
         }
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ 代禱表單提交處理錯誤:', error);
-      setSubmitError(error?.message || '發布處理失敗，請稍後再試');
+      const errorMessage = error instanceof Error ? error.message : '發布處理失敗，請稍後再試';
+      setSubmitError(errorMessage);
       setDebugInfo({
-        errorType: error?.name,
-        errorStack: error?.stack
+        message: errorMessage,
+        data: {
+          errorType: error instanceof Error ? error.name : 'Unknown',
+          errorStack: error instanceof Error ? error.stack : undefined
+        }
       });
     }
   };

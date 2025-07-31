@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,7 @@ import { firebaseReportService, firebasePrayerService, firebasePrayerResponseSer
 import { FirebaseReport } from '../../services/report/FirebaseReportService';
 import { Flag, Clock, CheckCircle, XCircle, Eye, Trash2, Edit } from 'lucide-react';
 import { Spinner } from "@/components/ui/spinner";
+import { Report } from '@/types/common';
 
 interface DailyStats {
   date: string;
@@ -63,26 +65,26 @@ export default function Reports() {
   const [userActivity, setUserActivity] = useState<UserActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState(7);
-  const [reports, setReports] = useState<FirebaseReport[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [selectedReport, setSelectedReport] = useState<FirebaseReport | null>(null);
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [adminNotes, setAdminNotes] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
   // 獲取臨時檢舉（從 localStorage）
-  const getTempReports = () => {
+  const getTempReports = (): FirebaseReport[] => {
     try {
       const tempReports = JSON.parse(localStorage.getItem('tempReports') || '[]');
       return tempReports.map((report: Record<string, unknown>) => ({
         ...report,
         isTemp: true
-      }));
+      })) as FirebaseReport[];
     } catch {
       return [];
     }
   };
 
-  const [tempReports, setTempReports] = useState<any[]>([]);
+  const [tempReports, setTempReports] = useState<FirebaseReport[]>([]);
 
   const loadTempReports = () => {
     const temp = getTempReports();
@@ -750,7 +752,7 @@ export default function Reports() {
                           {getTypeText(report.report_type)}
                         </Badge>
                         <span className="text-sm text-gray-500">
-                          {formatDate(report.created_at)}
+                          {new Date(report.created_at.toDate()).toLocaleString('zh-TW')}
                         </span>
                       </div>
                       <div className="mb-2">
@@ -937,7 +939,7 @@ export default function Reports() {
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <span className="inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
-                      臨時 - {report.report_type === 'prayer' ? '代禱' : '回應'}
+                      臨時 - {report.target_type === 'prayer' ? '代禱' : '回應'}
                     </span>
                     <span className="ml-2 text-sm text-gray-500">
                       {new Date(report.created_at).toLocaleString('zh-TW')}
@@ -953,13 +955,13 @@ export default function Reports() {
                   <div>
                     <span className="font-medium text-gray-700">被檢舉內容：</span>
                     <p className="text-gray-600 bg-gray-50 p-2 rounded mt-1">
-                      {report.target_content}
+                      {report.details}
                     </p>
                   </div>
-                  {report.target_user_name && (
+                  {report.reporter_name && (
                     <div>
                       <span className="font-medium text-gray-700">發言者：</span>
-                      <span className="text-gray-600">{report.target_user_name}</span>
+                      <span className="text-gray-600">{report.reporter_name}</span>
                     </div>
                   )}
                 </div>

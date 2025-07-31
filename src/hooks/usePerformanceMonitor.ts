@@ -9,6 +9,17 @@ interface PerformanceMetrics {
   firstInputDelay: number;
 }
 
+// 定義 Performance Entry 類型
+interface LayoutShiftEntry extends PerformanceEntry {
+  value: number;
+  hadRecentInput: boolean;
+}
+
+interface FirstInputEntry extends PerformanceEntry {
+  processingStart: number;
+  startTime: number;
+}
+
 export function usePerformanceMonitor() {
   const metricsRef = useRef<PerformanceMetrics | null>(null);
 
@@ -21,12 +32,7 @@ export function usePerformanceMonitor() {
     const measurePerformance = () => {
       try {
         // 頁面載入時間
-        const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
-        const pageLoadTime = navigation.loadEventEnd - navigation.loadEventStart;
-
-        // 首次內容繪製
-        const fcpEntry = performance.getEntriesByName('first-contentful-paint')[0] as PerformanceEntry;
-        const firstContentfulPaint = fcpEntry ? fcpEntry.startTime : 0;
+        const pageLoadTime = performance.now();
 
         // 最大內容繪製
         let largestContentfulPaint = 0;
@@ -37,27 +43,35 @@ export function usePerformanceMonitor() {
         });
         lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
 
-                 // 累積佈局偏移
-         let cumulativeLayoutShift = 0;
-         const clsObserver = new PerformanceObserver((list) => {
-           for (const entry of list.getEntries()) {
-             const layoutShiftEntry = entry as any;
-             if (!layoutShiftEntry.hadRecentInput) {
-               cumulativeLayoutShift += layoutShiftEntry.value;
-             }
-           }
-         });
-         clsObserver.observe({ entryTypes: ['layout-shift'] });
+        // 首次內容繪製
+        let firstContentfulPaint = 0;
+        const paintEntries = performance.getEntriesByType('paint');
+        const fcpEntry = paintEntries.find(entry => entry.name === 'first-contentful-paint');
+        if (fcpEntry) {
+          firstContentfulPaint = fcpEntry.startTime;
+        }
 
-         // 首次輸入延遲
-         let firstInputDelay = 0;
-         const fidObserver = new PerformanceObserver((list) => {
-           for (const entry of list.getEntries()) {
-             const fidEntry = entry as any;
-             firstInputDelay = fidEntry.processingStart - fidEntry.startTime;
-             break; // 只取第一個
-           }
-         });
+        // 累積佈局偏移
+        let cumulativeLayoutShift = 0;
+        const clsObserver = new PerformanceObserver((list) => {
+          for (const entry of list.getEntries()) {
+            const layoutShiftEntry = entry as LayoutShiftEntry;
+            if (!layoutShiftEntry.hadRecentInput) {
+              cumulativeLayoutShift += layoutShiftEntry.value;
+            }
+          }
+        });
+        clsObserver.observe({ entryTypes: ['layout-shift'] });
+
+        // 首次輸入延遲
+        let firstInputDelay = 0;
+        const fidObserver = new PerformanceObserver((list) => {
+          for (const entry of list.getEntries()) {
+            const fidEntry = entry as FirstInputEntry;
+            firstInputDelay = fidEntry.processingStart - fidEntry.startTime;
+            break; // 只取第一個
+          }
+        });
         fidObserver.observe({ entryTypes: ['first-input'] });
 
         // 記錄性能指標
@@ -143,19 +157,19 @@ export const useDeepMemo = <T>(factory: () => T, deps: React.DependencyList): T 
 };
 
 // 簡單的深度比較函數
-function deepEqual(a: any, b: any): boolean {
+function deepEqual(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   if (a == null || b == null) return false;
   if (typeof a !== typeof b) return false;
   
-  if (typeof a === 'object') {
-    const keysA = Object.keys(a);
-    const keysB = Object.keys(b);
+  if (typeof a === 'object' && typeof b === 'object') {
+    const keysA = Object.keys(a as Record<string, unknown>);
+    const keysB = Object.keys(b as Record<string, unknown>);
     
     if (keysA.length !== keysB.length) return false;
     
     for (const key of keysA) {
-      if (!keysB.includes(key) || !deepEqual(a[key], b[key])) {
+      if (!keysB.includes(key) || !deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])) {
         return false;
       }
     }

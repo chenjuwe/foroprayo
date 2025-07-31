@@ -40,10 +40,11 @@ export function useOnlineStatus(): OnlineStatusResult {
       setLastChecked(new Date());
       return true;
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       log.error('網路連線檢查失敗', err, 'useOnlineStatus');
       setOnlineStatus(false);
-      setConnectionError(`連線檢測發生錯誤: ${err.message || '未知錯誤'}`);
+      const errorMessage = err instanceof Error ? err.message : '未知錯誤';
+      setConnectionError(`連線檢測發生錯誤: ${errorMessage}`);
       setLastChecked(new Date());
       return false;
     }

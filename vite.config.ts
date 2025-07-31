@@ -14,6 +14,12 @@ export default defineConfig(({ mode }) => ({
     host: true,
     port: 5173, 
     strictPort: false,
+    // 明確配置 HMR
+    hmr: {
+      port: 5173,
+      host: 'localhost',
+      protocol: 'ws'
+    },
     // 移除 hmr 設定，讓 Vite 自動處理
     headers:
       mode === 'development'
@@ -63,7 +69,7 @@ export default defineConfig(({ mode }) => ({
       transform(code, id) {
         if (id.endsWith('.css') && code.includes('-:.')) {
           return {
-            code: code.replace(/\.\[-\\?:\.\]\s*\{-:\s*\.\}/g, '.\[-\\?:\.\] {display: inline;}'),
+            code: code.replace(/\.\[-\\?:\.\]\s*\{-:\s*\.\}/g, '.\\[-\\?:.\\.\\] {display: inline;}'),
             map: null
           };
         }
@@ -74,7 +80,7 @@ export default defineConfig(({ mode }) => ({
           const asset = bundle[key];
           if (key.endsWith('.css') && asset.type === 'asset' && asset.source) {
             // 將 CSS 中的問題語法替換為有效的語法
-            const fixedSource = asset.source.toString().replace(/\.\[-\\?:\.\]\s*\{-:\s*\.\}/g, '.\[-\\?:\.\] {display: inline;}');
+            const fixedSource = asset.source.toString().replace(/\.\[-\\?:\.\]\s*\{-:\s*\.\}/g, '.\\[-\\?:.\\.\\] {display: inline;}');
             asset.source = fixedSource;
           }
         });

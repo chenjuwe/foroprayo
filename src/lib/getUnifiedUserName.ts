@@ -1,5 +1,19 @@
+// 定義用戶對象類型
+interface User {
+  uid?: string;
+  displayName?: string | null;
+  email?: string | null;
+  name?: string;
+  user_metadata?: {
+    display_name?: string;
+    full_name?: string;
+    name?: string;
+  };
+  [key: string]: unknown;
+}
+
 // 統一取得用戶名稱的共用函式
-export function getUnifiedUserName(user: any, isAnonymous?: boolean, tempName?: string, userId?: string): string {
+export function getUnifiedUserName(user: User | string | null, isAnonymous?: boolean, tempName?: string, userId?: string): string {
   // 如果是匿名帖子，始終顯示為訪客
   if (isAnonymous === true) {
     console.log('[getUnifiedUserName] 匿名模式，返回訪客', { isAnonymous });
@@ -13,7 +27,7 @@ export function getUnifiedUserName(user: any, isAnonymous?: boolean, tempName?: 
   }
   
   // 新增：檢查 user 是否為簡單物件，僅包含名稱
-  if (user && typeof user === 'object' && user.name && Object.keys(user).length === 1) {
+  if (user && typeof user === 'object' && 'name' in user && Object.keys(user).length === 1) {
     console.log('[getUnifiedUserName] 用戶僅包含名稱，直接返回', { name: user.name });
     return user.name;
   }

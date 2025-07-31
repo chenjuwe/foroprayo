@@ -76,7 +76,7 @@ export class SuperAdminService extends BaseService {
   /**
    * 測試用：獲取用戶個人資料變更歷史 (暫時停用 Supabase 版本)
    */
-  async testGetUserProfileHistory(userId: string): Promise<any> {
+  async testGetUserProfileHistory(userId: string): Promise<{ data: null; error: { message: string } }> {
     // 暫時停用 Supabase 功能
     console.log('Supabase 超級管理員功能已停用');
     return { data: null, error: { message: '功能暫時停用' } };
@@ -85,7 +85,7 @@ export class SuperAdminService extends BaseService {
   /**
    * 直接查詢所有歷史記錄 (暫時停用 Supabase 版本)
    */
-  async directQueryHistory(): Promise<any> {
+  async directQueryHistory(): Promise<{ data: null; error: { message: string } }> {
     // 暫時停用 Supabase 功能
     console.log('Supabase 超級管理員功能已停用');
     return { data: null, error: { message: '功能暫時停用' } };
@@ -97,7 +97,7 @@ export class SuperAdminService extends BaseService {
   async getDetailedUserHistory(userId: string): Promise<{
     success: boolean;
     data: UserProfileHistory[] | null;
-    error: any;
+    error: { message: string };
     errorDetails: string;
     isSuperAdmin: boolean;
   }> {

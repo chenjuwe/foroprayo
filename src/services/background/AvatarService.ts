@@ -176,4 +176,24 @@ export class AvatarService extends BaseService {
       return null;
     }
   }
-} 
+}
+
+// 導出 getUserAvatarUrlFromFirebase 函數
+export const getUserAvatarUrlFromFirebase = async (userId: string) => {
+  const avatarService = new AvatarService();
+  const userAvatar = await avatarService.getUserAvatar(userId);
+  
+  if (!userAvatar) {
+    return {
+      large: null,
+      medium: null,
+      small: null
+    };
+  }
+  
+  return {
+    large: userAvatar.avatar_url_96 || null,
+    medium: userAvatar.avatar_url_48 || null,
+    small: userAvatar.avatar_url_30 || null
+  };
+}; 

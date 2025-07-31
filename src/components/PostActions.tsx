@@ -1,17 +1,34 @@
-import React, { useState } from 'react';
-import { Edit, Forward, Bookmark, Trash2, Heart, Flag } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { 
+  MoreHorizontal, 
+  Heart, 
+  MessageCircle, 
+  Share2, 
+  Bookmark, 
+  Edit, 
+  Trash2, 
+  UserPlus, 
+  UserCheck, 
+  Flag,
+  CheckCircle
+} from 'lucide-react';
+import { usePrayerLikes, useTogglePrayerLike } from '../hooks/useSocialFeatures';
+import { useDeletePrayer } from '../hooks/usePrayersOptimized';
+import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
+import { log } from '@/lib/logger';
+import { notify } from '@/lib/notifications';
+import { ReportDialog } from './ReportDialog';
+import { formatDistanceToNow } from 'date-fns';
+import { zhTW } from 'date-fns/locale';
 import TwoLineEditIconSrc from '../assets/icons/TwoLineEditIcon.svg';
 import { Menu, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from './ui/menu';
-import { usePrayerLikes, useTogglePrayerLike } from '../hooks/useSocialFeatures';
-import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
-import { useLocation } from 'react-router-dom';
-
-import { Button } from './ui/button';
-import { ReportDialog } from './ReportDialog';
-import { useDeletePrayer } from '../hooks/usePrayersOptimized';
 import { useTogglePrayerAnswered } from '../hooks/usePrayerAnswered';
-import { notify } from '@/lib/notifications';
-import { log } from '@/lib/logger';
+import { useLocation } from 'react-router-dom';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,7 +38,17 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "./ui/alert-dialog";
+} from '@/components/ui/alert-dialog';
+
+
+// 定義 Like 對象類型
+interface Like {
+  id: string;
+  user_id: string;
+  prayer_id: string;
+  created_at: string;
+  [key: string]: unknown;
+}
 
 interface PostActionsProps {
   prayerId: string;
@@ -81,7 +108,7 @@ export const PostActions: React.FC<PostActionsProps> = ({
   }, [currentUser, prayerId]);
 
   // 檢查當前用戶是否已經按過愛心
-  const userLike = currentUserId ? likes.find((like: any) => like.user_id === currentUserId) : null;
+  const userLike = currentUserId ? likes.find((like: Like) => like.user_id === currentUserId) : null;
   const isLiked = !!userLike;
   const likeCount = likes.length;
 
@@ -262,7 +289,7 @@ export const PostActions: React.FC<PostActionsProps> = ({
               {likeCount > 0 && <span className="text-xs text-gray-500 ml-1">({likeCount})</span>}
             </MenuItem>
             <MenuItem onClick={handleForward} className="flex items-center gap-2 px-4 py-2 w-full">
-              <Forward size={14} />
+              <Share2 size={14} />
               轉寄
             </MenuItem>
             <MenuItem onClick={handleBookmark} className="flex items-center gap-2 px-4 py-2 w-full">

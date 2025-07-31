@@ -70,7 +70,7 @@ export default function Prayers() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isLoggedIn, refetchPrayers, initFirebaseAuth]);
   
   // 簡化的頁面權限檢查 - 只在非訪客模式且用戶未登入時重定向
   useEffect(() => {
@@ -100,7 +100,7 @@ export default function Prayers() {
     } catch (error) {
       // 忽略錯誤
     }
-  }, [isGuestMode, isLoggedIn]);
+  }, [isLoggedIn, refetchPrayers, initFirebaseAuth]);
   
   // 添加本地狀態，用於樂觀刪除
   const [localPrayers, setLocalPrayers] = useState<Prayer[]>([]);
@@ -207,7 +207,7 @@ export default function Prayers() {
       // 出錯時使用訪客背景，不中斷頁面載入
       setSelectedBackground(GUEST_DEFAULT_BACKGROUND);
     }
-  }, [isLoggedIn, user?.uid, isGuestMode, backgroundService]);
+  }, [user?.uid, isGuestMode, backgroundService]);
   
   // 初始化背景設置
   useEffect(() => {

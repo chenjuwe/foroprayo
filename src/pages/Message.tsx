@@ -1,18 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { Header } from '../components/Header';
 import { log } from '@/lib/logger';
 import { useFirebaseAvatar } from '@/hooks/useFirebaseAvatar';
 import { MessageCard } from '../components/MessageCard';
-import { useSearchParams } from 'react-router-dom';
 import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore';
 import { db } from '@/integrations/firebase/client';
 import { doc, getDoc } from 'firebase/firestore';
 
+// 定義好友請求類型
+interface FriendRequest {
+  id: string;
+  senderId: string;
+  senderName?: string;
+  receiverId: string;
+  status: string;
+  createdAt: string;
+}
+
 // 臨時實現：Firebase 版本的好友請求卡片
-const FirebaseFriendRequestCard = ({ request }: { request: any }) => {
+const FirebaseFriendRequestCard = ({ request }: { request: FriendRequest }) => {
   return (
     <div className="bg-white rounded-lg p-4 mb-3 shadow-sm">
       <div className="flex items-center justify-between">
@@ -46,10 +55,10 @@ const FirebaseFriendRequestCard = ({ request }: { request: any }) => {
 
 // 臨時實現：Firebase 版本的好友請求過濾
 function useFirebasePendingFriendRequests(userId: string) {
-  const [requests, setRequests] = useState<any[]>([]);
+  const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchFriendRequests = async () => {
+  const fetchFriendRequests = useCallback(async () => {
     if (!userId) {
       setRequests([]);
       setIsLoading(false);
@@ -92,7 +101,7 @@ function useFirebasePendingFriendRequests(userId: string) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
     fetchFriendRequests();
@@ -105,7 +114,7 @@ function useFirebasePendingFriendRequests(userId: string) {
     }, 10000);
     
     return () => clearInterval(intervalId);
-  }, [userId]);
+  }, [fetchFriendRequests]);
 
   return { requests, isLoading, refetch: fetchFriendRequests };
 }

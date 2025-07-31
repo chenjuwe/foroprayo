@@ -114,7 +114,7 @@ describe('firebaseAuthStore', () => {
     };
     
     act(() => {
-      store.setUser(mockFirebaseUser as any);
+      store.setUser(mockFirebaseUser as { uid: string; email: string; displayName: string });
     });
     
     expect(useFirebaseAuthStore.getState().user).toEqual(mockFirebaseUser);
@@ -130,7 +130,7 @@ describe('firebaseAuthStore', () => {
     };
     
     act(() => {
-      store.setUser(mockFirebaseUser as any);
+      store.setUser(mockFirebaseUser as { uid: string; email: string; displayName: string | null });
     });
     
     expect(useFirebaseAuthStore.getState().user).toEqual(mockFirebaseUser);

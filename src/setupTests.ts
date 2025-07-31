@@ -54,7 +54,7 @@ class IntersectionObserverMock {
         rootBounds: null,
         target: {} as Element,
         time: Date.now()
-      }], this as any);
+      }], this as IntersectionObserver);
     }, 50);
   }
   

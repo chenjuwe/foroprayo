@@ -182,31 +182,35 @@ export default function Profile() {
   const displayName = newUsername || tempDisplayName || currentDisplayName;
 
   const debouncedSaveUsername = React.useCallback(
-    debounce(async (username: string) => {
-      if (!user || !username.trim()) return;
+    (username: string) => {
+      const debouncedFn = debounce(async (username: string) => {
+        if (!user || !username.trim()) return;
+        
+        const currentDisplayName = user.displayName || '';
+        if (username.trim() === currentDisplayName) return;
+        
+        try {
+          // 更新 Firebase 用戶顯示名稱
+          await updateProfile(user, {
+            displayName: username
+          });
+          
+          // 刷新用戶資料
+          await user.reload();
+          
+          await queryClient.invalidateQueries({ queryKey: ['prayers'] });
+          
+          toast.success('用戶名稱已更新');
+          
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : '請稍後再試';
+          toast.error('用戶名稱更新失敗', { description: errorMessage });
+          log.error('用戶名稱更新失敗', error, 'Profile');
+        }
+      }, 1000);
       
-      const currentDisplayName = user.displayName || '';
-      if (username.trim() === currentDisplayName) return;
-      
-      try {
-        // 更新 Firebase 用戶顯示名稱
-        await updateProfile(user, {
-          displayName: username
-        });
-        
-        // 刷新用戶資料
-        await user.reload();
-        
-        await queryClient.invalidateQueries({ queryKey: ['prayers'] });
-        
-        toast.success('用戶名稱已更新');
-        
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : '請稍後再試';
-        toast.error('用戶名稱更新失敗', { description: errorMessage });
-        log.error('用戶名稱更新失敗', error, 'Profile');
-      }
-    }, 1000),
+      debouncedFn(username);
+    },
     [user, queryClient]
   );
 
@@ -287,9 +291,10 @@ export default function Profile() {
       
       navigate('/auth');
       toast.success('您已成功登出');
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : '登出時發生錯誤';
       toast.error('登出時發生錯誤', {
-        description: error.message
+        description: errorMessage
       });
       log.error('登出失敗', error, 'Profile');
     } finally {

@@ -3,6 +3,15 @@ import { usePrayerLikes, useTogglePrayerLike } from '../hooks/useSocialFeatures'
 import { log } from '@/lib/logger';
 import { useLocation } from 'react-router-dom';
 
+// 定義 Like 對象類型
+interface Like {
+  id: string;
+  user_id: string;
+  prayer_id: string;
+  created_at: string;
+  [key: string]: unknown;
+}
+
 interface LikeButtonProps {
   prayerId: string;
   currentUserId: string | null;
@@ -15,7 +24,7 @@ export const LikeButton: React.FC<LikeButtonProps> = ({ prayerId, currentUserId 
   
   // 檢查當前用戶是否已經按過愛心
   const userLike = currentUserId 
-    ? likes.find((like: any) => like.user_id === currentUserId)
+    ? likes.find((like: Like) => like.user_id === currentUserId)
     : null;
   
   const isLiked = !!userLike;
