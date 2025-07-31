@@ -2,16 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 修復 CSS 語法錯誤 */
-.\[-\:\.\] {
-  /* 覆蓋無效樣式 */
-  display: inline;
-}
-
-.\[-\\:\.\] {
-  /* 覆蓋無效樣式 */
-  display: inline;
-}
+/* 修復 CSS 語法錯誤 - 移除無效的選擇器 */
 
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. */
 

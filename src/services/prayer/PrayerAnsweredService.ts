@@ -9,7 +9,7 @@ export class PrayerAnsweredService extends BaseService {
    */
   async markPrayerAsAnswered(prayerId: string): Promise<boolean> {
     // 暫時停用 Supabase 功能
-    console.log('Supabase 代禱已應允功能已停用');
+    log.info('Supabase 代禱已應允功能已停用', { prayerId }, 'PrayerAnsweredService');
     throw new Error('代禱已應允功能暫時停用');
   }
 
@@ -18,7 +18,7 @@ export class PrayerAnsweredService extends BaseService {
    */
   async markResponseAsAnswered(responseId: string): Promise<boolean> {
     // 暫時停用 Supabase 功能
-    console.log('Supabase 代禱已應允功能已停用');
+    log.info('Supabase 代禱已應允功能已停用', { responseId }, 'PrayerAnsweredService');
     throw new Error('代禱已應允功能暫時停用');
   }
 
@@ -27,7 +27,7 @@ export class PrayerAnsweredService extends BaseService {
    */
   async unmarkPrayerAsAnswered(prayerId: string): Promise<boolean> {
     // 暫時停用 Supabase 功能
-    console.log('Supabase 代禱已應允功能已停用');
+    log.info('Supabase 代禱已應允功能已停用', { prayerId }, 'PrayerAnsweredService');
     throw new Error('代禱已應允功能暫時停用');
   }
 
@@ -36,7 +36,7 @@ export class PrayerAnsweredService extends BaseService {
    */
   async unmarkResponseAsAnswered(responseId: string): Promise<boolean> {
     // 暫時停用 Supabase 功能
-    console.log('Supabase 代禱已應允功能已停用');
+    log.info('Supabase 代禱已應允功能已停用', { responseId }, 'PrayerAnsweredService');
     throw new Error('代禱已應允功能暫時停用');
   }
 
@@ -45,7 +45,7 @@ export class PrayerAnsweredService extends BaseService {
    */
   async togglePrayerAnswered(prayerId: string): Promise<boolean> {
     // 暫時停用 Supabase 功能
-    console.log('Supabase 代禱已應允功能已停用');
+    log.info('Supabase 代禱已應允功能已停用', { prayerId }, 'PrayerAnsweredService');
     throw new Error('代禱已應允功能暫時停用');
   }
 
@@ -54,7 +54,7 @@ export class PrayerAnsweredService extends BaseService {
    */
   async toggleResponseAnswered(responseId: string): Promise<boolean> {
     // 暫時停用 Supabase 功能
-    console.log('Supabase 代禱已應允功能已停用');
+    log.info('Supabase 代禱已應允功能已停用', { responseId }, 'PrayerAnsweredService');
     throw new Error('代禱已應允功能暫時停用');
   }
 }

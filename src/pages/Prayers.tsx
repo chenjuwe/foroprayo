@@ -326,7 +326,7 @@ export default function Prayers() {
             return;
           }
           
-          console.log('📸 開始處理圖片:', {
+          log.debug('📸 開始處理圖片:', {
             檔案名稱: processedFile.name,
             檔案類型: processedFile.type,
             檔案大小: `${(processedFile.size / (1024 * 1024)).toFixed(2)}MB`
@@ -391,7 +391,7 @@ export default function Prayers() {
               // 直接使用 JPEG 格式，提升兼容性
               const compressedDataUrl = canvas.toDataURL('image/jpeg', settings.quality);
               
-              console.log('✅ 圖片壓縮完成', {
+              log.debug('✅ 圖片壓縮完成', {
                 原始尺寸: `${img.width}x${img.height}`,
                 壓縮後尺寸: `${width}x${height}`,
                 原始大小: `${(processedFile.size / (1024 * 1024)).toFixed(2)}MB`,
@@ -473,7 +473,7 @@ export default function Prayers() {
     }
 
     // 確保匿名狀態正確設定
-    console.log('發布代禱前檢查:', { isLoggedIn, isAnonymous, isGuestMode, userData });
+    log.debug('發布代禱前檢查:', { isLoggedIn, isAnonymous, isGuestMode, userData });
     
     createPrayerMutation.mutate({
       content: prayerText,

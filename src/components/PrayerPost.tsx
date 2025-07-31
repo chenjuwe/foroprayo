@@ -220,7 +220,7 @@ const ResponseSection = ({
 
   const handleResponseSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('提交回應', { responseText, currentUserId, isLoggedIn, isGuestMode, imageUrl, prayerId });
+    log.debug('提交回應', { responseText, currentUserId, isLoggedIn, isGuestMode, imageUrl, prayerId }, 'PrayerPost');
     
     // 檢查回應內容是否為空
     if (!responseText.trim()) {
@@ -230,12 +230,12 @@ const ResponseSection = ({
     
     // 檢查 prayerId 格式，確保它是有效的
     if (!prayerId || typeof prayerId !== 'string' || prayerId.trim() === '') {
-      console.error('無效的代禱 ID', { prayerId });
+      log.error('無效的代禱 ID', { prayerId }, 'PrayerPost');
       toast.error('無效的代禱 ID，無法提交回應');
       return;
     }
 
-    console.log('開始提交回應');
+    log.debug('開始提交回應', {}, 'PrayerPost');
     
     // 確保圖片 URL 格式正確
     let processedImageUrl = imageUrl;
@@ -287,7 +287,7 @@ const ResponseSection = ({
     setTimeout(() => {
       addPrayerResponseMutation.mutate(responseRequest, {
         onSuccess: () => {
-          console.log('回應提交成功');
+          log.debug('回應提交成功', {}, 'PrayerPost');
           setResponseText("");
           setIsResponseAnonymous(isGuestMode); // 保持訪客模式匿名狀態
           setImageUrl(undefined); // 重置圖片URL
@@ -308,7 +308,7 @@ const ResponseSection = ({
           }, 'PrayerPost.ResponseSection');
         },
         onError: (error) => {
-          console.error('回應提交失敗', error);
+          log.error('回應提交失敗', error, 'PrayerPost');
           log.error("Failed to submit response", { 
             error, 
             isGuestMode, 
@@ -446,7 +446,7 @@ const PrayerPost = ({ prayer, onUpdate, isLoggedIn, initialResponseCount, onDele
       
       toast.success('代禱已刪除');
     } catch (error) {
-      console.error('刪除代禱失敗:', error);
+      log.error('刪除代禱失敗', error, 'PrayerPost');
       toast.error('刪除失敗: ' + (error instanceof Error ? error.message : '未知錯誤'));
     } finally {
       setIsDeleting(false);

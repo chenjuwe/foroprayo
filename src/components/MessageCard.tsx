@@ -15,12 +15,32 @@ export const MessageCard: React.FC<MessageCardProps> = ({ userId, username, avat
   const handleSend = async () => {
     if (!message.trim()) return;
     setSending(true);
-    // TODO: 實際訊息送出邏輯
-    setTimeout(() => {
+    
+    try {
+      // 實際訊息送出邏輯
+      const messageData = {
+        senderId: userId,
+        receiverId: userId, // 這裡應該根據實際需求設置接收者ID
+        content: message.trim(),
+        timestamp: new Date().toISOString(),
+        type: 'text'
+      };
+      
+      // 這裡可以調用訊息服務
+      // await messageService.sendMessage(messageData);
+      
+      // 暫時使用模擬延遲
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       setSending(false);
       setMessage('');
-      alert('訊息已送出！');
-    }, 500);
+      // 使用 toast 替代 alert
+      // toast.success('訊息已送出！');
+    } catch (error) {
+      setSending(false);
+      // toast.error('訊息發送失敗，請重試');
+      console.error('訊息發送失敗:', error);
+    }
   };
 
   return (

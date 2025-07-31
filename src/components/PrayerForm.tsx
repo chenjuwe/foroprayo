@@ -126,36 +126,36 @@ export const PrayerForm: React.FC<PrayerFormProps> = ({
     if (!file) return;
     
     try {
-      console.log('用戶登入狀態:', userId ? '已登入' : '未登入', userId ? `用戶ID: ${userId}` : '');
+      log.debug('用戶登入狀態', { isLoggedIn: !!userId, userId }, 'PrayerForm');
       
       // 使用實際用戶ID或生成訪客ID
       let uploadUserId;
       if (userId) {
         // 已登入用戶使用實際ID
         uploadUserId = userId;
-        console.log('使用已登入用戶ID上傳:', uploadUserId);
+        log.debug('使用已登入用戶ID上傳', { uploadUserId }, 'PrayerForm');
       } else {
         // 訪客用戶生成唯一ID
         uploadUserId = `guest-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
-        console.log('使用訪客ID上傳:', uploadUserId);
+        log.debug('使用訪客ID上傳', { uploadUserId }, 'PrayerForm');
       }
       
       // 根據表單用途（代禱或回應）選擇不同的上傳方法
       let url;
       if (placeholder?.includes('回應')) {
         // 回應表單 - 使用回應圖片上傳方法
-        console.log('調用 FirebasePrayerImageService.uploadResponseImage (回應圖片)');
+        log.debug('調用 FirebasePrayerImageService.uploadResponseImage (回應圖片)', {}, 'PrayerForm');
         url = await FirebasePrayerImageService.uploadResponseImage(uploadUserId, file);
       } else {
         // 代禱表單 - 使用代禱圖片上傳方法
-        console.log('調用 FirebasePrayerImageService.uploadPrayerImage (代禱圖片)');
+        log.debug('調用 FirebasePrayerImageService.uploadPrayerImage (代禱圖片)', {}, 'PrayerForm');
         url = await FirebasePrayerImageService.uploadPrayerImage(uploadUserId, file);
       }
       
-      console.log('圖片上傳成功:', url);
+      log.debug('圖片上傳成功', { url }, 'PrayerForm');
       setImageUrl?.(url);
     } catch (err: unknown) {
-      console.error('圖片上傳失敗:', err);
+      log.error('圖片上傳失敗', err, 'PrayerForm');
       // 提供更友好的錯誤信息
       let errorMessage = '圖片上傳失敗';
       

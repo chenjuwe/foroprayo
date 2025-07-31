@@ -9,7 +9,7 @@ export class SuperAdminService extends BaseService {
    */
   async isSuperAdmin(): Promise<boolean> {
     // 暫時停用 Supabase 功能
-    console.log('Supabase 超級管理員功能已停用');
+    log.info('Supabase 超級管理員功能已停用', {}, 'SuperAdminService');
     return false;
   }
 
@@ -18,7 +18,7 @@ export class SuperAdminService extends BaseService {
    */
   async getSuperAdmins(): Promise<SuperAdmin[]> {
     // 暫時停用 Supabase 功能
-    console.log('Supabase 超級管理員功能已停用');
+    log.info('Supabase 超級管理員功能已停用', {}, 'SuperAdminService');
     return [];
   }
 
@@ -27,7 +27,7 @@ export class SuperAdminService extends BaseService {
    */
   async addSuperAdmin(email: string): Promise<SuperAdmin> {
     // 暫時停用 Supabase 功能
-    console.log('Supabase 超級管理員功能已停用');
+    log.info('Supabase 超級管理員功能已停用', { email }, 'SuperAdminService');
     throw new Error('超級管理員功能暫時停用');
   }
 
@@ -36,7 +36,7 @@ export class SuperAdminService extends BaseService {
    */
   async updateSuperAdminStatus(id: string, isActive: boolean): Promise<SuperAdmin> {
     // 暫時停用 Supabase 功能
-    console.log('Supabase 超級管理員功能已停用');
+    log.info('Supabase 超級管理員功能已停用', { id, isActive }, 'SuperAdminService');
     throw new Error('超級管理員功能暫時停用');
   }
 
@@ -45,7 +45,7 @@ export class SuperAdminService extends BaseService {
    */
   async deleteSuperAdmin(id: string): Promise<void> {
     // 暫時停用 Supabase 功能
-    console.log('Supabase 超級管理員功能已停用');
+    log.info('Supabase 超級管理員功能已停用', { id }, 'SuperAdminService');
   }
 
   /**
@@ -53,7 +53,7 @@ export class SuperAdminService extends BaseService {
    */
   async deletePrayer(prayerId: string): Promise<void> {
     // 暫時停用 Supabase 功能
-    console.log('Supabase 超級管理員功能已停用');
+    log.info('Supabase 超級管理員功能已停用', { prayerId }, 'SuperAdminService');
   }
 
   /**
@@ -61,7 +61,7 @@ export class SuperAdminService extends BaseService {
    */
   async deletePrayerResponse(responseId: string): Promise<void> {
     // 暫時停用 Supabase 功能
-    console.log('Supabase 超級管理員功能已停用');
+    log.info('Supabase 超級管理員功能已停用', { responseId }, 'SuperAdminService');
   }
 
   /**
@@ -69,7 +69,7 @@ export class SuperAdminService extends BaseService {
    */
   async getUserProfileHistory(userId: string): Promise<UserProfileHistory[]> {
     // 暫時停用 Supabase 功能
-    console.log('Supabase 超級管理員功能已停用');
+    log.info('Supabase 超級管理員功能已停用', { userId }, 'SuperAdminService');
     return [];
   }
 
@@ -78,7 +78,7 @@ export class SuperAdminService extends BaseService {
    */
   async testGetUserProfileHistory(userId: string): Promise<{ data: null; error: { message: string } }> {
     // 暫時停用 Supabase 功能
-    console.log('Supabase 超級管理員功能已停用');
+    log.info('Supabase 超級管理員功能已停用', { userId }, 'SuperAdminService');
     return { data: null, error: { message: '功能暫時停用' } };
   }
 
@@ -87,7 +87,7 @@ export class SuperAdminService extends BaseService {
    */
   async directQueryHistory(): Promise<{ data: null; error: { message: string } }> {
     // 暫時停用 Supabase 功能
-    console.log('Supabase 超級管理員功能已停用');
+    log.info('Supabase 超級管理員功能已停用', {}, 'SuperAdminService');
     return { data: null, error: { message: '功能暫時停用' } };
   }
 
@@ -102,7 +102,7 @@ export class SuperAdminService extends BaseService {
     isSuperAdmin: boolean;
   }> {
     // 暫時停用 Supabase 功能
-    console.log('Supabase 超級管理員功能已停用');
+    log.info('Supabase 超級管理員功能已停用', { userId }, 'SuperAdminService');
     return {
       success: false,
       data: null,

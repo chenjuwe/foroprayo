@@ -15,7 +15,7 @@ export function AddFriendButton({ userId, className, disabled }: AddFriendButton
 
   const handleAddFriend = () => {
     // 暫時禁用社交功能
-    console.log('社交功能暫時不可用');
+    log.info('社交功能暫時不可用', {}, 'AddFriendButton');
   };
 
   return (

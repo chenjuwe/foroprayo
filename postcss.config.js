@@ -16,6 +16,10 @@ export default {
         normalizeWhitespace: true,
         // 移除無用的規則
         discardEmpty: true,
+        // 移除無效的選擇器
+        discardUnused: true,
+        // 合併重複的規則
+        mergeRules: true,
       }],
     }
   },

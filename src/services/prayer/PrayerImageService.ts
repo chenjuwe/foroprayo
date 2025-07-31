@@ -12,7 +12,7 @@ export class PrayerImageService {
    */
   private static async ensureBucketExists(): Promise<void> {
     // 暫時停用 Supabase 存儲功能
-    console.log('Supabase 存儲功能已停用');
+    log.info('Supabase 存儲功能已停用', {}, 'PrayerImageService');
   }
 
   /**
@@ -31,7 +31,7 @@ export class PrayerImageService {
    */
   static async uploadPrayerImage(userId: string, file: File): Promise<string> {
     // 暫時停用 Supabase 圖片上傳功能
-    console.log('Supabase 圖片上傳功能已停用');
+    log.info('Supabase 圖片上傳功能已停用', { userId, fileName: file.name }, 'PrayerImageService');
     throw new Error('圖片上傳功能暫時停用');
   }
 } 

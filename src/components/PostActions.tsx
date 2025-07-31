@@ -123,20 +123,20 @@ export const PostActions: React.FC<PostActionsProps> = ({
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('❤️ 愛心按鈕被點擊', { currentUserId, prayerId, isLiked, isPending: toggleLikeMutation.isPending });
+    log.debug('❤️ 愛心按鈕被點擊', { currentUserId, prayerId, isLiked, isPending: toggleLikeMutation.isPending }, 'PostActions');
     
     if (!currentUserId) {
-      console.log('❌ 使用者未登入，無法按愛心');
+              log.warn('❌ 使用者未登入，無法按愛心', {}, 'PostActions');
       notify.warning('請先登入以使用愛心功能');
       return;
     }
     
     if (toggleLikeMutation.isPending) {
-      console.log('⏳ 愛心操作進行中，請稍候');
+              log.debug('⏳ 愛心操作進行中，請稍候', {}, 'PostActions');
       return;
     }
     
-    console.log('✅ 執行愛心切換', { prayerId, isLiked });
+            log.debug('✅ 執行愛心切換', { prayerId, isLiked }, 'PostActions');
     
     // 執行愛心功能
     toggleLikeMutation.mutate({

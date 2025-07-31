@@ -216,7 +216,7 @@ export class FirebasePrayerService extends BaseService {
       await deleteDoc(doc(db(), this.PRAYERS_COLLECTION, id));
       
       // 同步刪除相關回應和點讚
-      // TODO: 如有需要，實現批量刪除相關資料的功能
+      await this.deleteRelatedData(id);
       
       this.logOperation('deletePrayer success', { id });
     } catch (error) {
@@ -444,5 +444,47 @@ export class FirebasePrayerService extends BaseService {
     }
   }
 
-  // 刪除重複函數 - 已經在文件中存在更完整的版本
+  /**
+   * 刪除代禱相關的數據（回應和點讚）
+   */
+  private async deleteRelatedData(prayerId: string): Promise<void> {
+    this.logOperation('deleteRelatedData', { prayerId });
+    
+    try {
+      // 1. 刪除所有相關回應
+      const responsesQuery = query(
+        collection(db(), this.PRAYER_RESPONSES_COLLECTION),
+        where('prayer_id', '==', prayerId)
+      );
+      const responsesSnapshot = await getDocs(responsesQuery);
+      
+      const deleteResponsePromises = responsesSnapshot.docs.map(doc => 
+        deleteDoc(doc.ref)
+      );
+      
+      // 2. 刪除所有相關點讚
+      const likesQuery = query(
+        collection(db(), this.PRAYER_LIKES_COLLECTION),
+        where('prayer_id', '==', prayerId)
+      );
+      const likesSnapshot = await getDocs(likesQuery);
+      
+      const deleteLikePromises = likesSnapshot.docs.map(doc => 
+        deleteDoc(doc.ref)
+      );
+      
+      // 並行執行所有刪除操作
+      await Promise.all([...deleteResponsePromises, ...deleteLikePromises]);
+      
+      this.logOperation('deleteRelatedData success', { 
+        prayerId, 
+        deletedResponses: responsesSnapshot.size,
+        deletedLikes: likesSnapshot.size
+      });
+    } catch (error) {
+      this.handleError(error, 'deleteRelatedData');
+      // 這裡不拋出錯誤，因為主刪除操作已經成功
+      // 相關數據的刪除失敗不應該影響主操作
+    }
+  }
 } 

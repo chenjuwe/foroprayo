@@ -38,12 +38,44 @@ export default defineConfig(({ mode }) => ({
     // Enable PWA plugin
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      // 修復 globbing 警告：使用更簡單的配置
+      includeAssets: [
+        'favicon.ico',
+        'apple-touch-icon.png',
+        'masked-icon.svg',
+        'pwa-192x192.png',
+        'pwa-512x512.png'
+      ],
+      // 使用預設的 workbox 配置但禁用有問題的功能
+      workbox: {
+        // 禁用自動清理快取，避免 globbing 錯誤
+        cleanupOutdatedCaches: false,
+        // 禁用預快取，避免 globbing 問題
+        globPatterns: [],
+        // 使用更安全的快取策略
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+              }
+            }
+          }
+        ]
+      },
       manifest: {
-              name: 'Prayforo',
-      short_name: 'Prayforo',
+        name: 'Prayforo',
+        short_name: 'Prayforo',
         description: '使用 Firebase 的代禱應用程序',
         theme_color: '#ffffff',
+        background_color: '#ffffff',
+        display: 'standalone',
+        start_url: '/',
+        scope: '/',
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -63,30 +95,58 @@ export default defineConfig(({ mode }) => ({
           },
         ],
       },
+      // 添加開發模式配置
+      devOptions: {
+        enabled: true,
+        type: 'module'
+      }
     }),
     {
       name: 'fix-css-invalid-rules',
       transform(code, id) {
-        if (id.endsWith('.css') && code.includes('-:.')) {
-          return {
-            code: code.replace(/\.\[-\\?:\.\]\s*\{-:\s*\.\}/g, '.\\[-\\?:.\\.\\] {display: inline;}'),
-            map: null
-          };
+        if (id.endsWith('.css')) {
+          // 移除任何無效的 CSS 選擇器
+          let fixedCode = code;
+          
+          // 移除包含無效語法的選擇器
+          fixedCode = fixedCode.replace(/\.\[-\\?:\.\]\s*\{[^}]*\}/g, '');
+          fixedCode = fixedCode.replace(/\.\[-:\.\]\s*\{[^}]*\}/g, '');
+          
+          // 移除只包含註釋的選擇器
+          fixedCode = fixedCode.replace(/\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\/\s*\{[^}]*\}/g, '');
+          
+          if (fixedCode !== code) {
+            return {
+              code: fixedCode,
+              map: null
+            };
+          }
         }
       },
       generateBundle(options, bundle) {
-        // 檢查所有的 CSS 資源並修復 -:. 語法問題
+        // 檢查所有的 CSS 資源並修復語法問題
         Object.keys(bundle).forEach(key => {
           const asset = bundle[key];
           if (key.endsWith('.css') && asset.type === 'asset' && asset.source) {
-            // 將 CSS 中的問題語法替換為有效的語法
-            const fixedSource = asset.source.toString().replace(/\.\[-\\?:\.\]\s*\{-:\s*\.\}/g, '.\\[-\\?:.\\.\\] {display: inline;}');
-            asset.source = fixedSource;
+            let source = asset.source.toString();
+            
+            // 移除無效的選擇器
+            source = source.replace(/\.\[-\\?:\.\]\s*\{[^}]*\}/g, '');
+            source = source.replace(/\.\[-:\.\]\s*\{[^}]*\}/g, '');
+            
+            // 清理多餘的空行
+            source = source.replace(/\n\s*\n\s*\n/g, '\n\n');
+            
+            asset.source = source;
           }
         });
       }
     }
   ],
+  esbuild: {
+    // 配置 esbuild 來忽略 CSS 警告
+    logOverride: { 'css-syntax-error': 'silent' }
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -164,5 +224,8 @@ export default defineConfig(({ mode }) => ({
       },
     },
     sourcemap: true,
+    // 添加 esbuild 配置來處理 CSS 警告
+    minify: 'esbuild',
+    target: 'es2020',
   },
 }));

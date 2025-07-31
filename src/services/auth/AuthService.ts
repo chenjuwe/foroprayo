@@ -35,7 +35,7 @@ export class AuthService extends BaseService {
    */
   async getCurrentUser(): Promise<{ id: string; email?: string; user_metadata?: UserMetadata } | null> {
     // 暫時停用 Supabase 認證功能
-    console.log('Supabase 認證功能已停用');
+    log.info('Supabase 認證功能已停用');
     return null;
   }
 
@@ -44,7 +44,7 @@ export class AuthService extends BaseService {
    */
   async getSession(): Promise<Session | null> {
     // 暫時停用 Supabase 認證功能
-    console.log('Supabase 認證功能已停用');
+    log.info('Supabase 認證功能已停用');
     return null;
   }
 
@@ -53,7 +53,7 @@ export class AuthService extends BaseService {
    */
   onAuthStateChange(callback: (event: string, session: Session | null) => void) {
     // 暫時停用 Supabase 認證功能
-    console.log('Supabase 認證功能已停用');
+    log.info('Supabase 認證功能已停用');
     return { data: { subscription: { unsubscribe: () => {} } } };
   }
 
@@ -62,12 +62,12 @@ export class AuthService extends BaseService {
    */
   async signOut(): Promise<void> {
     // 暫時停用 Supabase 認證功能
-    console.log('Supabase 認證功能已停用');
+    log.info('Supabase 認證功能已停用');
   }
 
   async updateUserMetadata(metadata: UserMetadata): Promise<{ id: string; user_metadata: UserMetadata } | null> {
     // 暫時停用 Supabase 認證功能
-    console.log('Supabase 認證功能已停用');
+    log.info('Supabase 認證功能已停用');
     return null;
   }
 } 
