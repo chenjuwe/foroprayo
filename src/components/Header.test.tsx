@@ -1,9 +1,20 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { vi, describe, it, expect, beforeEach, type Mock } from 'vitest';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { Header } from './Header';
 import * as useFirebaseAvatarModule from '@/hooks/useFirebaseAvatar';
+
+// Mock localStorage
+Object.defineProperty(window, 'localStorage', {
+  value: {
+    getItem: vi.fn(() => null),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn(),
+  },
+  writable: true,
+});
 
 // Mock components
 vi.mock('@/components/profile/ProfileAvatar', () => ({
@@ -14,13 +25,73 @@ vi.mock('@/components/profile/ProfileAvatar', () => ({
   ),
 }));
 
+// Mock React Query
+vi.mock('@tanstack/react-query', () => ({
+  QueryClient: vi.fn(() => ({
+    invalidateQueries: vi.fn(),
+    setQueryData: vi.fn(),
+    getQueryData: vi.fn(),
+    removeQueries: vi.fn(),
+    clear: vi.fn(),
+    resetQueries: vi.fn(),
+    refetchQueries: vi.fn(),
+  })),
+  QueryClientProvider: ({ children }: any) => children,
+  MutationCache: vi.fn(() => ({
+    getAll: vi.fn(() => []),
+    add: vi.fn(),
+    remove: vi.fn(),
+    clear: vi.fn(),
+    find: vi.fn(),
+    findAll: vi.fn(),
+    notify: vi.fn(),
+  })),
+  useQuery: vi.fn(() => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+    isFetching: false,
+    isSuccess: false,
+    isStale: false,
+    status: 'idle',
+    fetchStatus: 'idle',
+  })),
+  useMutation: vi.fn(() => ({
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+    isPending: false,
+    isSuccess: false,
+    isError: false,
+    error: null,
+    isIdle: true,
+    status: 'idle',
+    failureCount: 0,
+    submittedAt: 0,
+    variables: undefined,
+    context: undefined,
+    reset: vi.fn(),
+  })),
+  useQueryClient: vi.fn(() => ({
+    invalidateQueries: vi.fn(),
+    setQueryData: vi.fn(),
+    getQueryData: vi.fn(),
+    removeQueries: vi.fn(),
+    clear: vi.fn(),
+    resetQueries: vi.fn(),
+    refetchQueries: vi.fn(),
+  })),
+}));
+
 // Mock router
+const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return {
     ...actual,
     useLocation: vi.fn(() => ({ pathname: '/prayers' })),
-    useNavigate: vi.fn(() => vi.fn()),
+    useNavigate: vi.fn(() => mockNavigate),
   };
 });
 
@@ -39,6 +110,7 @@ const renderWithRouter = (component: React.ReactElement) => {
 describe('Header', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockNavigate.mockClear();
   });
 
   it('應該正確渲染 Header 組件', () => {
@@ -93,10 +165,8 @@ describe('Header', () => {
       avatarUrl30: null,
       refreshAvatar: vi.fn().mockResolvedValue(true),
     } as any);
-    const navigate = vi.fn();
-    (vi.mocked(require('react-router-dom')).useNavigate as Mock).mockReturnValue(navigate);
     renderWithRouter(<Header />);
     fireEvent.click(screen.getByText('登入 | 註冊'));
-    expect(navigate).toHaveBeenCalledWith('/auth');
+    expect(mockNavigate).toHaveBeenCalledWith('/auth');
   });
 }); 

@@ -327,7 +327,7 @@ export default function Profile() {
   // 如果用戶未登入，顯示登入提示
   if (!user && !isViewingOtherUser) {
     return (
-      <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#FFE5D9' }}>
+      <main className="min-h-screen flex flex-col" style={{ backgroundColor: '#FFE5D9' }}>
         <Header 
           isLoggedIn={false}
           onLoginClick={handleLoginClick}
@@ -345,14 +345,14 @@ export default function Profile() {
             </button>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   // Handle case where other user's profile is not found
   if (isViewingOtherUser && (viewingUserError || !viewedUser)) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center">
+      <main className="min-h-screen flex flex-col items-center justify-center">
          <Header 
           isLoggedIn={isLoggedIn ?? false}
           onLoginClick={handleLoginClick}
@@ -363,7 +363,7 @@ export default function Profile() {
             <p className="text-lg">無法找到該用戶的資料。</p>
             {viewingUserError && <p className="text-red-500 text-sm mt-2">{viewingUserError.message}</p>}
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -372,7 +372,7 @@ export default function Profile() {
     // 他人用戶頁面
     //
     return (
-      <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#FFE5D9' }}>
+      <main className="min-h-screen flex flex-col" style={{ backgroundColor: '#FFE5D9' }}>
         <Header 
           isLoggedIn={isLoggedIn ?? false}
           onLoginClick={handleLoginClick}
@@ -411,13 +411,13 @@ export default function Profile() {
           {/* 添加用戶統計信息 */}
           <ProfileStats userId={urlUserId || ''} />
         </div>
-      </div>
+      </main>
     );
   }
 
   // Render current user's profile
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#FFE5D9' }}>
+    <main className="min-h-screen flex flex-col" style={{ backgroundColor: '#FFE5D9' }}>
       <Header 
         isLoggedIn={!!user}
         onLoginClick={handleLoginClick}
@@ -461,6 +461,6 @@ export default function Profile() {
         {/* 添加用戶統計信息 */}
         <ProfileStats userId={user?.uid || ''} />
       </div>
-    </div>
+    </main>
   );
 } 

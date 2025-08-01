@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 // Mock hooks
@@ -52,6 +53,56 @@ vi.mock('@/lib/notifications', () => ({
   notifySuccess: vi.fn(),
 }));
 
+// Mock React Query
+vi.mock('@tanstack/react-query', () => ({
+  QueryClient: vi.fn(() => ({
+    invalidateQueries: vi.fn(),
+    setQueryData: vi.fn(),
+    getQueryData: vi.fn(),
+    removeQueries: vi.fn(),
+    clear: vi.fn(),
+    resetQueries: vi.fn(),
+    refetchQueries: vi.fn(),
+  })),
+  QueryClientProvider: ({ children }: any) => children,
+  useQuery: vi.fn(() => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+    isFetching: false,
+    isSuccess: false,
+    isStale: false,
+    status: 'idle',
+    fetchStatus: 'idle',
+  })),
+  useMutation: vi.fn(() => ({
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+    isPending: false,
+    isSuccess: false,
+    isError: false,
+    error: null,
+    isIdle: true,
+    status: 'idle',
+    failureCount: 0,
+    submittedAt: 0,
+    variables: undefined,
+    context: undefined,
+    reset: vi.fn(),
+  })),
+  useQueryClient: vi.fn(() => ({
+    invalidateQueries: vi.fn(),
+    setQueryData: vi.fn(),
+    getQueryData: vi.fn(),
+    removeQueries: vi.fn(),
+    clear: vi.fn(),
+    resetQueries: vi.fn(),
+    refetchQueries: vi.fn(),
+  })),
+}));
+
 // Mock router
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
@@ -64,11 +115,24 @@ vi.mock('react-router-dom', async () => {
 
 import { PostActions } from './PostActions';
 
-const renderWithRouter = (component: React.ReactElement) => {
+const renderWithProviders = (component: React.ReactElement) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+      mutations: {
+        retry: false,
+      },
+    },
+  });
+
   return render(
-    <BrowserRouter>
-      {component}
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        {component}
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 };
 
@@ -89,7 +153,7 @@ describe('PostActions', () => {
   });
 
   it('應該正確渲染操作按鈕', () => {
-    renderWithRouter(
+    renderWithProviders(
       <PostActions 
         prayerId="test-prayer-id"
         prayerUserId="test-user-id"
@@ -105,7 +169,7 @@ describe('PostActions', () => {
   });
 
   it('應該為代禱作者顯示編輯和刪除按鈕', async () => {
-    renderWithRouter(
+    renderWithProviders(
       <PostActions 
         prayerId="test-prayer-id"
         prayerUserId="test-user-id"
@@ -128,7 +192,7 @@ describe('PostActions', () => {
   });
 
   it('應該為其他用戶隱藏編輯和刪除按鈕', async () => {
-    renderWithRouter(
+    renderWithProviders(
       <PostActions 
         prayerId="test-prayer-id"
         prayerUserId="other-user-id"
@@ -150,7 +214,7 @@ describe('PostActions', () => {
   });
 
   it('應該正確處理載入狀態', () => {
-    renderWithRouter(
+    renderWithProviders(
       <PostActions 
         prayerId="test-prayer-id"
         prayerUserId="test-user-id"

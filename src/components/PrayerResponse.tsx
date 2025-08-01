@@ -8,7 +8,7 @@ import { Button } from './ui/button';
 import { Trash2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import { superAdminService } from '@/services';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 import { usePrayerResponseLikes, useTogglePrayerResponseLike } from '../hooks/useSocialFeatures';
 // import { supabase } from '../integrations/supabase/client';
 import { getUnifiedUserName } from '@/lib/getUnifiedUserName';
@@ -64,11 +64,11 @@ const PrayerResponseComponent: React.FC<PrayerResponseProps> = ({
       // 檢查內容高度是否超過最大高度
       const isContentLong = contentRef.current.scrollHeight > maxHeight;
       setIsLong(isContentLong);
-      log.debug('Response content height check', { 
-        scrollHeight: contentRef.current.scrollHeight, 
-        maxHeight,
-        isLong: isContentLong
-      }, 'PrayerResponse');
+      // log.debug('Response content height check', { 
+      //   scrollHeight: contentRef.current.scrollHeight, 
+      //   maxHeight,
+      //   isLong: isContentLong
+      // }, 'PrayerResponse');
     }
   }, [response.content, maxHeight]);
 
@@ -80,7 +80,7 @@ const PrayerResponseComponent: React.FC<PrayerResponseProps> = ({
   
   // 檢查當前用戶是否已經按過愛心
   const userLike = currentUserId 
-    ? likes.find((like: Like) => like.user_id === currentUserId)
+    ? likes.find((like: any) => like.user_id === currentUserId)
     : null;
   
   const isLiked = !!userLike;
@@ -88,7 +88,7 @@ const PrayerResponseComponent: React.FC<PrayerResponseProps> = ({
 
   const handleLikeClick = () => {
     if (!currentUserId) {
-      log.debug('用戶未登入，無法按愛心', {}, 'PrayerResponse');
+      // log.debug('用戶未登入，無法按愛心', {}, 'PrayerResponse');
       return;
     }
     
@@ -96,7 +96,7 @@ const PrayerResponseComponent: React.FC<PrayerResponseProps> = ({
       return; // 正在處理中，避免重複點擊
     }
     
-    log.debug('點擊回應愛心按鈕', { responseId: response.id, isLiked, likeId: userLike?.id }, 'PrayerResponse');
+    // log.debug('點擊回應愛心按鈕', { responseId: response.id, isLiked, likeId: userLike?.id }, 'PrayerResponse');
     
     // 切換愛心狀態
     toggleLikeMutation.mutate({
@@ -114,7 +114,10 @@ const PrayerResponseComponent: React.FC<PrayerResponseProps> = ({
     try {
       // 修正：通過 getInstance() 獲取實例並調用方法
       await superAdminService.getInstance().deletePrayerResponse(response.id);
-      toast.success('已刪除不當回應內容');
+      toast({
+        title: '成功',
+        description: '已刪除不當回應內容',
+      });
       
       // 使相關查詢失效，觸發重新獲取
       if (response.prayer_id) {
@@ -134,7 +137,11 @@ const PrayerResponseComponent: React.FC<PrayerResponseProps> = ({
       }
     } catch (error) {
       console.error('超級管理員刪除回應失敗:', error);
-      toast.error('刪除回應失敗');
+      toast({
+        variant: 'destructive',
+        title: '錯誤',
+        description: '刪除回應失敗',
+      });
     } finally {
       setIsDeleting(false);
       setIsDeleteDialogOpen(false);

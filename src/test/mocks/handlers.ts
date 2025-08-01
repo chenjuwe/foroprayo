@@ -1,42 +1,43 @@
-import { rest } from 'msw'
+import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
+import { vi } from 'vitest'
 
 // Firebase Auth Mock
 export const mockFirebaseAuth = {
   currentUser: null,
-  onAuthStateChanged: jest.fn(),
-  signInWithEmailAndPassword: jest.fn(),
-  createUserWithEmailAndPassword: jest.fn(),
-  signOut: jest.fn(),
-  updateProfile: jest.fn(),
-  sendPasswordResetEmail: jest.fn(),
-  confirmPasswordReset: jest.fn(),
-  verifyPasswordResetCode: jest.fn(),
+  onAuthStateChanged: vi.fn(),
+  signInWithEmailAndPassword: vi.fn(),
+  createUserWithEmailAndPassword: vi.fn(),
+  signOut: vi.fn(),
+  updateProfile: vi.fn(),
+  sendPasswordResetEmail: vi.fn(),
+  confirmPasswordReset: vi.fn(),
+  verifyPasswordResetCode: vi.fn(),
 }
 
 // Firestore Mock
 export const mockFirestore = {
-  collection: jest.fn(),
-  doc: jest.fn(),
-  addDoc: jest.fn(),
-  updateDoc: jest.fn(),
-  deleteDoc: jest.fn(),
-  getDoc: jest.fn(),
-  getDocs: jest.fn(),
-  query: jest.fn(),
-  where: jest.fn(),
-  orderBy: jest.fn(),
-  limit: jest.fn(),
-  onSnapshot: jest.fn(),
-  serverTimestamp: jest.fn(),
+  collection: vi.fn(),
+  doc: vi.fn(),
+  addDoc: vi.fn(),
+  updateDoc: vi.fn(),
+  deleteDoc: vi.fn(),
+  getDoc: vi.fn(),
+  getDocs: vi.fn(),
+  query: vi.fn(),
+  where: vi.fn(),
+  orderBy: vi.fn(),
+  limit: vi.fn(),
+  onSnapshot: vi.fn(),
+  serverTimestamp: vi.fn(),
 }
 
 // Firebase Storage Mock
 export const mockFirebaseStorage = {
-  ref: jest.fn(),
-  uploadBytes: jest.fn(),
-  getDownloadURL: jest.fn(),
-  deleteObject: jest.fn(),
+  ref: vi.fn(),
+  uploadBytes: vi.fn(),
+  getDownloadURL: vi.fn(),
+  deleteObject: vi.fn(),
 }
 
 // Mock Data
@@ -71,83 +72,56 @@ export const mockPrayerResponse = {
 // MSW Handlers for API Testing
 export const handlers = [
   // Auth endpoints
-  rest.post('/api/auth/signin', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json({
-        user: mockUser,
-        token: 'mock-jwt-token',
-      })
-    )
+  http.post('/api/auth/signin', () => {
+    return HttpResponse.json({
+      user: mockUser,
+      token: 'mock-jwt-token',
+    }, { status: 200 })
   }),
 
-  rest.post('/api/auth/signup', (req, res, ctx) => {
-    return res(
-      ctx.status(201),
-      ctx.json({
-        user: mockUser,
-        token: 'mock-jwt-token',
-      })
-    )
+  http.post('/api/auth/signup', () => {
+    return HttpResponse.json({
+      user: mockUser,
+      token: 'mock-jwt-token',
+    }, { status: 201 })
   }),
 
-  rest.post('/api/auth/signout', (req, res, ctx) => {
-    return res(ctx.status(200))
+  http.post('/api/auth/signout', () => {
+    return HttpResponse.json({}, { status: 200 })
   }),
 
   // Prayer endpoints
-  rest.get('/api/prayers', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json([mockPrayer])
-    )
+  http.get('/api/prayers', () => {
+    return HttpResponse.json([mockPrayer])
   }),
 
-  rest.post('/api/prayers', (req, res, ctx) => {
-    return res(
-      ctx.status(201),
-      ctx.json(mockPrayer)
-    )
+  http.post('/api/prayers', () => {
+    return HttpResponse.json(mockPrayer, { status: 201 })
   }),
 
-  rest.get('/api/prayers/:id', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json(mockPrayer)
-    )
+  http.get('/api/prayers/:id', () => {
+    return HttpResponse.json(mockPrayer)
   }),
 
   // Response endpoints
-  rest.post('/api/prayers/:id/responses', (req, res, ctx) => {
-    return res(
-      ctx.status(201),
-      ctx.json(mockPrayerResponse)
-    )
+  http.post('/api/prayers/:id/responses', () => {
+    return HttpResponse.json(mockPrayerResponse, { status: 201 })
   }),
 
   // User profile endpoints
-  rest.get('/api/users/:id', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json(mockUser)
-    )
+  http.get('/api/users/:id', () => {
+    return HttpResponse.json(mockUser)
   }),
 
-  rest.put('/api/users/:id', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json(mockUser)
-    )
+  http.put('/api/users/:id', () => {
+    return HttpResponse.json(mockUser, { status: 200 })
   }),
 
   // File upload endpoint
-  rest.post('/api/upload', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json({
-        url: 'https://example.com/uploaded-image.jpg',
-      })
-    )
+  http.post('/api/upload', () => {
+    return HttpResponse.json({
+      url: 'https://example.com/uploaded-image.jpg',
+    }, { status: 200 })
   }),
 ]
 
@@ -157,33 +131,33 @@ export const server = setupServer(...handlers)
 // Mock Functions for Unit Tests
 export const mockFunctions = {
   // Auth functions
-  signInWithEmailAndPassword: jest.fn().mockResolvedValue({
+  signInWithEmailAndPassword: vi.fn().mockResolvedValue({
     user: mockUser,
   }),
   
-  createUserWithEmailAndPassword: jest.fn().mockResolvedValue({
+  createUserWithEmailAndPassword: vi.fn().mockResolvedValue({
     user: mockUser,
   }),
   
-  signOut: jest.fn().mockResolvedValue(undefined),
+  signOut: vi.fn().mockResolvedValue(undefined),
   
-  updateProfile: jest.fn().mockResolvedValue(undefined),
+  updateProfile: vi.fn().mockResolvedValue(undefined),
   
   // Firestore functions
-  addDoc: jest.fn().mockResolvedValue({
+  addDoc: vi.fn().mockResolvedValue({
     id: 'new-doc-id',
   }),
   
-  updateDoc: jest.fn().mockResolvedValue(undefined),
+  updateDoc: vi.fn().mockResolvedValue(undefined),
   
-  deleteDoc: jest.fn().mockResolvedValue(undefined),
+  deleteDoc: vi.fn().mockResolvedValue(undefined),
   
-  getDoc: jest.fn().mockResolvedValue({
+  getDoc: vi.fn().mockResolvedValue({
     exists: () => true,
     data: () => mockPrayer,
   }),
   
-  getDocs: jest.fn().mockResolvedValue({
+  getDocs: vi.fn().mockResolvedValue({
     docs: [
       {
         id: 'prayer-1',
@@ -193,13 +167,13 @@ export const mockFunctions = {
   }),
   
   // Storage functions
-  uploadBytes: jest.fn().mockResolvedValue({
+  uploadBytes: vi.fn().mockResolvedValue({
     ref: {
-      getDownloadURL: jest.fn().mockResolvedValue('https://example.com/image.jpg'),
+      getDownloadURL: vi.fn().mockResolvedValue('https://example.com/image.jpg'),
     },
   }),
   
-  getDownloadURL: jest.fn().mockResolvedValue('https://example.com/image.jpg'),
+  getDownloadURL: vi.fn().mockResolvedValue('https://example.com/image.jpg'),
 }
 
 // Test Utilities
@@ -220,7 +194,7 @@ export const createMockResponse = (overrides = {}) => ({
 
 // Reset all mocks
 export const resetMocks = () => {
-  jest.clearAllMocks()
+  vi.clearAllMocks()
   Object.values(mockFunctions).forEach(mock => {
     if (typeof mock === 'function' && mock.mockClear) {
       mock.mockClear()

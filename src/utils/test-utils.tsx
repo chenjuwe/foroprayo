@@ -72,22 +72,7 @@ vi.mock('firebase/storage', () => ({
   getDownloadURL: vi.fn()
 }));
 
-// 模擬 FirebaseAuthProvider 和 useFirebaseAuth
-vi.mock('@/contexts/FirebaseAuthContext', () => {
-  const MockFirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => children;
-  return {
-    useFirebaseAuth: () => ({
-      currentUser: null,
-      loading: false,
-      signIn: vi.fn().mockResolvedValue({ user: null, error: null }),
-      signUp: vi.fn().mockResolvedValue({ user: null, error: null }),
-      signOut: vi.fn().mockResolvedValue({ error: null }),
-      resetPassword: vi.fn().mockResolvedValue({ error: null }),
-      refreshUserAvatar: vi.fn()
-    }),
-    FirebaseAuthProvider: MockFirebaseAuthProvider
-  };
-});
+// FirebaseAuthContext 已在 setup.ts 中 mock
 
 // 模擬 useFirebaseAvatar hook
 vi.mock('@/hooks/useFirebaseAvatar', () => {

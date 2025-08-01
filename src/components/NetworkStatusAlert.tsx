@@ -53,7 +53,7 @@ export const NetworkStatusAlert: React.FC = () => {
             {isOnline ? (
               <Wifi size={18} />
             ) : (
-              <WifiOff size={18} />
+              <WifiOff size={18} data-testid="wifi-off-icon" />
             )}
             
             <div className="flex-1">

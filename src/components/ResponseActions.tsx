@@ -24,8 +24,19 @@ import { log } from '@/lib/logger';
 import { notify } from '@/lib/notifications';
 import { ReportDialog } from './ReportDialog';
 import { useLocation } from 'react-router-dom';
-import { useTogglePrayerResponseAnswered } from '../hooks/usePrayerAnswered';
+import { useToggleResponseAnswered } from '../hooks/usePrayerAnswered';
 import { Menu, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from './ui/menu';
+import TwoLineEditIconSrc from '../assets/icons/TwoLineEditIcon.svg';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 
 // 定義 Like 對象類型
 interface Like {

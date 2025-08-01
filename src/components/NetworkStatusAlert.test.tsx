@@ -1,21 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { NetworkStatusAlert } from './NetworkStatusAlert';
 
-// Mock useOnlineStatus hook
-const mockUseOnlineStatus = vi.fn();
+// Mock hooks - 先定義 mock 函數
+vi.mock('@/stores/networkStore', () => ({
+  useNetworkStore: vi.fn(),
+}));
 
 vi.mock('@/hooks/useOnlineStatus', () => ({
-  useOnlineStatus: () => mockUseOnlineStatus(),
+  useOnlineStatus: vi.fn(),
 }));
 
-// Mock toast
-vi.mock('sonner', () => ({
-  toast: {
-    error: vi.fn(),
-    success: vi.fn(),
-  },
-}));
+// 在 mock 之後導入並獲取 mock 函數
+import { NetworkStatusAlert } from './NetworkStatusAlert';
+import { useNetworkStore } from '@/stores/networkStore';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+
+const mockUseNetworkStore = useNetworkStore as any;
+const mockUseOnlineStatus = useOnlineStatus as any;
 
 describe('NetworkStatusAlert', () => {
   beforeEach(() => {
@@ -24,189 +25,186 @@ describe('NetworkStatusAlert', () => {
 
   describe('離線狀態', () => {
     beforeEach(() => {
-      mockUseOnlineStatus.mockReturnValue({
+      mockUseNetworkStore.mockReturnValue({
         isOnline: false,
-        isOffline: true,
+      });
+      mockUseOnlineStatus.mockReturnValue({
+        retryConnection: vi.fn().mockResolvedValue(true),
+        connectionError: null,
       });
     });
 
     it('應該在離線時顯示警告訊息', () => {
       render(<NetworkStatusAlert />);
       
-      expect(screen.getByText('網路連線異常')).toBeInTheDocument();
-      expect(screen.getByText('請檢查網路設定')).toBeInTheDocument();
+      expect(screen.getByText('網路已斷開')).toBeInTheDocument();
     });
 
     it('應該顯示離線圖標', () => {
       render(<NetworkStatusAlert />);
       
-      const alert = screen.getByRole('alert');
-      expect(alert).toHaveClass('bg-yellow-50', 'border-yellow-200');
+      const wifiOffIcon = screen.getByTestId('wifi-off-icon');
+      expect(wifiOffIcon).toBeInTheDocument();
     });
 
     it('應該包含重試按鈕', () => {
       render(<NetworkStatusAlert />);
       
-      const retryButton = screen.getByRole('button', { name: /重試/i });
+      const retryButton = screen.getByRole('button', { name: /重試連線/i });
       expect(retryButton).toBeInTheDocument();
     });
 
-    it('應該在點擊重試按鈕時重新載入頁面', () => {
-      const mockReload = vi.fn();
-      Object.defineProperty(window, 'location', {
-        value: { reload: mockReload },
-        writable: true,
+    it('應該在點擊重試按鈕時調用重試函數', async () => {
+      const mockRetryConnection = vi.fn().mockResolvedValue(true);
+      mockUseOnlineStatus.mockReturnValue({
+        retryConnection: mockRetryConnection,
+        connectionError: null,
       });
 
       render(<NetworkStatusAlert />);
       
-      const retryButton = screen.getByRole('button', { name: /重試/i });
+      const retryButton = screen.getByRole('button', { name: /重試連線/i });
       fireEvent.click(retryButton);
       
-      expect(mockReload).toHaveBeenCalled();
+      expect(mockRetryConnection).toHaveBeenCalled();
     });
   });
 
   describe('線上狀態', () => {
     beforeEach(() => {
-      mockUseOnlineStatus.mockReturnValue({
+      mockUseNetworkStore.mockReturnValue({
         isOnline: true,
-        isOffline: false,
+      });
+      mockUseOnlineStatus.mockReturnValue({
+        retryConnection: vi.fn().mockResolvedValue(true),
+        connectionError: null,
       });
     });
 
     it('應該在線上時不顯示警告', () => {
-      render(<NetworkStatusAlert />);
+      const { container } = render(<NetworkStatusAlert />);
       
-      expect(screen.queryByText('網路連線異常')).not.toBeInTheDocument();
-      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(container.firstChild).toBeNull();
     });
   });
 
   describe('載入狀態', () => {
     beforeEach(() => {
+      mockUseNetworkStore.mockReturnValue({
+        isOnline: false,
+      });
       mockUseOnlineStatus.mockReturnValue({
-        isOnline: undefined,
-        isOffline: undefined,
+        retryConnection: vi.fn().mockResolvedValue(true),
+        connectionError: null,
       });
     });
 
-    it('應該在載入時不顯示警告', () => {
+    it('應該在載入時顯示警告', () => {
       render(<NetworkStatusAlert />);
       
-      expect(screen.queryByText('網路連線異常')).not.toBeInTheDocument();
-      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByText('網路已斷開')).toBeInTheDocument();
     });
   });
 
-  describe('動畫效果', () => {
+  describe('錯誤狀態', () => {
     beforeEach(() => {
-      mockUseOnlineStatus.mockReturnValue({
+      mockUseNetworkStore.mockReturnValue({
         isOnline: false,
-        isOffline: true,
+      });
+      mockUseOnlineStatus.mockReturnValue({
+        retryConnection: vi.fn().mockRejectedValue('Connection failed'),
+        connectionError: 'Connection failed',
       });
     });
 
-    it('應該包含正確的動畫類別', () => {
+    it('應該在連線錯誤時顯示錯誤訊息', () => {
       render(<NetworkStatusAlert />);
       
-      const alert = screen.getByRole('alert');
-      expect(alert).toHaveClass('animate-in', 'slide-in-from-top-2');
+      expect(screen.getByText('網路已斷開')).toBeInTheDocument();
+    });
+
+    it('應該在重試失敗時顯示錯誤', async () => {
+      const mockRetryConnection = vi.fn().mockRejectedValue('Connection failed');
+      mockUseOnlineStatus.mockReturnValue({
+        retryConnection: mockRetryConnection,
+        connectionError: 'Connection failed',
+      });
+
+      render(<NetworkStatusAlert />);
+      
+      const retryButton = screen.getByRole('button', { name: /重試連線/i });
+      fireEvent.click(retryButton);
+      
+      expect(mockRetryConnection).toHaveBeenCalled();
     });
   });
 
-  describe('無障礙功能', () => {
+  describe('重試功能', () => {
     beforeEach(() => {
-      mockUseOnlineStatus.mockReturnValue({
+      mockUseNetworkStore.mockReturnValue({
         isOnline: false,
-        isOffline: true,
       });
     });
 
-    it('應該有正確的 ARIA 標籤', () => {
+    it('應該在重試成功時更新狀態', async () => {
+      const mockRetryConnection = vi.fn().mockResolvedValue(true);
+      mockUseOnlineStatus.mockReturnValue({
+        retryConnection: mockRetryConnection,
+        connectionError: null,
+      });
+
       render(<NetworkStatusAlert />);
       
-      const alert = screen.getByRole('alert');
-      expect(alert).toHaveAttribute('aria-live', 'polite');
+      const retryButton = screen.getByRole('button', { name: /重試連線/i });
+      fireEvent.click(retryButton);
+      
+      expect(mockRetryConnection).toHaveBeenCalled();
     });
 
-    it('重試按鈕應該有正確的標籤', () => {
+    it('應該在重試失敗時保持離線狀態', async () => {
+      const mockRetryConnection = vi.fn().mockRejectedValue('Connection failed');
+      mockUseOnlineStatus.mockReturnValue({
+        retryConnection: mockRetryConnection,
+        connectionError: 'Connection failed',
+      });
+
       render(<NetworkStatusAlert />);
       
-      const retryButton = screen.getByRole('button', { name: /重試/i });
-      expect(retryButton).toHaveAttribute('aria-label', '重試連線');
+      const retryButton = screen.getByRole('button', { name: /重試連線/i });
+      fireEvent.click(retryButton);
+      
+      expect(mockRetryConnection).toHaveBeenCalled();
+      expect(screen.getByText('網路已斷開')).toBeInTheDocument();
     });
   });
 
-  describe('樣式測試', () => {
+  describe('UI 元素', () => {
     beforeEach(() => {
-      mockUseOnlineStatus.mockReturnValue({
+      mockUseNetworkStore.mockReturnValue({
         isOnline: false,
-        isOffline: true,
       });
-    });
-
-    it('應該有正確的警告樣式', () => {
-      render(<NetworkStatusAlert />);
-      
-      const alert = screen.getByRole('alert');
-      expect(alert).toHaveClass(
-        'bg-yellow-50',
-        'border-yellow-200',
-        'text-yellow-800',
-        'rounded-lg',
-        'border',
-        'p-4'
-      );
-    });
-
-    it('圖標應該有正確的樣式', () => {
-      render(<NetworkStatusAlert />);
-      
-      const icon = screen.getByTestId('network-icon');
-      expect(icon).toHaveClass('h-5', 'w-5', 'text-yellow-400');
-    });
-
-    it('文字應該有正確的樣式', () => {
-      render(<NetworkStatusAlert />);
-      
-      const title = screen.getByText('網路連線異常');
-      expect(title).toHaveClass('font-medium');
-    });
-  });
-
-  describe('響應式設計', () => {
-    beforeEach(() => {
       mockUseOnlineStatus.mockReturnValue({
-        isOnline: false,
-        isOffline: true,
+        retryConnection: vi.fn().mockResolvedValue(true),
+        connectionError: null,
       });
     });
 
-    it('應該在小螢幕上正確顯示', () => {
-      // 模擬小螢幕
-      Object.defineProperty(window, 'innerWidth', {
-        value: 375,
-        writable: true,
-      });
-
+    it('應該包含正確的圖標', () => {
       render(<NetworkStatusAlert />);
       
-      const alert = screen.getByRole('alert');
-      expect(alert).toBeInTheDocument();
+      expect(screen.getByTestId('wifi-off-icon')).toBeInTheDocument();
     });
 
-    it('應該在大螢幕上正確顯示', () => {
-      // 模擬大螢幕
-      Object.defineProperty(window, 'innerWidth', {
-        value: 1920,
-        writable: true,
-      });
-
+    it('應該包含正確的按鈕文字', () => {
       render(<NetworkStatusAlert />);
       
-      const alert = screen.getByRole('alert');
-      expect(alert).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /重試連線/i })).toBeInTheDocument();
+    });
+
+    it('應該包含正確的警告文字', () => {
+      render(<NetworkStatusAlert />);
+      
+      expect(screen.getByText('網路已斷開')).toBeInTheDocument();
     });
   });
 }); 

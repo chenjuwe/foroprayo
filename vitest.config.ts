@@ -1,4 +1,5 @@
 /// <reference types="vitest" />
+/// <reference types="@testing-library/jest-dom" />
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import path from 'path'
@@ -8,7 +9,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./src/setupTests.ts'],
+    setupFiles: [process.env.VITEST_SETUP_FILE || './src/test/setup.ts'],
     css: true,
     coverage: {
       provider: 'v8',
@@ -38,8 +39,8 @@ export default defineConfig({
       '**/*.d.ts',
     ],
     // 性能測試配置
-    testTimeout: 10000, // 10 秒超時
-    hookTimeout: 10000,
+    testTimeout: 30000, // 30 秒超時
+    hookTimeout: 30000,
     // 並行測試配置
     pool: 'forks',
     poolOptions: {

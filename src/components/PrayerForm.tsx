@@ -199,7 +199,7 @@ export const PrayerForm: React.FC<PrayerFormProps> = ({
   };
 
   return (
-    <form onSubmit={onSubmit} className="w-full">
+    <form onSubmit={onSubmit} className="w-full" data-testid="card">
       <div className={`w-full min-h-[42px] text-sm font-normal px-3 py-2 flex items-center border rounded-none ${
         isAnswered 
           ? 'border-pink-300 bg-pink-50' 
@@ -221,6 +221,7 @@ export const PrayerForm: React.FC<PrayerFormProps> = ({
           aria-label="代禱內容輸入框"
           autoComplete="off"
           name="prayer-content"
+          data-testid="prayer-textarea"
         />
       </div>
 
@@ -258,6 +259,7 @@ export const PrayerForm: React.FC<PrayerFormProps> = ({
                     ? 'border-pink-400 bg-transparent checked:bg-pink-400 checked:border-pink-400' 
                     : 'border-[#1694da] bg-white checked:bg-[#1694da] checked:border-[#1694da]'
                 }`}
+                data-testid="anonymous-checkbox"
               />
               <label htmlFor="anonymous-checkbox" className={`text-xs font-normal leading-5 text-left ${
                 isAnswered ? 'text-pink-400' : 'text-[#1694da]'
@@ -305,6 +307,7 @@ export const PrayerForm: React.FC<PrayerFormProps> = ({
             aria-label="送出代禱"
             disabled={!prayerText.trim() || isSubmitting || uploading}
             style={{ transform: 'translateX(-4px)' }}
+            data-testid="submit-button"
           >
             <img
               src={SendArrowIcon}

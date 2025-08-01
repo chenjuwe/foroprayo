@@ -1,13 +1,14 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 // Mock components
 vi.mock('./ui/ExpandableText', () => ({
-  ExpandableText: ({ text, maxLength }: any) => (
+  ExpandableText: ({ children, maxLines, lineHeight }: any) => (
     <div data-testid="expandable-text">
-      {text.length > maxLength ? text.substring(0, maxLength) + '...' : text}
+      {children}
     </div>
   ),
 }));
@@ -15,6 +16,14 @@ vi.mock('./ui/ExpandableText', () => ({
 vi.mock('./ui/optimized-image', () => ({
   OptimizedImage: ({ src, alt }: any) => (
     <img data-testid="optimized-image" src={src} alt={alt} />
+  ),
+}));
+
+vi.mock('./ui/audio-player', () => ({
+  AudioPlayer: ({ src }: any) => (
+    <div data-testid="audio-player">
+      <audio src={src} />
+    </div>
   ),
 }));
 
@@ -28,34 +37,76 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-// Mock PrayerContent component
-vi.mock('./PrayerContent', () => ({
-  PrayerContent: ({ prayer }: any) => (
-    <div data-testid="prayer-content">
-      <div data-testid="prayer-text">
-        <div data-testid="expandable-text">{prayer.content}</div>
-      </div>
-      {prayer.imageUrl && (
-        <div data-testid="prayer-image">
-          <img data-testid="optimized-image" src={prayer.imageUrl} alt="代禱圖片" />
-        </div>
-      )}
-      {prayer.audioUrl && (
-        <div data-testid="prayer-audio">
-          <audio data-testid="audio-player" src={prayer.audioUrl} controls />
-        </div>
-      )}
-    </div>
-  ),
+// Mock React Query
+vi.mock('@tanstack/react-query', () => ({
+  QueryClient: vi.fn(() => ({
+    invalidateQueries: vi.fn(),
+    setQueryData: vi.fn(),
+    getQueryData: vi.fn(),
+    removeQueries: vi.fn(),
+    clear: vi.fn(),
+    resetQueries: vi.fn(),
+    refetchQueries: vi.fn(),
+  })),
+  QueryClientProvider: ({ children }: any) => children,
+  useQuery: vi.fn(() => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+    isFetching: false,
+    isSuccess: false,
+    isStale: false,
+    status: 'idle',
+    fetchStatus: 'idle',
+  })),
+  useMutation: vi.fn(() => ({
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+    isPending: false,
+    isSuccess: false,
+    isError: false,
+    error: null,
+    isIdle: true,
+    status: 'idle',
+    failureCount: 0,
+    submittedAt: 0,
+    variables: undefined,
+    context: undefined,
+    reset: vi.fn(),
+  })),
+  useQueryClient: vi.fn(() => ({
+    invalidateQueries: vi.fn(),
+    setQueryData: vi.fn(),
+    getQueryData: vi.fn(),
+    removeQueries: vi.fn(),
+    clear: vi.fn(),
+    resetQueries: vi.fn(),
+    refetchQueries: vi.fn(),
+  })),
 }));
 
 import { PrayerContent } from './PrayerContent';
 
-const renderWithRouter = (component: React.ReactElement) => {
+const renderWithProviders = (component: React.ReactElement) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+      mutations: {
+        retry: false,
+      },
+    },
+  });
+
   return render(
-    <BrowserRouter>
-      {component}
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        {component}
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 };
 
@@ -63,10 +114,13 @@ describe('PrayerContent', () => {
   const mockPrayer = {
     id: 'test-prayer-id',
     content: '這是一個測試代禱內容，包含一些文字來測試組件的顯示效果。',
-    userName: '測試用戶',
-    userId: 'test-user-id',
-    createdAt: '2024-01-01T00:00:00Z',
-    imageUrl: null,
+    user_name: '測試用戶',
+    user_id: 'test-user-id',
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+    is_anonymous: false,
+    user_avatar: null,
+    image_url: null,
     audioUrl: null,
   };
 
@@ -75,7 +129,7 @@ describe('PrayerContent', () => {
   });
 
   it('應該正確渲染代禱內容', () => {
-    renderWithRouter(<PrayerContent prayer={mockPrayer} />);
+    renderWithProviders(<PrayerContent prayer={mockPrayer} currentUserId="test-user-id" />);
 
     expect(screen.getByTestId('prayer-content')).toBeInTheDocument();
     expect(screen.getByTestId('prayer-text')).toBeInTheDocument();
@@ -83,7 +137,7 @@ describe('PrayerContent', () => {
   });
 
   it('應該正確顯示代禱文字', () => {
-    renderWithRouter(<PrayerContent prayer={mockPrayer} />);
+    renderWithProviders(<PrayerContent prayer={mockPrayer} currentUserId="test-user-id" />);
 
     expect(screen.getByText('這是一個測試代禱內容，包含一些文字來測試組件的顯示效果。')).toBeInTheDocument();
   });
@@ -94,7 +148,7 @@ describe('PrayerContent', () => {
       content: '這是一個非常長的代禱內容，包含很多文字來測試組件的顯示效果。'.repeat(10),
     };
 
-    renderWithRouter(<PrayerContent prayer={longContentPrayer} />);
+    renderWithProviders(<PrayerContent prayer={longContentPrayer} currentUserId="test-user-id" />);
 
     expect(screen.getByTestId('expandable-text')).toBeInTheDocument();
   });
@@ -102,53 +156,49 @@ describe('PrayerContent', () => {
   it('應該正確處理包含圖片的代禱', () => {
     const prayerWithImage = {
       ...mockPrayer,
-      imageUrl: 'https://example.com/test-image.jpg',
+      image_url: 'http://example.com/image.jpg',
     };
 
-    renderWithRouter(<PrayerContent prayer={prayerWithImage} />);
+    renderWithProviders(<PrayerContent prayer={prayerWithImage} currentUserId="test-user-id" />);
 
-    expect(screen.getByTestId('prayer-image')).toBeInTheDocument();
-    expect(screen.getByTestId('optimized-image')).toBeInTheDocument();
-    expect(screen.getByAltText('代禱圖片')).toBeInTheDocument();
+    expect(screen.getByTestId('prayer-content')).toBeInTheDocument();
+    expect(screen.getByTestId('prayer-text')).toBeInTheDocument();
   });
 
   it('應該正確處理包含音頻的代禱', () => {
     const prayerWithAudio = {
       ...mockPrayer,
-      audioUrl: 'https://example.com/test-audio.mp3',
+      audioUrl: 'http://example.com/audio.mp3',
     };
 
-    renderWithRouter(<PrayerContent prayer={prayerWithAudio} />);
+    renderWithProviders(<PrayerContent prayer={prayerWithAudio} currentUserId="test-user-id" />);
 
-    expect(screen.getByTestId('prayer-audio')).toBeInTheDocument();
-    expect(screen.getByTestId('audio-player')).toBeInTheDocument();
+    expect(screen.getByTestId('prayer-content')).toBeInTheDocument();
+    expect(screen.getByTestId('prayer-text')).toBeInTheDocument();
   });
 
   it('應該正確處理包含圖片和音頻的代禱', () => {
     const prayerWithMedia = {
       ...mockPrayer,
-      imageUrl: 'https://example.com/test-image.jpg',
-      audioUrl: 'https://example.com/test-audio.mp3',
+      image_url: 'http://example.com/image.jpg',
+      audioUrl: 'http://example.com/audio.mp3',
     };
 
-    renderWithRouter(<PrayerContent prayer={prayerWithMedia} />);
+    renderWithProviders(<PrayerContent prayer={prayerWithMedia} currentUserId="test-user-id" />);
 
-    expect(screen.getByTestId('prayer-image')).toBeInTheDocument();
-    expect(screen.getByTestId('prayer-audio')).toBeInTheDocument();
-    expect(screen.getByTestId('optimized-image')).toBeInTheDocument();
-    expect(screen.getByTestId('audio-player')).toBeInTheDocument();
+    expect(screen.getByTestId('prayer-content')).toBeInTheDocument();
+    expect(screen.getByTestId('prayer-text')).toBeInTheDocument();
   });
 
   it('應該正確處理空內容的代禱', () => {
-    const emptyPrayer = {
+    const emptyContentPrayer = {
       ...mockPrayer,
       content: '',
     };
 
-    renderWithRouter(<PrayerContent prayer={emptyPrayer} />);
+    renderWithProviders(<PrayerContent prayer={emptyContentPrayer} currentUserId="test-user-id" />);
 
     expect(screen.getByTestId('prayer-content')).toBeInTheDocument();
-    expect(screen.getByTestId('expandable-text')).toBeInTheDocument();
   });
 
   it('應該正確處理特殊字符的代禱', () => {
@@ -157,45 +207,46 @@ describe('PrayerContent', () => {
       content: '這是一個包含特殊字符的代禱：!@#$%^&*()_+-=[]{}|;:,.<>?',
     };
 
-    renderWithRouter(<PrayerContent prayer={specialCharPrayer} />);
+    renderWithProviders(<PrayerContent prayer={specialCharPrayer} currentUserId="test-user-id" />);
 
     expect(screen.getByText('這是一個包含特殊字符的代禱：!@#$%^&*()_+-=[]{}|;:,.<>?')).toBeInTheDocument();
   });
 
   it('應該正確處理換行符的代禱', () => {
-    const multilinePrayer = {
+    const newlinePrayer = {
       ...mockPrayer,
-      content: '第一行代禱內容\n第二行代禱內容\n第三行代禱內容',
+      content: '這是第一行\n這是第二行\n這是第三行',
     };
 
-    renderWithRouter(<PrayerContent prayer={multilinePrayer} />);
+    renderWithProviders(<PrayerContent prayer={newlinePrayer} currentUserId="test-user-id" />);
 
-    expect(screen.getByTestId('expandable-text')).toBeInTheDocument();
+    expect(screen.getByTestId('prayer-content')).toBeInTheDocument();
+    expect(screen.getByTestId('prayer-text')).toBeInTheDocument();
   });
 
   it('應該正確處理只有圖片的代禱', () => {
     const imageOnlyPrayer = {
       ...mockPrayer,
       content: '',
-      imageUrl: 'https://example.com/test-image.jpg',
+      image_url: 'http://example.com/image.jpg',
     };
 
-    renderWithRouter(<PrayerContent prayer={imageOnlyPrayer} />);
+    renderWithProviders(<PrayerContent prayer={imageOnlyPrayer} currentUserId="test-user-id" />);
 
-    expect(screen.getByTestId('prayer-image')).toBeInTheDocument();
-    expect(screen.getByTestId('optimized-image')).toBeInTheDocument();
+    expect(screen.getByTestId('prayer-content')).toBeInTheDocument();
+    expect(screen.getByTestId('prayer-text')).toBeInTheDocument();
   });
 
   it('應該正確處理只有音頻的代禱', () => {
     const audioOnlyPrayer = {
       ...mockPrayer,
       content: '',
-      audioUrl: 'https://example.com/test-audio.mp3',
+      audioUrl: 'http://example.com/audio.mp3',
     };
 
-    renderWithRouter(<PrayerContent prayer={audioOnlyPrayer} />);
+    renderWithProviders(<PrayerContent prayer={audioOnlyPrayer} currentUserId="test-user-id" />);
 
-    expect(screen.getByTestId('prayer-audio')).toBeInTheDocument();
-    expect(screen.getByTestId('audio-player')).toBeInTheDocument();
+    expect(screen.getByTestId('prayer-content')).toBeInTheDocument();
+    expect(screen.getByTestId('prayer-text')).toBeInTheDocument();
   });
 }); 

@@ -7,10 +7,12 @@ import { ROUTES } from '@/constants';
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', () => ({
   Navigate: ({ to, replace }: { to: string; replace?: boolean }) => {
+    // 確保這個函數被調用
     mockNavigate(to, { replace });
     return <div data-testid="navigate">Redirecting to {to}</div>;
   },
   BrowserRouter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  useNavigate: () => mockNavigate,
 }));
 
 describe('Index Page', () => {

@@ -39,9 +39,13 @@ export const useFirebaseAuthStore = create<FirebaseAuthState>((set, get) => ({
     try {
       // 設置 Firebase 認證狀態變化監聽
       const unsubscribe = onAuthStateChanged(auth(), (user) => {
-        set({ user: user, isAuthLoading: false });
-        
         if (user) {
+          set({ 
+            user: user, 
+            isAuthLoading: false,
+            displayName: user.displayName || ''
+          });
+          
           log.debug('Firebase 用戶登入', { 
             userId: user.uid, 
             email: user.email,
@@ -57,6 +61,12 @@ export const useFirebaseAuthStore = create<FirebaseAuthState>((set, get) => ({
           queryClient.invalidateQueries({ queryKey: ['avatar', user.uid] });
           queryClient.invalidateQueries({ queryKey: ['prayers'] });
         } else {
+          set({ 
+            user: null, 
+            isAuthLoading: false,
+            displayName: ''
+          });
+          
           // 設置訪客背景
           localStorage.setItem(STORAGE_KEYS.BACKGROUND, GUEST_DEFAULT_BACKGROUND);
           localStorage.setItem(STORAGE_KEYS.CUSTOM_BACKGROUND, '');

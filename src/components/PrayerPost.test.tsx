@@ -15,6 +15,75 @@ vi.mock('@/integrations/firebase/client', () => ({
   }))
 }));
 
+// Mock superAdminService
+vi.mock('@/services/admin/SuperAdminService', () => ({
+  superAdminService: {
+    getInstance: vi.fn(() => ({
+      isSuperAdmin: vi.fn().mockResolvedValue(false),
+      deletePrayer: vi.fn().mockResolvedValue(true),
+    })),
+  },
+}));
+
+// Mock @tanstack/react-query
+vi.mock('@tanstack/react-query', () => ({
+  QueryClient: vi.fn(() => ({
+    clear: vi.fn(),
+    invalidateQueries: vi.fn(),
+    setQueryData: vi.fn(),
+    getQueryData: vi.fn(),
+    removeQueries: vi.fn(),
+    resetQueries: vi.fn(),
+    refetchQueries: vi.fn(),
+  })),
+  QueryClientProvider: ({ children }: any) => children,
+  MutationCache: vi.fn(() => ({
+    getAll: vi.fn(() => []),
+    add: vi.fn(),
+    remove: vi.fn(),
+    clear: vi.fn(),
+    find: vi.fn(),
+    findAll: vi.fn(),
+    notify: vi.fn(),
+  })),
+  useQuery: vi.fn(() => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+    isFetching: false,
+    isSuccess: false,
+    isStale: false,
+    status: 'idle',
+    fetchStatus: 'idle',
+  })),
+  useMutation: vi.fn(() => ({
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+    isPending: false,
+    isSuccess: false,
+    isError: false,
+    error: null,
+    isIdle: true,
+    status: 'idle',
+    failureCount: 0,
+    submittedAt: 0,
+    variables: undefined,
+    context: undefined,
+    reset: vi.fn(),
+  })),
+  useQueryClient: vi.fn(() => ({
+    invalidateQueries: vi.fn(),
+    setQueryData: vi.fn(),
+    getQueryData: vi.fn(),
+    removeQueries: vi.fn(),
+    clear: vi.fn(),
+    resetQueries: vi.fn(),
+    refetchQueries: vi.fn(),
+  })),
+}));
+
 vi.mock('@/hooks/useFirebaseAvatar', () => ({
   useFirebaseAvatar: vi.fn(() => ({
     avatarUrl: 'https://example.com/avatar.jpg',
@@ -98,13 +167,6 @@ vi.mock('@/lib/notifications', () => ({
   },
 }));
 
-// Mock useToast
-vi.mock('@/hooks/use-toast', () => ({
-  useToast: vi.fn(() => ({
-    toast: vi.fn(),
-  })),
-}));
-
 vi.mock('@services', () => ({
   superAdminService: {
     getInstance: vi.fn(() => ({
@@ -128,64 +190,12 @@ vi.mock('sonner', () => ({
   }
 }));
 
-vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: vi.fn(() => ({
-    setQueryData: vi.fn(),
-    invalidateQueries: vi.fn()
-  }))
-}));
-
 // Mock hooks that are used in child components
 vi.mock('@/hooks/useFirebaseAuth', () => ({
   useFirebaseAuth: vi.fn(() => ({
     currentUser: { uid: 'test-user-id' },
     isLoading: false
   }))
-}));
-
-vi.mock('@/hooks/usePrayerLikes', () => ({
-  usePrayerLikes: vi.fn(() => ({
-    data: [],
-    isLoading: false
-  }))
-}));
-
-vi.mock('@/hooks/useTogglePrayerLike', () => ({
-  useTogglePrayerLike: vi.fn(() => ({
-    mutate: vi.fn(),
-    isPending: false
-  }))
-}));
-
-vi.mock('@/hooks/useDeletePrayer', () => ({
-  useDeletePrayer: vi.fn(() => ({
-    mutate: vi.fn(),
-    isPending: false
-  }))
-}));
-
-vi.mock('@/hooks/useTogglePrayerAnswered', () => ({
-  useTogglePrayerAnswered: vi.fn(() => ({
-    mutate: vi.fn(),
-    isPending: false
-  }))
-}));
-
-vi.mock('@/hooks/useFirebaseUserData', () => ({
-  useFirebaseUserData: vi.fn(() => ({
-    userData: { displayName: 'Test User' },
-    isLoading: false
-  }))
-}));
-
-// Mock notifications
-vi.mock('@/lib/notifications', () => ({
-  notify: {
-    success: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-    apiError: vi.fn(),
-  },
 }));
 
 // Mock useToast
@@ -227,7 +237,7 @@ describe('PrayerPost', () => {
     it('應該正確渲染代禱貼文', () => {
       render(<PrayerPost {...defaultProps} />);
       
-      expect(screen.getByTestId('card')).toBeInTheDocument();
+      expect(screen.getByTestId('prayer-post')).toBeInTheDocument();
       expect(screen.getByTestId('prayer-content')).toBeInTheDocument();
       expect(screen.getByText('這是一個測試代禱')).toBeInTheDocument();
     });
@@ -241,13 +251,13 @@ describe('PrayerPost', () => {
       
       render(<PrayerPost {...defaultProps} prayer={anonymousPrayer} />);
       
-      expect(screen.getByTestId('card')).toBeInTheDocument();
+      expect(screen.getByTestId('prayer-post')).toBeInTheDocument();
     });
 
     it('應該正確顯示回應數量', () => {
       render(<PrayerPost {...defaultProps} initialResponseCount={5} />);
       
-      expect(screen.getByTestId('card')).toBeInTheDocument();
+      expect(screen.getByTestId('prayer-post')).toBeInTheDocument();
     });
   });
 
@@ -255,13 +265,14 @@ describe('PrayerPost', () => {
     it('應該正確渲染愛心按鈕', () => {
       render(<PrayerPost {...defaultProps} />);
       
-      expect(screen.getByTestId('like-button')).toBeInTheDocument();
+      // 愛心按鈕通過 aria-label 來查找
+      expect(screen.getByLabelText('給愛心')).toBeInTheDocument();
     });
 
     it('應該正確處理愛心點擊', () => {
       render(<PrayerPost {...defaultProps} />);
       
-      const likeButton = screen.getByTestId('like-button');
+      const likeButton = screen.getByLabelText('給愛心');
       fireEvent.click(likeButton);
       
       // 愛心按鈕應該可以點擊
@@ -270,32 +281,58 @@ describe('PrayerPost', () => {
   });
 
   describe('操作按鈕', () => {
-    it('應該為代禱作者顯示編輯和刪除按鈕', () => {
+    it('應該為代禱作者顯示編輯和刪除按鈕', async () => {
       render(<PrayerPost {...defaultProps} />);
       
-      expect(screen.getByTestId('post-action-buttons')).toBeInTheDocument();
-      expect(screen.getByText('編輯')).toBeInTheDocument();
-      expect(screen.getByText('刪除')).toBeInTheDocument();
+      expect(screen.getByTestId('post-actions')).toBeInTheDocument();
+      // 編輯和刪除按鈕在菜單中，需要點擊菜單才能看到
+      const menuButton = screen.getByLabelText('更多選項');
+      fireEvent.click(menuButton);
+      
+      // 等待菜單打開後檢查按鈕
+      await waitFor(() => {
+        expect(screen.getByText('編輯')).toBeInTheDocument();
+        expect(screen.getByText('刪除')).toBeInTheDocument();
+      });
     });
 
-    it('應該正確處理編輯按鈕點擊', () => {
+    it('應該正確處理編輯按鈕點擊', async () => {
       render(<PrayerPost {...defaultProps} />);
+      
+      // 先點擊菜單按鈕
+      const menuButton = screen.getByLabelText('更多選項');
+      fireEvent.click(menuButton);
+      
+      // 等待菜單打開後找到並點擊編輯按鈕
+      await waitFor(() => {
+        expect(screen.getByText('編輯')).toBeInTheDocument();
+      });
       
       const editButton = screen.getByText('編輯');
       fireEvent.click(editButton);
       
-      expect(defaultProps.onUpdate).toHaveBeenCalled();
+      // 添加等待確保事件處理完成
+      await waitFor(() => {
+        expect(defaultProps.onUpdate).toHaveBeenCalled();
+      });
     });
 
     it('應該正確處理刪除按鈕點擊', async () => {
       render(<PrayerPost {...defaultProps} />);
       
-      const deleteButton = screen.getByText('刪除');
-      fireEvent.click(deleteButton);
+      // 先點擊菜單按鈕
+      const menuButton = screen.getByLabelText('更多選項');
+      fireEvent.click(menuButton);
+      
+      // 等待菜單打開後點擊刪除按鈕
+      await waitFor(() => {
+        const deleteButton = screen.getByText('刪除');
+        fireEvent.click(deleteButton);
+      });
       
       // 應該顯示確認對話框
       await waitFor(() => {
-        expect(screen.getByTestId('alert-dialog')).toBeInTheDocument();
+        expect(screen.getByText('確定要刪除這則代禱嗎？')).toBeInTheDocument();
       });
     });
   });

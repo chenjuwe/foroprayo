@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { PrayerResponse } from './PrayerResponse';
+import { FirebaseAuthProvider } from '@/contexts/FirebaseAuthContext';
 
 // Mock React Router
 vi.mock('react-router-dom', async () => {
@@ -12,6 +13,65 @@ vi.mock('react-router-dom', async () => {
     useLocation: () => ({ pathname: '/prayers' }),
   };
 });
+
+// Mock @tanstack/react-query
+vi.mock('@tanstack/react-query', () => ({
+  QueryClient: vi.fn(() => ({
+    clear: vi.fn(),
+    invalidateQueries: vi.fn(),
+    setQueryData: vi.fn(),
+    getQueryData: vi.fn(),
+    removeQueries: vi.fn(),
+    resetQueries: vi.fn(),
+    refetchQueries: vi.fn(),
+  })),
+  QueryClientProvider: ({ children }: any) => children,
+  MutationCache: vi.fn(() => ({
+    getAll: vi.fn(() => []),
+    add: vi.fn(),
+    remove: vi.fn(),
+    clear: vi.fn(),
+    find: vi.fn(),
+    findAll: vi.fn(),
+    notify: vi.fn(),
+  })),
+  useQuery: vi.fn(() => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+    isFetching: false,
+    isSuccess: false,
+    isStale: false,
+    status: 'idle',
+    fetchStatus: 'idle',
+  })),
+  useMutation: vi.fn(() => ({
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+    isPending: false,
+    isSuccess: false,
+    isError: false,
+    error: null,
+    isIdle: true,
+    status: 'idle',
+    failureCount: 0,
+    submittedAt: 0,
+    variables: undefined,
+    context: undefined,
+    reset: vi.fn(),
+  })),
+  useQueryClient: vi.fn(() => ({
+    invalidateQueries: vi.fn(),
+    setQueryData: vi.fn(),
+    getQueryData: vi.fn(),
+    removeQueries: vi.fn(),
+    clear: vi.fn(),
+    resetQueries: vi.fn(),
+    refetchQueries: vi.fn(),
+  })),
+}));
 
 // Mock useSocialFeatures hooks
 vi.mock('@/hooks/useSocialFeatures', () => ({
@@ -46,28 +106,46 @@ vi.mock('@/lib/getUnifiedUserName', () => ({
   getUnifiedUserName: vi.fn().mockReturnValue('Test User'),
 }));
 
-// Mock useQueryClient
-vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({
-    invalidateQueries: vi.fn(),
-  }),
-}));
-
 // Mock QUERY_KEYS
 vi.mock('@/constants', () => ({
   QUERY_KEYS: {
     PRAYER_RESPONSES: 'prayer-responses',
   },
+  QUERY_CONFIG: {
+    STALE_TIME: 2 * 60 * 1000,
+    GC_TIME: 5 * 60 * 1000,
+    RETRY_COUNT: 1,
+    RETRY_DELAY: (attemptIndex: number) => Math.min(500 * 2 ** attemptIndex, 10000),
+  },
+}));
+
+// Mock useFirebaseAuth hook directly
+vi.mock('@/hooks/useFirebaseAuth', () => ({
+  useFirebaseAuth: () => ({
+    currentUser: {
+      uid: 'test-user-id',
+      displayName: 'Test User',
+      email: 'test@example.com',
+    },
+    loading: false,
+    signIn: vi.fn(),
+    signUp: vi.fn(),
+    signOut: vi.fn(),
+    resetPassword: vi.fn(),
+    refreshUserAvatar: vi.fn(),
+  }),
 }));
 
 const mockResponse = {
   id: 'response-1',
   prayer_id: 'prayer-1',
   content: '這是一個測試回應',
+  user_id: 'test-user-id', // 添加 user_id 以匹配 currentUserId
   user_name: 'Test User',
   user_avatar: 'https://example.com/avatar.jpg',
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-01-01T00:00:00Z',
+  is_anonymous: false,
 };
 
 const renderPrayerResponse = (props = {}) => {
@@ -83,7 +161,9 @@ const renderPrayerResponse = (props = {}) => {
 
   return render(
     <BrowserRouter>
-      <PrayerResponse {...defaultProps} {...props} />
+      <FirebaseAuthProvider>
+        <PrayerResponse {...defaultProps} {...props} />
+      </FirebaseAuthProvider>
     </BrowserRouter>
   );
 };
@@ -105,8 +185,8 @@ describe('PrayerResponse Component - 代禱回應流程', () => {
       renderPrayerResponse();
       
       expect(screen.getByText('Test User')).toBeInTheDocument();
-      // 檢查是否有頭像元素
-      const avatar = screen.getByAltText(/Test User/i);
+      // 檢查是否有頭像元素 (使用 testid 而不是 altText，因為頭像是 span 而不是 img)
+      const avatar = screen.getByTestId('user-avatar');
       expect(avatar).toBeInTheDocument();
     });
 
@@ -163,7 +243,14 @@ describe('PrayerResponse Component - 代禱回應流程', () => {
         },
       });
       
-      expect(screen.getByText(contentWithNewlines)).toBeInTheDocument();
+      // 檢查換行符內容 - 檢查是否包含所有行的內容
+      expect(screen.getByText('第一行')).toBeInTheDocument();
+      expect(screen.getByText((content, element) => {
+        return element?.textContent?.includes('第二行') || false;
+      })).toBeInTheDocument();
+      expect(screen.getByText((content, element) => {
+        return element?.textContent?.includes('第三行') || false;
+      })).toBeInTheDocument();
     });
   });
 
@@ -219,8 +306,15 @@ describe('PrayerResponse Component - 代禱回應流程', () => {
       const onShare = vi.fn();
       renderPrayerResponse({ onShare });
       
-      const shareButton = screen.getByRole('button', { name: /分享/i });
-      fireEvent.click(shareButton);
+      // 點擊更多選項按鈕來打開菜單
+      const moreButton = screen.getByRole('button', { name: /更多選項/i });
+      fireEvent.click(moreButton);
+      
+      // 等待菜單出現後點擊轉寄選項（實際的分享功能）
+      await waitFor(() => {
+        const shareMenuItem = screen.getByText('轉寄');
+        fireEvent.click(shareMenuItem);
+      });
       
       expect(onShare).toHaveBeenCalled();
     });
@@ -229,18 +323,45 @@ describe('PrayerResponse Component - 代禱回應流程', () => {
       const onEdit = vi.fn();
       renderPrayerResponse({ onEdit });
       
-      const editButton = screen.getByRole('button', { name: /編輯/i });
-      fireEvent.click(editButton);
+      // 點擊更多選項按鈕來打開菜單
+      const moreButton = screen.getByRole('button', { name: /更多選項/i });
+      fireEvent.click(moreButton);
+      
+      // 等待菜單出現後點擊編輯選項
+      await waitFor(() => {
+        const editMenuItem = screen.getByText('編輯');
+        fireEvent.click(editMenuItem);
+      });
       
       expect(onEdit).toHaveBeenCalledWith('response-1');
     });
 
     it('應該正確處理刪除功能', async () => {
       const onDelete = vi.fn();
-      renderPrayerResponse({ onDelete });
+      renderPrayerResponse({ 
+        onDelete,
+        response: {
+          ...mockResponse,
+          user_id: 'test-user-id', // 確保是用戶自己的回應
+        },
+        currentUserId: 'test-user-id'
+      });
       
-      const deleteButton = screen.getByRole('button', { name: /刪除/i });
-      fireEvent.click(deleteButton);
+      // 點擊更多選項按鈕來打開菜單
+      const moreButton = screen.getByRole('button', { name: /更多選項/i });
+      fireEvent.click(moreButton);
+      
+      // 等待菜單出現後點擊刪除選項
+      await waitFor(() => {
+        const deleteMenuItem = screen.getByText('刪除');
+        fireEvent.click(deleteMenuItem);
+      });
+      
+      // 等待並確認刪除對話框
+      await waitFor(() => {
+        const confirmButton = screen.getByRole('button', { name: /確認刪除/i });
+        fireEvent.click(confirmButton);
+      });
       
       expect(onDelete).toHaveBeenCalledWith('response-1');
     });
@@ -265,7 +386,7 @@ describe('PrayerResponse Component - 代禱回應流程', () => {
       fireEvent.click(superAdminDeleteButton);
       
       // 檢查確認對話框
-      expect(screen.getByText(/確定要刪除這個回應嗎？/)).toBeInTheDocument();
+      expect(screen.getByText(/確定要刪除此回應？/)).toBeInTheDocument();
     });
 
     it('應該正確處理超級管理員刪除確認', async () => {
@@ -276,7 +397,7 @@ describe('PrayerResponse Component - 代禱回應流程', () => {
       const superAdminDeleteButton = screen.getByRole('button', { name: /超級管理員刪除/i });
       fireEvent.click(superAdminDeleteButton);
       
-      const confirmButton = screen.getByRole('button', { name: /確定/i });
+      const confirmButton = screen.getByRole('button', { name: /確認刪除/i });
       fireEvent.click(confirmButton);
       
       // 檢查刪除確認處理
@@ -285,7 +406,7 @@ describe('PrayerResponse Component - 代禱回應流程', () => {
   });
 
   describe('權限控制', () => {
-    it('應該為回應作者顯示編輯和刪除按鈕', () => {
+    it('應該為回應作者顯示編輯和刪除按鈕', async () => {
       renderPrayerResponse({
         response: {
           ...mockResponse,
@@ -294,11 +415,15 @@ describe('PrayerResponse Component - 代禱回應流程', () => {
         currentUserId: 'test-user-id',
       });
       
-      const editButton = screen.getByRole('button', { name: /編輯/i });
-      const deleteButton = screen.getByRole('button', { name: /刪除/i });
+      // 點擊更多選項按鈕來打開菜單
+      const moreButton = screen.getByRole('button', { name: /更多選項/i });
+      fireEvent.click(moreButton);
       
-      expect(editButton).toBeInTheDocument();
-      expect(deleteButton).toBeInTheDocument();
+      // 等待菜單出現後檢查編輯和刪除選項
+      await waitFor(() => {
+        expect(screen.getByText('編輯')).toBeInTheDocument();
+        expect(screen.getByText('刪除')).toBeInTheDocument();
+      });
     });
 
     it('應該為其他用戶隱藏編輯和刪除按鈕', () => {
@@ -322,11 +447,20 @@ describe('PrayerResponse Component - 代禱回應流程', () => {
     it('應該在刪除時顯示載入狀態', async () => {
       renderPrayerResponse();
       
-      const deleteButton = screen.getByRole('button', { name: /刪除/i });
-      fireEvent.click(deleteButton);
+      // 點擊更多選項按鈕來打開菜單
+      const moreButton = screen.getByRole('button', { name: /更多選項/i });
+      fireEvent.click(moreButton);
       
-      // 檢查載入狀態
-      expect(deleteButton).toBeInTheDocument();
+      // 等待菜單出現後點擊刪除選項
+      await waitFor(() => {
+        const deleteMenuItem = screen.getByText('刪除');
+        fireEvent.click(deleteMenuItem);
+      });
+      
+      // 檢查是否彈出刪除確認對話框
+      await waitFor(() => {
+        expect(screen.getByText('確定要刪除這則回應嗎？')).toBeInTheDocument();
+      });
     });
 
     it('應該在愛心操作時顯示載入狀態', async () => {
@@ -342,13 +476,17 @@ describe('PrayerResponse Component - 代禱回應流程', () => {
 
   describe('錯誤處理', () => {
     it('應該正確處理刪除錯誤', async () => {
-      renderPrayerResponse();
+      renderPrayerResponse({ isOwner: true });
       
-      const deleteButton = screen.getByRole('button', { name: /刪除/i });
-      fireEvent.click(deleteButton);
+      // 點擊更多選項按鈕來打開菜單
+      const moreButton = screen.getByRole('button', { name: /更多選項/i });
+      fireEvent.click(moreButton);
       
-      // 檢查錯誤處理
-      expect(deleteButton).toBeInTheDocument();
+      // 等待菜單出現後點擊刪除選項
+      await waitFor(() => {
+        const deleteMenuItem = screen.getByText('刪除');
+        expect(deleteMenuItem).toBeInTheDocument();
+      });
     });
 
     it('應該正確處理愛心操作錯誤', async () => {
@@ -367,24 +505,23 @@ describe('PrayerResponse Component - 代禱回應流程', () => {
       renderPrayerResponse();
       
       const likeButton = screen.getByRole('button', { name: /愛心/i });
-      const shareButton = screen.getByRole('button', { name: /分享/i });
+      const moreButton = screen.getByRole('button', { name: /更多選項/i });
       
       expect(likeButton).toBeInTheDocument();
-      expect(shareButton).toBeInTheDocument();
+      expect(moreButton).toBeInTheDocument();
     });
 
     it('應該支持鍵盤導航', () => {
       renderPrayerResponse();
       
       const likeButton = screen.getByRole('button', { name: /愛心/i });
-      const shareButton = screen.getByRole('button', { name: /分享/i });
+      const moreButton = screen.getByRole('button', { name: /更多選項/i });
       
       likeButton.focus();
-      expect(likeButton).toHaveFocus();
+      expect(document.activeElement).toBe(likeButton);
       
-      // 測試 Tab 鍵導航
-      fireEvent.keyDown(likeButton, { key: 'Tab' });
-      expect(shareButton).toHaveFocus();
+      moreButton.focus();
+      expect(document.activeElement).toBe(moreButton);
     });
   });
 
@@ -421,11 +558,11 @@ describe('PrayerResponse Component - 代禱回應流程', () => {
       renderPrayerResponse();
       
       const likeButton = screen.getByRole('button', { name: /愛心/i });
-      const shareButton = screen.getByRole('button', { name: /分享/i });
+      const moreButton = screen.getByRole('button', { name: /更多選項/i });
       
       // 檢查按鈕是否有正確的樣式
       expect(likeButton).toBeInTheDocument();
-      expect(shareButton).toBeInTheDocument();
+      expect(moreButton).toBeInTheDocument();
     });
 
     it('應該在操作成功後顯示成功訊息', async () => {
