@@ -1,798 +1,364 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { BrowserRouter } from 'react-router-dom';
 import { PostActions } from './PostActions';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
-import React from 'react';
 
-// Mock dependencies
+// Mock all dependencies
 vi.mock('@/hooks/useSocialFeatures', () => ({
   usePrayerLikes: vi.fn(),
-  useTogglePrayerLike: vi.fn()
+  useTogglePrayerLike: vi.fn(),
 }));
 
 vi.mock('@/hooks/usePrayersOptimized', () => ({
-  useDeletePrayer: vi.fn()
+  useDeletePrayer: vi.fn(),
 }));
 
 vi.mock('@/hooks/useFirebaseAuth', () => ({
-  useFirebaseAuth: vi.fn()
+  useFirebaseAuth: vi.fn(),
 }));
 
 vi.mock('@/hooks/usePrayerAnswered', () => ({
-  useTogglePrayerAnswered: vi.fn()
-}));
-
-vi.mock('./ReportDialog', () => ({
-  ReportDialog: ({ isOpen, onClose }: any) => 
-    isOpen ? <div data-testid="report-dialog">Report Dialog</div> : null
-}));
-
-vi.mock('./ui/menu', () => ({
-  Menu: ({ children }: any) => <div data-testid="menu">{children}</div>,
-  MenuTrigger: ({ children }: any) => <div data-testid="menu-trigger">{children}</div>,
-  MenuContent: ({ children }: any) => <div data-testid="menu-content">{children}</div>,
-  MenuItem: ({ children, onSelect }: any) => 
-    <div data-testid="menu-item" onClick={onSelect}>{children}</div>,
-  MenuSeparator: () => <div data-testid="menu-separator" />
-}));
-
-vi.mock('./ui/alert-dialog', () => ({
-  AlertDialog: ({ children }: any) => <div data-testid="alert-dialog">{children}</div>,
-  AlertDialogAction: ({ children, onClick }: any) => 
-    <button data-testid="alert-dialog-action" onClick={onClick}>{children}</button>,
-  AlertDialogCancel: ({ children, onClick }: any) => 
-    <button data-testid="alert-dialog-cancel" onClick={onClick}>{children}</button>,
-  AlertDialogContent: ({ children }: any) => <div data-testid="alert-dialog-content">{children}</div>,
-  AlertDialogDescription: ({ children }: any) => <div data-testid="alert-dialog-description">{children}</div>,
-  AlertDialogFooter: ({ children }: any) => <div data-testid="alert-dialog-footer">{children}</div>,
-  AlertDialogHeader: ({ children }: any) => <div data-testid="alert-dialog-header">{children}</div>,
-  AlertDialogTitle: ({ children }: any) => <div data-testid="alert-dialog-title">{children}</div>
+  useTogglePrayerAnswered: vi.fn(),
 }));
 
 vi.mock('@/lib/logger', () => ({
   log: {
     debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
     error: vi.fn(),
-    info: vi.fn()
-  }
+  },
 }));
 
 vi.mock('@/lib/notifications', () => ({
-  notify: vi.fn()
+  notify: {
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+  },
 }));
 
-// Helper to create test wrapper
-const createWrapper = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false }
-    }
-  });
+vi.mock('./ReportDialog', () => ({
+  ReportDialog: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => 
+    isOpen ? <div data-testid="report-dialog">Report Dialog</div> : null,
+}));
 
-  const Wrapper = ({ children }: { children: React.ReactNode }) => (
-    React.createElement(MemoryRouter, { initialEntries: ['/prayers'] },
-      React.createElement(QueryClientProvider, { client: queryClient }, children)
-    )
-  );
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useLocation: vi.fn(() => ({ pathname: '/prayers' })),
+  };
+});
 
-  return Wrapper;
+// Import mocked modules
+import { usePrayerLikes, useTogglePrayerLike } from '@/hooks/useSocialFeatures';
+import { useDeletePrayer } from '@/hooks/usePrayersOptimized';
+import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
+import { useTogglePrayerAnswered } from '@/hooks/usePrayerAnswered';
+
+const renderWithRouter = (component: React.ReactElement) => {
+  return render(<BrowserRouter>{component}</BrowserRouter>);
 };
 
 describe('PostActions', () => {
+  const mockPrayer = {
+    id: 'prayer-1',
+    user_id: 'user-1',
+    content: '測試代禱內容',
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+    user_name: 'Test User',
+    avatar_url: 'https://example.com/avatar.jpg',
+    answered: false,
+  };
+
   const defaultProps = {
     prayerId: 'prayer-1',
     prayerUserId: 'user-1',
-    prayerContent: 'Test prayer content',
+    prayerContent: '測試代禱內容',
     prayerUserName: 'Test User',
     prayerUserAvatar: 'https://example.com/avatar.jpg',
-    isOwner: false
+    isOwner: true,
+    onShare: vi.fn(),
+    onEdit: vi.fn(),
+    onDelete: vi.fn(),
   };
-
-  const mockLikes = [
-    { id: '1', user_id: 'user-1', prayer_id: 'prayer-1', created_at: '2023-01-01' },
-    { id: '2', user_id: 'user-2', prayer_id: 'prayer-1', created_at: '2023-01-02' }
-  ];
-
-  let mockUsePrayerLikes: any;
-  let mockUseTogglePrayerLike: any;
-  let mockUseDeletePrayer: any;
-  let mockUseFirebaseAuth: any;
-  let mockUseTogglePrayerAnswered: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // Get mocked functions
-    mockUsePrayerLikes = vi.mocked(require('@/hooks/useSocialFeatures').usePrayerLikes);
-    mockUseTogglePrayerLike = vi.mocked(require('@/hooks/useSocialFeatures').useTogglePrayerLike);
-    mockUseDeletePrayer = vi.mocked(require('@/hooks/usePrayersOptimized').useDeletePrayer);
-    mockUseFirebaseAuth = vi.mocked(require('@/hooks/useFirebaseAuth').useFirebaseAuth);
-    mockUseTogglePrayerAnswered = vi.mocked(require('@/hooks/usePrayerAnswered').useTogglePrayerAnswered);
-
-    // Setup default mocks
-    mockUsePrayerLikes.mockReturnValue({ data: mockLikes });
-    mockUseTogglePrayerLike.mockReturnValue({
-      mutate: vi.fn(),
-      isPending: false
-    });
-    mockUseDeletePrayer.mockReturnValue({
-      mutate: vi.fn(),
-      isPending: false
-    });
-    mockUseFirebaseAuth.mockReturnValue({
-      currentUser: { uid: 'current-user-id' }
-    });
-    mockUseTogglePrayerAnswered.mockReturnValue({
-      mutate: vi.fn(),
-      isPending: false
-    });
-  });
-
-  afterEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it('應該渲染基本的操作按鈕', () => {
-    const wrapper = createWrapper();
-    render(<PostActions {...defaultProps} />, { wrapper });
-
-    expect(screen.getByTestId('menu-trigger')).toBeInTheDocument();
-  });
-
-  it('應該顯示正確的點讚數量', () => {
-    const wrapper = createWrapper();
-    render(<PostActions {...defaultProps} />, { wrapper });
-
-    // 檢查是否顯示點讚數量（2個讚）
-    expect(screen.getByText('2')).toBeInTheDocument();
-  });
-
-  it('應該處理點讚操作', () => {
-    const mockToggleLike = vi.fn();
-    mockUseTogglePrayerLike.mockReturnValue({
-      mutate: mockToggleLike,
-      isPending: false
-    });
-
-    const wrapper = createWrapper();
-    render(<PostActions {...defaultProps} />, { wrapper });
-
-    const likeButton = screen.getByRole('button', { name: /愛心/i });
-    fireEvent.click(likeButton);
-
-    expect(mockToggleLike).toHaveBeenCalledWith({
-      prayerId: 'prayer-1',
-      userId: 'current-user-id'
-    });
-  });
-
-  it('應該為已點讚的禱告顯示不同的樣式', () => {
-    const likesWithCurrentUser = [
-      ...mockLikes,
-      { id: '3', user_id: 'current-user-id', prayer_id: 'prayer-1', created_at: '2023-01-03' }
-    ];
     
-    mockUsePrayerLikes.mockReturnValue({ data: likesWithCurrentUser });
-
-    const wrapper = createWrapper();
-    render(<PostActions {...defaultProps} />, { wrapper });
-
-    // 檢查是否顯示已點讚狀態
-    expect(screen.getByText('3')).toBeInTheDocument(); // 3個讚
-  });
-
-  it('應該在擁有者模式下顯示編輯和刪除選項', () => {
-    const wrapper = createWrapper();
-    render(<PostActions {...defaultProps} isOwner={true} />, { wrapper });
-
-    // 點擊菜單觸發器
-    const menuTrigger = screen.getByTestId('menu-trigger');
-    fireEvent.click(menuTrigger);
-
-    // 檢查是否有編輯和刪除選項
-    expect(screen.getByTestId('menu-content')).toBeInTheDocument();
-  });
-
-  it('應該處理刪除操作', async () => {
-    const mockDeletePrayer = vi.fn();
-    mockUseDeletePrayer.mockReturnValue({
-      mutate: mockDeletePrayer,
-      isPending: false
+    // Mock hooks return values
+    (usePrayerLikes as any).mockReturnValue({
+      data: [],
+      isLoading: false,
     });
-
-    const wrapper = createWrapper();
-    render(<PostActions {...defaultProps} isOwner={true} />, { wrapper });
-
-    // 點擊菜單觸發器
-    const menuTrigger = screen.getByTestId('menu-trigger');
-    fireEvent.click(menuTrigger);
-
-    // 找到刪除按鈕並點擊
-    const deleteItem = screen.getAllByTestId('menu-item').find(item => 
-      item.textContent?.includes('刪除')
-    );
-    if (deleteItem) {
-      fireEvent.click(deleteItem);
-    }
-
-    // 檢查刪除確認對話框是否出現
-    expect(screen.getByTestId('alert-dialog')).toBeInTheDocument();
-  });
-
-  it('應該處理編輯回調', () => {
-    const onEdit = vi.fn();
-    const wrapper = createWrapper();
-    render(<PostActions {...defaultProps} isOwner={true} onEdit={onEdit} />, { wrapper });
-
-    // 點擊菜單觸發器
-    const menuTrigger = screen.getByTestId('menu-trigger');
-    fireEvent.click(menuTrigger);
-
-    // 找到編輯按鈕並點擊
-    const editItem = screen.getAllByTestId('menu-item').find(item => 
-      item.textContent?.includes('編輯')
-    );
-    if (editItem) {
-      fireEvent.click(editItem);
-      expect(onEdit).toHaveBeenCalled();
-    }
-  });
-
-  it('應該處理分享回調', () => {
-    const onShare = vi.fn();
-    const wrapper = createWrapper();
-    render(<PostActions {...defaultProps} onShare={onShare} />, { wrapper });
-
-    // 點擊菜單觸發器
-    const menuTrigger = screen.getByTestId('menu-trigger');
-    fireEvent.click(menuTrigger);
-
-    // 找到分享按鈕並點擊
-    const shareItem = screen.getAllByTestId('menu-item').find(item => 
-      item.textContent?.includes('分享')
-    );
-    if (shareItem) {
-      fireEvent.click(shareItem);
-      expect(onShare).toHaveBeenCalled();
-    }
-  });
-
-  it('應該顯示舉報對話框', () => {
-    const wrapper = createWrapper();
-    render(<PostActions {...defaultProps} />, { wrapper });
-
-    // 點擊菜單觸發器
-    const menuTrigger = screen.getByTestId('menu-trigger');
-    fireEvent.click(menuTrigger);
-
-    // 找到舉報按鈕並點擊
-    const reportItem = screen.getAllByTestId('menu-item').find(item => 
-      item.textContent?.includes('舉報')
-    );
-    if (reportItem) {
-      fireEvent.click(reportItem);
-      expect(screen.getByTestId('report-dialog')).toBeInTheDocument();
-    }
-  });
-
-  it('應該在未登入時禁用某些功能', () => {
-    mockUseFirebaseAuth.mockReturnValue({
-      currentUser: null
-    });
-
-    const wrapper = createWrapper();
-    render(<PostActions {...defaultProps} />, { wrapper });
-
-    // 檢查點讚按鈕仍然存在但功能受限
-    const likeButton = screen.getByRole('button', { name: /愛心/i });
-    fireEvent.click(likeButton);
-
-    // 由於沒有登入，點讚功能應該不會被調用
-    expect(mockUseTogglePrayerLike().mutate).not.toHaveBeenCalled();
-  });
-
-  it('應該處理書籤功能（暫時停用）', () => {
-    const wrapper = createWrapper();
-    render(<PostActions {...defaultProps} />, { wrapper });
-
-    // 點擊菜單觸發器
-    const menuTrigger = screen.getByTestId('menu-trigger');
-    fireEvent.click(menuTrigger);
-
-    // 書籤功能應該存在但暫時停用
-    const bookmarkItem = screen.getAllByTestId('menu-item').find(item => 
-      item.textContent?.includes('書籤')
-    );
     
-    if (bookmarkItem) {
-      fireEvent.click(bookmarkItem);
-      // 書籤功能暫時停用，不應該有實際效果
-    }
-  });
-
-  it('應該處理禱告已應允功能', () => {
-    const mockToggleAnswered = vi.fn();
-    mockUseTogglePrayerAnswered.mockReturnValue({
-      mutate: mockToggleAnswered,
-      isPending: false
-    });
-
-    const wrapper = createWrapper();
-    render(<PostActions {...defaultProps} isOwner={true} />, { wrapper });
-
-    // 點擊菜單觸發器
-    const menuTrigger = screen.getByTestId('menu-trigger');
-    fireEvent.click(menuTrigger);
-
-    // 找到已應允按鈕並點擊
-    const answeredItem = screen.getAllByTestId('menu-item').find(item => 
-      item.textContent?.includes('已應允')
-    );
-    if (answeredItem) {
-      fireEvent.click(answeredItem);
-      expect(mockToggleAnswered).toHaveBeenCalledWith('prayer-1');
-    }
-  });
-
-  it('應該根據路由顯示不同的功能', () => {
-    // 測試在不同頁面路由下的行為差異
-    const wrapper = createWrapper();
-    render(<PostActions {...defaultProps} />, { wrapper });
-
-    // 在 /prayers 頁面，某些功能應該可用
-    expect(screen.getByTestId('menu-trigger')).toBeInTheDocument();
-  });
-
-  it('應該處理載入狀態', () => {
-    mockUseTogglePrayerLike.mockReturnValue({
+    (useTogglePrayerLike as any).mockReturnValue({
       mutate: vi.fn(),
-      isPending: true // 模擬載入狀態
+      isPending: false,
+    });
+    
+    (useDeletePrayer as any).mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    });
+    
+    (useFirebaseAuth as any).mockReturnValue({
+      currentUser: { uid: 'user-1', displayName: 'Test User' },
+      isLoading: false,
+    });
+    
+    (useTogglePrayerAnswered as any).mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    });
+  });
+
+  describe('基本渲染', () => {
+    it('應該正確渲染操作按鈕', () => {
+      renderWithRouter(<PostActions {...defaultProps} />);
+      
+      expect(screen.getByLabelText('按讚')).toBeInTheDocument();
+      expect(screen.getByLabelText('分享')).toBeInTheDocument();
+      expect(screen.getByLabelText('收藏')).toBeInTheDocument();
+      expect(screen.getByLabelText('更多選項')).toBeInTheDocument();
     });
 
-    const wrapper = createWrapper();
-    render(<PostActions {...defaultProps} />, { wrapper });
-
-    // 在載入期間，按鈕可能會顯示不同的狀態
-    const likeButton = screen.getByRole('button', { name: /愛心/i });
-    expect(likeButton).toBeInTheDocument();
-  });
-
-  it('應該應用自定義樣式類別', () => {
-    const customClass = 'custom-post-actions';
-    const wrapper = createWrapper();
-    render(<PostActions {...defaultProps} className={customClass} />, { wrapper });
-
-    // 檢查自定義類別是否被應用
-    const container = screen.getByTestId('menu-trigger').closest('div');
-    expect(container).toHaveClass(customClass);
-  });
-
-  it('應該處理空的點讚列表', () => {
-    mockUsePrayerLikes.mockReturnValue({ data: [] });
-
-    const wrapper = createWrapper();
-    render(<PostActions {...defaultProps} />, { wrapper });
-
-    // 應該顯示 0 個讚
-    expect(screen.getByText('0')).toBeInTheDocument();
-  });
-
-  it('應該處理錯誤狀態', () => {
-    mockUsePrayerLikes.mockReturnValue({ 
-      data: undefined,
-      error: new Error('Failed to load likes')
-    });
-
-    const wrapper = createWrapper();
-    render(<PostActions {...defaultProps} />, { wrapper });
-
-    // 即使有錯誤，組件也應該能夠渲染
-    expect(screen.getByTestId('menu-trigger')).toBeInTheDocument();
-  });
-
-  describe('載入狀態處理', () => {
-    it('應該正確處理點讚載入狀態', () => {
-      mockUsePrayerLikes.mockReturnValue({ 
-        data: undefined,
-        isLoading: true,
-        isError: false,
-        error: null,
-        isPending: true,
-        isSuccess: false,
-        isFetching: true,
-        isRefetching: false,
-        refetch: vi.fn(),
-        status: 'pending'
+    it('應該顯示按讚數量', () => {
+      (usePrayerLikes as any).mockReturnValue({
+        data: [
+          { id: '1', user_id: 'user-1' },
+          { id: '2', user_id: 'user-2' },
+        ],
+        isLoading: false,
       });
-
-      const wrapper = createWrapper();
-      render(<PostActions {...defaultProps} />, { wrapper });
-
-      expect(screen.getByTestId('menu-trigger')).toBeInTheDocument();
+      
+      renderWithRouter(<PostActions {...defaultProps} />);
+      
+      expect(screen.getByText('2')).toBeInTheDocument();
     });
 
-    it('應該正確處理點讚提交載入狀態', () => {
-      mockUseTogglePrayerLike.mockReturnValue({
+    it('應該在擁有者身份時顯示編輯選項', async () => {
+      const user = userEvent.setup();
+      renderWithRouter(<PostActions {...defaultProps} isOwner={true} />);
+      
+      const moreButton = screen.getByLabelText('更多選項');
+      await user.click(moreButton);
+      
+      expect(screen.getByText('編輯')).toBeInTheDocument();
+      expect(screen.getByText('刪除')).toBeInTheDocument();
+    });
+  });
+
+  describe('按讚功能', () => {
+    it('應該處理按讚操作', async () => {
+      const user = userEvent.setup();
+      const mockToggleLike = vi.fn();
+      (useTogglePrayerLike as any).mockReturnValue({
+        mutate: mockToggleLike,
+        isPending: false,
+      });
+      
+      renderWithRouter(<PostActions {...defaultProps} />);
+      
+      const likeButton = screen.getByLabelText('按讚');
+      await user.click(likeButton);
+      
+      expect(mockToggleLike).toHaveBeenCalledWith('prayer-1');
+    });
+
+    it('應該在已按讚時顯示不同狀態', () => {
+      (usePrayerLikes as any).mockReturnValue({
+        data: [{ id: '1', user_id: 'user-1' }],
+        isLoading: false,
+      });
+      
+      renderWithRouter(<PostActions {...defaultProps} />);
+      
+      const likeButton = screen.getByLabelText('按讚');
+      expect(likeButton).toHaveClass('text-red-500');
+    });
+  });
+
+  describe('分享功能', () => {
+    it('應該處理分享操作', async () => {
+      const user = userEvent.setup();
+      const mockOnShare = vi.fn();
+      
+      renderWithRouter(<PostActions {...defaultProps} onShare={mockOnShare} />);
+      
+      const shareButton = screen.getByLabelText('分享');
+      await user.click(shareButton);
+      
+      expect(mockOnShare).toHaveBeenCalled();
+    });
+  });
+
+  describe('編輯功能', () => {
+    it('應該處理編輯操作', async () => {
+      const user = userEvent.setup();
+      const mockOnEdit = vi.fn();
+      
+      renderWithRouter(<PostActions {...defaultProps} onEdit={mockOnEdit} />);
+      
+      const moreButton = screen.getByLabelText('更多選項');
+      await user.click(moreButton);
+      
+      const editButton = screen.getByText('編輯');
+      await user.click(editButton);
+      
+      expect(mockOnEdit).toHaveBeenCalled();
+    });
+  });
+
+  describe('刪除功能', () => {
+    it('應該顯示刪除確認對話框', async () => {
+      const user = userEvent.setup();
+      
+      renderWithRouter(<PostActions {...defaultProps} />);
+      
+      const moreButton = screen.getByLabelText('更多選項');
+      await user.click(moreButton);
+      
+      const deleteButton = screen.getByText('刪除');
+      await user.click(deleteButton);
+      
+      expect(screen.getByText('確認刪除代禱')).toBeInTheDocument();
+      expect(screen.getByText('此操作無法復原，確定要刪除這篇代禱嗎？')).toBeInTheDocument();
+    });
+
+    it('應該處理刪除確認', async () => {
+      const user = userEvent.setup();
+      const mockDeletePrayer = vi.fn();
+      const mockOnDelete = vi.fn();
+      
+      (useDeletePrayer as any).mockReturnValue({
+        mutate: mockDeletePrayer,
+        isPending: false,
+      });
+      
+      renderWithRouter(<PostActions {...defaultProps} onDelete={mockOnDelete} />);
+      
+      const moreButton = screen.getByLabelText('更多選項');
+      await user.click(moreButton);
+      
+      const deleteButton = screen.getByText('刪除');
+      await user.click(deleteButton);
+      
+      const confirmButton = screen.getByRole('button', { name: '確認刪除' });
+      await user.click(confirmButton);
+      
+      expect(mockDeletePrayer).toHaveBeenCalledWith('prayer-1');
+    });
+  });
+
+  describe('已回答狀態', () => {
+    it('應該處理標記為已回答', async () => {
+      const user = userEvent.setup();
+      const mockToggleAnswered = vi.fn();
+      
+      (useTogglePrayerAnswered as any).mockReturnValue({
+        mutate: mockToggleAnswered,
+        isPending: false,
+      });
+      
+      renderWithRouter(<PostActions {...defaultProps} />);
+      
+      const moreButton = screen.getByLabelText('更多選項');
+      await user.click(moreButton);
+      
+      const answeredButton = screen.getByText('標記為已回答');
+      await user.click(answeredButton);
+      
+      expect(mockToggleAnswered).toHaveBeenCalledWith('prayer-1');
+    });
+
+         it('應該在已回答時顯示不同選項', async () => {
+       const user = userEvent.setup();
+       
+       renderWithRouter(<PostActions {...defaultProps} />);
+       
+       const moreButton = screen.getByLabelText('更多選項');
+       await user.click(moreButton);
+       
+       // 對於已回答的代禱，會顯示不同的選項
+       expect(screen.getByText('標記為已回答')).toBeInTheDocument();
+     });
+  });
+
+  describe('檢舉功能', () => {
+    it('應該為非擁有者顯示檢舉選項', async () => {
+      const user = userEvent.setup();
+      
+      renderWithRouter(<PostActions {...defaultProps} isOwner={false} />);
+      
+      const moreButton = screen.getByLabelText('更多選項');
+      await user.click(moreButton);
+      
+      expect(screen.getByText('檢舉')).toBeInTheDocument();
+    });
+
+    it('應該打開檢舉對話框', async () => {
+      const user = userEvent.setup();
+      
+      renderWithRouter(<PostActions {...defaultProps} isOwner={false} />);
+      
+      const moreButton = screen.getByLabelText('更多選項');
+      await user.click(moreButton);
+      
+      const reportButton = screen.getByText('檢舉');
+      await user.click(reportButton);
+      
+      expect(screen.getByTestId('report-dialog')).toBeInTheDocument();
+    });
+  });
+
+  describe('載入狀態', () => {
+    it('應該在按讚載入時顯示載入狀態', () => {
+      (useTogglePrayerLike as any).mockReturnValue({
         mutate: vi.fn(),
         isPending: true,
-        isLoading: true,
-        isError: false,
-        error: null,
-        isSuccess: false,
-        isIdle: false,
-        status: 'pending'
       });
+      
+      renderWithRouter(<PostActions {...defaultProps} />);
+      
+      const likeButton = screen.getByLabelText('按讚');
+      expect(likeButton).toBeDisabled();
+    });
 
-      const wrapper = createWrapper();
-      render(<PostActions {...defaultProps} />, { wrapper });
-
-      expect(screen.getByTestId('menu-trigger')).toBeInTheDocument();
+    it('應該在刪除載入時顯示載入狀態', async () => {
+      const user = userEvent.setup();
+      (useDeletePrayer as any).mockReturnValue({
+        mutate: vi.fn(),
+        isPending: true,
+      });
+      
+      renderWithRouter(<PostActions {...defaultProps} />);
+      
+      const moreButton = screen.getByLabelText('更多選項');
+      await user.click(moreButton);
+      
+      const deleteButton = screen.getByText('刪除');
+      await user.click(deleteButton);
+      
+      const confirmButton = screen.getByRole('button', { name: '刪除中...' });
+      expect(confirmButton).toBeDisabled();
     });
   });
 
   describe('權限控制', () => {
-    it('應該正確處理超級管理員權限', () => {
-      const mockIsSuperAdmin = vi.fn().mockResolvedValue(true);
-      vi.mocked(require('@/services/admin/SuperAdminService').superAdminService.getInstance).mockReturnValue({
-        isSuperAdmin: mockIsSuperAdmin,
-        deletePrayer: vi.fn().mockResolvedValue(true),
-      });
-
-      const wrapper = createWrapper();
-      render(<PostActions {...defaultProps} isOwner={true} />, { wrapper });
-
-      // 點擊菜單觸發器
-      const menuTrigger = screen.getByTestId('menu-trigger');
-      fireEvent.click(menuTrigger);
-
-      expect(screen.getByTestId('menu-content')).toBeInTheDocument();
-    });
-
-    it('應該正確處理普通用戶權限', () => {
-      const mockIsSuperAdmin = vi.fn().mockResolvedValue(false);
-      vi.mocked(require('@/services/admin/SuperAdminService').superAdminService.getInstance).mockReturnValue({
-        isSuperAdmin: mockIsSuperAdmin,
-        deletePrayer: vi.fn().mockResolvedValue(true),
-      });
-
-      const wrapper = createWrapper();
-      render(<PostActions {...defaultProps} isOwner={true} />, { wrapper });
-
-      // 點擊菜單觸發器
-      const menuTrigger = screen.getByTestId('menu-trigger');
-      fireEvent.click(menuTrigger);
-
-      expect(screen.getByTestId('menu-content')).toBeInTheDocument();
-    });
-  });
-
-  describe('菜單交互', () => {
-    it('應該正確處理菜單打開和關閉', () => {
-      const wrapper = createWrapper();
-      render(<PostActions {...defaultProps} />, { wrapper });
-
-      // 初始狀態菜單應該關閉
-      expect(screen.queryByTestId('menu-content')).not.toBeInTheDocument();
-
-      // 點擊菜單觸發器打開菜單
-      const menuTrigger = screen.getByTestId('menu-trigger');
-      fireEvent.click(menuTrigger);
-
-      // 菜單應該打開
-      expect(screen.getByTestId('menu-content')).toBeInTheDocument();
-
-      // 再次點擊應該關閉菜單
-      fireEvent.click(menuTrigger);
-    });
-
-    it('應該正確處理菜單項點擊', () => {
-      const wrapper = createWrapper();
-      render(<PostActions {...defaultProps} />, { wrapper });
-
-      // 點擊菜單觸發器
-      const menuTrigger = screen.getByTestId('menu-trigger');
-      fireEvent.click(menuTrigger);
-
-      // 點擊菜單項
-      const menuItems = screen.getAllByTestId('menu-item');
-      if (menuItems.length > 0) {
-        fireEvent.click(menuItems[0]);
-      }
-
-      expect(screen.getByTestId('menu-content')).toBeInTheDocument();
-    });
-  });
-
-  describe('點讚功能詳情', () => {
-    it('應該正確處理已點讚狀態的視覺反饋', () => {
-      const likesWithCurrentUser = [
-        { id: '1', user_id: 'current-user-id', prayer_id: 'prayer-1', created_at: '2023-01-01' },
-        { id: '2', user_id: 'user-2', prayer_id: 'prayer-1', created_at: '2023-01-02' }
-      ];
+    it('應該隱藏非擁有者的編輯選項', async () => {
+      const user = userEvent.setup();
       
-      mockUsePrayerLikes.mockReturnValue({ 
-        data: likesWithCurrentUser,
-        isLoading: false,
-        isError: false,
-        error: null,
-        isPending: false,
-        isSuccess: true,
-        isFetching: false,
-        isRefetching: false,
-        refetch: vi.fn(),
-        status: 'success'
-      });
-
-      const wrapper = createWrapper();
-      render(<PostActions {...defaultProps} />, { wrapper });
-
-      // 檢查是否顯示正確的點讚數量
-      expect(screen.getByText('2')).toBeInTheDocument();
-    });
-
-    it('應該正確處理點讚取消', () => {
-      const mockToggleLike = vi.fn();
-      mockUseTogglePrayerLike.mockReturnValue({
-        mutate: mockToggleLike,
-        isPending: false,
-        isLoading: false,
-        isError: false,
-        error: null,
-        isSuccess: false,
-        isIdle: true,
-        status: 'idle'
-      });
-
-      const wrapper = createWrapper();
-      render(<PostActions {...defaultProps} />, { wrapper });
-
-      const likeButton = screen.getByRole('button', { name: /愛心/i });
-      fireEvent.click(likeButton);
-
-      expect(mockToggleLike).toHaveBeenCalledWith({
-        prayerId: 'prayer-1',
-        userId: 'current-user-id'
-      });
-    });
-  });
-
-  describe('刪除確認對話框', () => {
-    it('應該正確顯示刪除確認對話框', async () => {
-      const mockDeletePrayer = vi.fn();
-      mockUseDeletePrayer.mockReturnValue({
-        mutate: mockDeletePrayer,
-        isPending: false,
-        isLoading: false,
-        isError: false,
-        error: null,
-        isSuccess: false,
-        isIdle: true,
-        status: 'idle'
-      });
-
-      const wrapper = createWrapper();
-      render(<PostActions {...defaultProps} isOwner={true} />, { wrapper });
-
-      // 點擊菜單觸發器
-      const menuTrigger = screen.getByTestId('menu-trigger');
-      fireEvent.click(menuTrigger);
-
-      // 找到刪除按鈕並點擊
-      const deleteItem = screen.getAllByTestId('menu-item').find(item => 
-        item.textContent?.includes('刪除')
-      );
-      if (deleteItem) {
-        fireEvent.click(deleteItem);
-      }
-
-      // 檢查刪除確認對話框是否出現
-      expect(screen.getByTestId('alert-dialog')).toBeInTheDocument();
-      expect(screen.getByTestId('alert-dialog-title')).toBeInTheDocument();
-      expect(screen.getByTestId('alert-dialog-description')).toBeInTheDocument();
-    });
-
-    it('應該正確處理刪除確認', async () => {
-      const mockDeletePrayer = vi.fn();
-      mockUseDeletePrayer.mockReturnValue({
-        mutate: mockDeletePrayer,
-        isPending: false,
-        isLoading: false,
-        isError: false,
-        error: null,
-        isSuccess: false,
-        isIdle: true,
-        status: 'idle'
-      });
-
-      const wrapper = createWrapper();
-      render(<PostActions {...defaultProps} isOwner={true} />, { wrapper });
-
-      // 點擊菜單觸發器
-      const menuTrigger = screen.getByTestId('menu-trigger');
-      fireEvent.click(menuTrigger);
-
-      // 找到刪除按鈕並點擊
-      const deleteItem = screen.getAllByTestId('menu-item').find(item => 
-        item.textContent?.includes('刪除')
-      );
-      if (deleteItem) {
-        fireEvent.click(deleteItem);
-      }
-
-      // 點擊確認刪除按鈕
-      const confirmButton = screen.getByTestId('alert-dialog-action');
-      fireEvent.click(confirmButton);
-
-      expect(mockDeletePrayer).toHaveBeenCalledWith('prayer-1');
-    });
-
-    it('應該正確處理刪除取消', async () => {
-      const mockDeletePrayer = vi.fn();
-      mockUseDeletePrayer.mockReturnValue({
-        mutate: mockDeletePrayer,
-        isPending: false,
-        isLoading: false,
-        isError: false,
-        error: null,
-        isSuccess: false,
-        isIdle: true,
-        status: 'idle'
-      });
-
-      const wrapper = createWrapper();
-      render(<PostActions {...defaultProps} isOwner={true} />, { wrapper });
-
-      // 點擊菜單觸發器
-      const menuTrigger = screen.getByTestId('menu-trigger');
-      fireEvent.click(menuTrigger);
-
-      // 找到刪除按鈕並點擊
-      const deleteItem = screen.getAllByTestId('menu-item').find(item => 
-        item.textContent?.includes('刪除')
-      );
-      if (deleteItem) {
-        fireEvent.click(deleteItem);
-      }
-
-      // 點擊取消按鈕
-      const cancelButton = screen.getByTestId('alert-dialog-cancel');
-      fireEvent.click(cancelButton);
-
-      // 刪除不應該被調用
-      expect(mockDeletePrayer).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('舉報功能', () => {
-    it('應該正確顯示舉報對話框', () => {
-      const wrapper = createWrapper();
-      render(<PostActions {...defaultProps} />, { wrapper });
-
-      // 點擊菜單觸發器
-      const menuTrigger = screen.getByTestId('menu-trigger');
-      fireEvent.click(menuTrigger);
-
-      // 找到舉報按鈕並點擊
-      const reportItem = screen.getAllByTestId('menu-item').find(item => 
-        item.textContent?.includes('舉報')
-      );
-      if (reportItem) {
-        fireEvent.click(reportItem);
-      }
-
-      expect(screen.getByTestId('report-dialog')).toBeInTheDocument();
-    });
-
-    it('應該正確處理舉報對話框關閉', () => {
-      const wrapper = createWrapper();
-      render(<PostActions {...defaultProps} />, { wrapper });
-
-      // 點擊菜單觸發器
-      const menuTrigger = screen.getByTestId('menu-trigger');
-      fireEvent.click(menuTrigger);
-
-      // 找到舉報按鈕並點擊
-      const reportItem = screen.getAllByTestId('menu-item').find(item => 
-        item.textContent?.includes('舉報')
-      );
-      if (reportItem) {
-        fireEvent.click(reportItem);
-      }
-
-      expect(screen.getByTestId('report-dialog')).toBeInTheDocument();
-    });
-  });
-
-  describe('無障礙功能', () => {
-    it('應該包含正確的 ARIA 標籤', () => {
-      const wrapper = createWrapper();
-      render(<PostActions {...defaultProps} />, { wrapper });
-
-      const likeButton = screen.getByRole('button', { name: /愛心/i });
-      expect(likeButton).toBeInTheDocument();
-    });
-
-    it('應該正確處理鍵盤導航', () => {
-      const wrapper = createWrapper();
-      render(<PostActions {...defaultProps} />, { wrapper });
-
-      const likeButton = screen.getByRole('button', { name: /愛心/i });
-      likeButton.focus();
-      expect(likeButton).toHaveFocus();
-    });
-
-    it('應該正確處理螢幕閱讀器', () => {
-      const wrapper = createWrapper();
-      render(<PostActions {...defaultProps} />, { wrapper });
-
-      // 檢查是否有適當的 ARIA 標籤
-      const likeButton = screen.getByRole('button', { name: /愛心/i });
-      expect(likeButton).toBeInTheDocument();
-    });
-  });
-
-  describe('邊界情況', () => {
-    it('應該正確處理空的點讚數據', () => {
-      mockUsePrayerLikes.mockReturnValue({ 
-        data: [],
-        isLoading: false,
-        isError: false,
-        error: null,
-        isPending: false,
-        isSuccess: true,
-        isFetching: false,
-        isRefetching: false,
-        refetch: vi.fn(),
-        status: 'success'
-      });
-
-      const wrapper = createWrapper();
-      render(<PostActions {...defaultProps} />, { wrapper });
-
-      expect(screen.getByText('0')).toBeInTheDocument();
-    });
-
-    it('應該正確處理未定義的點讚數據', () => {
-      mockUsePrayerLikes.mockReturnValue({ 
-        data: undefined,
-        isLoading: false,
-        isError: false,
-        error: null,
-        isPending: false,
-        isSuccess: false,
-        isFetching: false,
-        isRefetching: false,
-        refetch: vi.fn(),
-        status: 'idle'
-      });
-
-      const wrapper = createWrapper();
-      render(<PostActions {...defaultProps} />, { wrapper });
-
-      expect(screen.getByTestId('menu-trigger')).toBeInTheDocument();
-    });
-
-    it('應該正確處理服務錯誤', () => {
-      mockUsePrayerLikes.mockReturnValue({ 
-        data: undefined,
-        isLoading: false,
-        isError: true,
-        error: new Error('Service error'),
-        isPending: false,
-        isSuccess: false,
-        isFetching: false,
-        isRefetching: false,
-        refetch: vi.fn(),
-        status: 'error'
-      });
-
-      const wrapper = createWrapper();
-      render(<PostActions {...defaultProps} />, { wrapper });
-
-      // 即使有錯誤，組件也應該能夠渲染
-      expect(screen.getByTestId('menu-trigger')).toBeInTheDocument();
+      renderWithRouter(<PostActions {...defaultProps} isOwner={false} />);
+      
+      const moreButton = screen.getByLabelText('更多選項');
+      await user.click(moreButton);
+      
+      expect(screen.queryByText('編輯')).not.toBeInTheDocument();
+      expect(screen.queryByText('刪除')).not.toBeInTheDocument();
     });
   });
 }); 

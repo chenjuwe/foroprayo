@@ -15,38 +15,6 @@ import {
 } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 
-// Mock Firebase modules
-vi.mock('@/integrations/firebase/client', () => ({
-  db: vi.fn(),
-  auth: vi.fn()
-}));
-
-vi.mock('firebase/firestore', () => ({
-  doc: vi.fn(),
-  getDoc: vi.fn(),
-  setDoc: vi.fn(),
-  updateDoc: vi.fn(),
-  serverTimestamp: vi.fn(),
-  collection: vi.fn(),
-  query: vi.fn(),
-  where: vi.fn(),
-  getDocs: vi.fn(),
-  writeBatch: vi.fn()
-}));
-
-vi.mock('firebase/auth', () => ({
-  updateProfile: vi.fn()
-}));
-
-vi.mock('@/lib/logger', () => ({
-  log: {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn()
-  }
-}));
-
 describe('FirebaseUserService', () => {
   const mockDb = vi.fn();
   const mockAuth = { currentUser: { uid: 'test-user-id' } };
@@ -62,9 +30,9 @@ describe('FirebaseUserService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (db as any).mockReturnValue(mockDb);
-    (auth as any).mockReturnValue(mockAuth);
-    (serverTimestamp as any).mockReturnValue({ timestamp: true });
+    vi.mocked(db).mockReturnValue(mockDb as any);
+    vi.mocked(auth).mockReturnValue(mockAuth as any);
+    vi.mocked(serverTimestamp).mockReturnValue({ timestamp: true } as any);
   });
 
   afterEach(() => {
@@ -104,9 +72,7 @@ describe('FirebaseUserService', () => {
     });
 
     it('當發生錯誤時應該返回 null', async () => {
-      (doc as any).mockImplementation(() => {
-        throw new Error('Database error');
-      });
+      vi.mocked(getDoc).mockRejectedValueOnce(new Error('Database error'));
 
       const result = await FirebaseUserService.getUserData('test-user-id');
 

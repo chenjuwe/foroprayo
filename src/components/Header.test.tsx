@@ -356,21 +356,20 @@ describe('Header', () => {
     });
 
     it('應該正確處理本地存儲錯誤', () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      
       mockLocalStorage.getItem.mockImplementation(() => {
         throw new Error('存儲錯誤');
       });
       
-      vi.spyOn(useFirebaseAvatarModule, 'useFirebaseAvatar').mockReturnValue({
-        user: null,
-        isLoggedIn: false,
-        avatarUrl30: null,
-        refreshAvatar: vi.fn().mockResolvedValue(true),
-      } as any);
+      // 測試應該能夠處理錯誤而不會導致組件崩潰
+      render(<Header />);
       
-      renderWithRouter(<Header />);
+      // 確認組件仍然可以正常渲染
+      expect(screen.getByRole('banner')).toBeInTheDocument();
       
-      // 即使有錯誤，組件也應該正常渲染
-      expect(screen.getByAltText('Logo')).toBeInTheDocument();
+      // 清理
+      consoleSpy.mockRestore();
     });
   });
 

@@ -1,27 +1,43 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { PrayerPostWithData } from './PrayerPostWithData';
 import type { Prayer } from '@/services/prayerService';
 
-// Mock dependencies
+// Mock 所有依賴
 vi.mock('@/hooks/usePrayerResponsesOptimized', () => ({
-  usePrayerResponses: vi.fn(() => ({
-    data: [],
-    isLoading: false,
-    isError: false,
-    error: null,
-    refetch: vi.fn(),
-  })),
-  useCreatePrayerResponse: vi.fn(() => ({
-    mutate: vi.fn(),
-    mutateAsync: vi.fn().mockResolvedValue(true),
-    isPending: false,
-    isSuccess: false,
-    isError: false,
-    error: null,
-  })),
+  usePrayerResponses: vi.fn(),
+  useCreatePrayerResponse: vi.fn(),
 }));
+
+vi.mock('@/hooks/useFirebaseAuth', () => ({
+  useFirebaseAuth: vi.fn(),
+}));
+
+vi.mock('@/lib/notifications', () => ({
+  notify: {
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    apiError: vi.fn(),
+  },
+}));
+
+vi.mock('@/lib/logger', () => ({
+  log: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
+// Import the mocked modules
+import { usePrayerResponses, useCreatePrayerResponse } from '@/hooks/usePrayerResponsesOptimized';
+import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
+import { notify } from '@/lib/notifications';
+import { log } from '@/lib/logger';
 
 vi.mock('@/constants', () => ({
   VALIDATION_CONFIG: {
@@ -212,30 +228,7 @@ vi.mock('@/constants', () => ({
   },
 }));
 
-vi.mock('@/hooks/useFirebaseAuth', () => ({
-  useFirebaseAuth: vi.fn(() => ({
-    currentUser: { uid: 'test-user-id', displayName: 'Test User' },
-    isLoading: false,
-  })),
-}));
-
-vi.mock('@/lib/notifications', () => ({
-  notify: {
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    apiError: vi.fn(),
-  },
-}));
-
-vi.mock('@/lib/logger', () => ({
-  log: {
-    debug: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-  },
-}));
-
+// Mock UI 組件
 vi.mock('./ui/guest-avatar', () => ({
   default: ({ size, className }: any) => (
     <div data-testid="guest-avatar" className={className}>
@@ -292,6 +285,76 @@ describe('PrayerPostWithData', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    
+    // 確保每個測試都有正確的mock返回值
+    vi.mocked(usePrayerResponses).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+      isFetching: false,
+      isSuccess: true,
+      isStale: false,
+      status: 'success',
+      fetchStatus: 'idle',
+      isPending: false,
+      isLoadingError: false,
+      isRefetchError: false,
+      isPlaceholderData: false,
+      isFetched: true,
+      isFetchedAfterMount: true,
+      dataUpdatedAt: Date.now(),
+      errorUpdatedAt: 0,
+      failureCount: 0,
+      failureReason: null,
+      errorUpdateCount: 0,
+      isInitialLoading: false,
+      isRefetching: false,
+      isPaused: false,
+      promise: Promise.resolve([]),
+    } as any);
+    
+    vi.mocked(useCreatePrayerResponse).mockReturnValue({
+      mutate: vi.fn(),
+      mutateAsync: vi.fn().mockResolvedValue(true),
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+      error: null,
+      data: undefined,
+      variables: undefined,
+      isIdle: true,
+      status: 'idle',
+      submittedAt: 0,
+      failureCount: 0,
+      failureReason: null,
+      reset: vi.fn(),
+      context: undefined,
+    } as any);
+    
+    vi.mocked(useFirebaseAuth).mockReturnValue({
+      currentUser: {
+        uid: 'test-user-id',
+        displayName: 'Test User',
+        email: 'test@example.com',
+        emailVerified: true,
+        isAnonymous: false,
+        metadata: {} as any,
+        providerData: [],
+        refreshToken: 'refresh-token',
+        tenantId: null,
+        delete: vi.fn(),
+        getIdToken: vi.fn(),
+        getIdTokenResult: vi.fn(),
+        reload: vi.fn(),
+        toJSON: vi.fn(),
+        phoneNumber: null,
+        photoURL: null,
+        providerId: 'firebase',
+      } as any,
+      loading: false,
+    });
   });
 
   describe('基本渲染', () => {
@@ -368,7 +431,7 @@ describe('PrayerPostWithData', () => {
     it('應該在未登入時顯示警告', async () => {
       vi.mocked(require('@/hooks/useFirebaseAuth').useFirebaseAuth).mockReturnValue({
         currentUser: null,
-        isLoading: false,
+        loading: false,
       });
 
       const mockNotify = vi.mocked(require('@/lib/notifications').notify);

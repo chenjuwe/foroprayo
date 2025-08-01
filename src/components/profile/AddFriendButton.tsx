@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import FriendIcon from '@/assets/icons/FriendIcon.svg?react';
 import { cn } from '@/lib/utils';
 import { MessageDialog } from './MessageDialog';
+import { log } from '@/lib/logger';
 
 interface AddFriendButtonProps {
   userId: string;

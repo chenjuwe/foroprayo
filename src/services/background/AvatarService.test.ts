@@ -4,20 +4,7 @@ import { AvatarService, getUserAvatarUrlFromFirebase, type UserAvatar } from './
 import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-// Mock Firebase services
-vi.mock('firebase/firestore');
-vi.mock('firebase/storage');
-vi.mock('@/integrations/firebase/client', () => ({
-  db: {},
-}));
-vi.mock('@/lib/logger', () => ({
-  log: {
-    debug: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-  },
-}));
+
 
 describe('AvatarService', () => {
   let avatarService: AvatarService;
@@ -40,19 +27,19 @@ describe('AvatarService', () => {
     avatarService = new AvatarService();
     
     // Mock Firestore functions
-    (getFirestore as any).mockReturnValue({});
-    (doc as any).mockReturnValue({});
-    (setDoc as any).mockResolvedValue(undefined);
-    (getDoc as any).mockResolvedValue({
+    vi.mocked(getFirestore).mockReturnValue({} as any);
+    vi.mocked(doc).mockReturnValue({} as any);
+    vi.mocked(setDoc).mockResolvedValue(undefined);
+    vi.mocked(getDoc).mockResolvedValue({
       exists: () => true,
       data: () => mockAvatarUrls,
-    });
+    } as any);
 
     // Mock Storage functions
-    (getStorage as any).mockReturnValue({});
-    (ref as any).mockReturnValue({});
-    (uploadBytes as any).mockResolvedValue({});
-    (getDownloadURL as any).mockImplementation((storageRef: any) => {
+    vi.mocked(getStorage).mockReturnValue({} as any);
+    vi.mocked(ref).mockReturnValue({} as any);
+    vi.mocked(uploadBytes).mockResolvedValue({} as any);
+    vi.mocked(getDownloadURL).mockImplementation((storageRef: any) => {
       const fileName = storageRef.toString();
       if (fileName.includes('-l.webp')) return Promise.resolve(mockAvatarUrls.avatar_url_96);
       if (fileName.includes('-m.webp')) return Promise.resolve(mockAvatarUrls.avatar_url_48);
@@ -64,22 +51,22 @@ describe('AvatarService', () => {
   describe('uploadAndRegisterAvatars', () => {
     it('應該成功上傳並註冊頭像', async () => {
       // Mock user counter data
-      (getDoc as any).mockImplementation((docRef: any) => {
+      vi.mocked(getDoc).mockImplementation((docRef: any) => {
         const path = docRef.toString();
         if (path.includes('counters/users')) {
           return Promise.resolve({
             exists: () => true,
             data: () => ({ count: 100 }),
-          });
+          } as any);
         }
         if (path.includes(`users/${mockUserId}`)) {
           return Promise.resolve({
             exists: () => true,
             data: () => ({ createdAt: { toDate: () => new Date('2023-01-01') } }),
-          });
+          } as any);
         }
-        return Promise.resolve({ exists: () => false });
-      });
+        return Promise.resolve({ exists: () => false } as any);
+      } as any);
 
       const result = await avatarService.uploadAndRegisterAvatars(mockUserId, mockBlobs);
 

@@ -1,21 +1,23 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ReportDialog } from './ReportDialog';
 
-// Mock dependencies
+// Mock 依賴
+vi.mock('./ui/use-toast', () => ({
+  useToast: vi.fn(),
+}));
+
 vi.mock('@/services', () => ({
   firebaseReportService: {
     getInstance: vi.fn(() => ({
-      createReport: vi.fn().mockResolvedValue({ id: 'report-1' }),
+      createReport: vi.fn(),
     })),
   },
 }));
 
-vi.mock('./ui/use-toast', () => ({
-  useToast: vi.fn(() => ({
-    toast: vi.fn(),
-  })),
-}));
+// Import the mocked modules
+import { useToast } from './ui/use-toast';
+import { firebaseReportService } from '@/services';
 
 vi.mock('./ui/dialog', () => ({
   Dialog: ({ children, open }: any) => open ? <div data-testid="dialog">{children}</div> : null,

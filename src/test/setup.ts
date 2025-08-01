@@ -3,9 +3,76 @@ import React from 'react';
 import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
 
+// Mock Storage API
+const createMockStorage = () => {
+  let store: Record<string, string> = {};
+  
+  return {
+    getItem: vi.fn((key: string) => store[key] ?? null),
+    setItem: vi.fn((key: string, value: string) => {
+      store[key] = value;
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete store[key];
+    }),
+    clear: vi.fn(() => {
+      store = {};
+    }),
+    get length() {
+      return Object.keys(store).length;
+    },
+    key: vi.fn((index: number) => Object.keys(store)[index] ?? null),
+  };
+};
+
+// Setup localStorage and sessionStorage mocks
+Object.defineProperty(window, 'localStorage', {
+  value: createMockStorage(),
+  writable: true,
+  configurable: true,
+});
+
+Object.defineProperty(window, 'sessionStorage', {
+  value: createMockStorage(),
+  writable: true,
+  configurable: true,
+});
+
+// Mock window properties for responsive tests
+Object.defineProperty(window, 'innerWidth', {
+  value: 1024,
+  writable: true,
+  configurable: true,
+});
+
+Object.defineProperty(window, 'innerHeight', {
+  value: 768,
+  writable: true,
+  configurable: true,
+});
+
+Object.defineProperty(window, 'matchMedia', {
+  value: vi.fn().mockImplementation((query) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+  writable: true,
+  configurable: true,
+});
+
 // 確保每個測試後都清理 DOM
 afterEach(() => {
   cleanup();
+  // Reset localStorage and sessionStorage
+  window.localStorage.clear();
+  window.sessionStorage.clear();
+  vi.clearAllMocks();
 });
 
 // Mock React Query
@@ -341,14 +408,21 @@ vi.mock('@/lib/notifications', () => ({
 }));
 
 // Mock React Router
-vi.mock('react-router-dom', () => ({
-  useNavigate: vi.fn(() => vi.fn()),
-  useLocation: vi.fn(() => ({ pathname: '/' })),
-  useSearchParams: vi.fn(() => [new URLSearchParams(), vi.fn()]),
-  Link: ({ children, ...props }: any) => React.createElement('a', props, children),
-  BrowserRouter: ({ children }: any) => React.createElement('div', {}, children),
-  Navigate: ({ to }: any) => React.createElement('div', { 'data-testid': 'navigate', 'data-to': to }),
-}));
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    useNavigate: vi.fn(() => vi.fn()),
+    useLocation: vi.fn(() => ({ pathname: '/', search: '', hash: '', state: null })),
+    useParams: vi.fn(() => ({})),
+    useSearchParams: vi.fn(() => [new URLSearchParams(), vi.fn()]),
+    Link: ({ children, to, ...props }: any) => React.createElement('a', { href: to, ...props }, children),
+    BrowserRouter: ({ children }: any) => React.createElement('div', { 'data-testid': 'browser-router' }, children),
+    Routes: ({ children }: any) => React.createElement('div', { 'data-testid': 'routes' }, children),
+    Route: ({ element }: any) => React.createElement('div', { 'data-testid': 'route' }, element),
+    Navigate: ({ to, replace }: any) => React.createElement('div', { 'data-testid': 'navigate', 'data-to': to, 'data-replace': replace }),
+  };
+});
 
 // Mock Firebase Auth
 vi.mock('firebase/auth', () => ({
@@ -361,6 +435,24 @@ vi.mock('firebase/auth', () => ({
 }));
 
 // Mock Firebase Firestore
+const MockTimestamp = class {
+  constructor(public seconds: number, public nanoseconds: number) {}
+  
+  toDate() {
+    return new Date(this.seconds * 1000 + this.nanoseconds / 1000000);
+  }
+  
+  static now() {
+    const now = Date.now();
+    return new MockTimestamp(Math.floor(now / 1000), (now % 1000) * 1000000);
+  }
+  
+  static fromDate(date: Date) {
+    const ms = date.getTime();
+    return new MockTimestamp(Math.floor(ms / 1000), (ms % 1000) * 1000000);
+  }
+};
+
 vi.mock('firebase/firestore', () => ({
   getFirestore: vi.fn(() => ({})),
   collection: vi.fn(),
@@ -370,12 +462,14 @@ vi.mock('firebase/firestore', () => ({
   addDoc: vi.fn(),
   updateDoc: vi.fn(),
   deleteDoc: vi.fn(),
+  setDoc: vi.fn(),
   query: vi.fn(),
   where: vi.fn(),
   orderBy: vi.fn(),
   limit: vi.fn(),
   onSnapshot: vi.fn(),
-  serverTimestamp: vi.fn(() => new Date()),
+  serverTimestamp: vi.fn(() => MockTimestamp.now()),
+  Timestamp: MockTimestamp,
 }));
 
 // Mock Firebase Storage
