@@ -8,7 +8,10 @@ vi.mock('./spinner', () => ({
 }));
 
 vi.mock('./button-variants', () => ({
-  buttonVariants: vi.fn(() => 'mocked-button-classes')
+  buttonVariants: vi.fn(({ className, ...rest }: any) => {
+    const baseClasses = 'mocked-button-classes';
+    return className ? `${baseClasses} ${className}` : baseClasses;
+  })
 }));
 
 vi.mock('@/lib/utils', () => ({

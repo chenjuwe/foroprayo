@@ -13,7 +13,15 @@ export default defineConfig({
     css: true,
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      reporter: [
+        'text',
+        'text-summary',
+        'json',
+        'json-summary',
+        'html',
+        'lcov',
+        'cobertura'
+      ],
       exclude: [
         'node_modules/',
         'src/test/',
@@ -24,7 +32,48 @@ export default defineConfig({
         '**/dist/**',
         '**/.{idea,git,cache,output,temp}/**',
         '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*',
+        '**/test-results/**',
+        '**/playwright-report/**',
+        '**/*.test.{js,ts,jsx,tsx}',
+        '**/*.spec.{js,ts,jsx,tsx}',
+        '**/setupTests.ts',
+        '**/test-utils.tsx',
+        '**/test-helpers.ts',
+        '**/test-constants.ts',
+        '**/test-exports.ts',
       ],
+      // 覆蓋率閾值設定
+      thresholds: {
+        global: {
+          branches: 80,
+          functions: 80,
+          lines: 80,
+          statements: 80,
+        },
+        // 關鍵模組的更高覆蓋率要求
+        './src/components/': {
+          branches: 85,
+          functions: 85,
+          lines: 85,
+          statements: 85,
+        },
+        './src/hooks/': {
+          branches: 90,
+          functions: 90,
+          lines: 90,
+          statements: 90,
+        },
+        './src/services/': {
+          branches: 85,
+          functions: 85,
+          lines: 85,
+          statements: 85,
+        },
+      },
+      // 覆蓋率報告配置
+      reportsDirectory: './coverage',
+      // 包含未覆蓋的檔案
+      all: true,
     },
     // 新增測試類型配置
     include: [
@@ -57,12 +106,20 @@ export default defineConfig({
       'default',
       'html',
       'json',
+      'junit',
     ],
     // 輸出目錄
     outputFile: {
       html: './test-results/index.html',
       json: './test-results/results.json',
+      junit: './test-results/junit.xml',
     },
+    // 測試執行順序
+    sequence: {
+      shuffle: false,
+    },
+    // 測試隔離
+    isolate: true,
   },
   resolve: {
     alias: {

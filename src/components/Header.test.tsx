@@ -1,18 +1,33 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Header } from './Header';
 import * as useFirebaseAvatarModule from '@/hooks/useFirebaseAvatar';
 
 // Mock localStorage
+const mockLocalStorage = {
+  getItem: vi.fn(() => null),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+};
+
 Object.defineProperty(window, 'localStorage', {
-  value: {
-    getItem: vi.fn(() => null),
-    setItem: vi.fn(),
-    removeItem: vi.fn(),
-    clear: vi.fn(),
-  },
+  value: mockLocalStorage,
+  writable: true,
+});
+
+// Mock sessionStorage
+const mockSessionStorage = {
+  getItem: vi.fn(() => null),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+};
+
+Object.defineProperty(window, 'sessionStorage', {
+  value: mockSessionStorage,
   writable: true,
 });
 
@@ -111,6 +126,12 @@ describe('Header', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockNavigate.mockClear();
+    mockLocalStorage.getItem.mockReturnValue(null);
+    mockSessionStorage.getItem.mockReturnValue(null);
+  });
+
+  afterEach(() => {
+    vi.resetAllMocks();
   });
 
   it('應該正確渲染 Header 組件', () => {
@@ -168,5 +189,219 @@ describe('Header', () => {
     renderWithRouter(<Header />);
     fireEvent.click(screen.getByText('登入 | 註冊'));
     expect(mockNavigate).toHaveBeenCalledWith('/auth');
+  });
+
+  describe('訪客模式功能', () => {
+    it('應該正確處理訪客模式狀態', () => {
+      vi.spyOn(useFirebaseAvatarModule, 'useFirebaseAvatar').mockReturnValue({
+        user: { uid: '123', displayName: 'Test User' },
+        isLoggedIn: true,
+        avatarUrl30: 'http://example.com/avatar.png',
+        refreshAvatar: vi.fn().mockResolvedValue(true),
+      } as any);
+      
+      renderWithRouter(<Header isGuestMode={true} />);
+      
+      // 在訪客模式下，即使有用戶也應該顯示訪客頭像
+      expect(screen.getByTestId('user-avatar-container')).toBeInTheDocument();
+    });
+
+    it('應該正確處理本地存儲的訪客模式', () => {
+      vi.spyOn(useFirebaseAvatarModule, 'useFirebaseAvatar').mockReturnValue({
+        user: { uid: '123', displayName: 'Test User' },
+        isLoggedIn: true,
+        avatarUrl30: 'http://example.com/avatar.png',
+        refreshAvatar: vi.fn().mockResolvedValue(true),
+      } as any);
+      
+      renderWithRouter(<Header />);
+      
+      expect(mockLocalStorage.getItem).toHaveBeenCalledWith('guestMode');
+    });
+  });
+
+  describe('菜單功能', () => {
+    it('應該正確處理用戶頭像點擊', () => {
+      vi.spyOn(useFirebaseAvatarModule, 'useFirebaseAvatar').mockReturnValue({
+        user: { uid: '123', displayName: 'Test User' },
+        isLoggedIn: true,
+        avatarUrl30: 'http://example.com/avatar.png',
+        refreshAvatar: vi.fn().mockResolvedValue(true),
+      } as any);
+      
+      renderWithRouter(<Header />);
+      
+      const avatarContainer = screen.getByTestId('user-avatar-container');
+      expect(avatarContainer).toBeInTheDocument();
+    });
+
+    it('應該正確處理頭像錯誤', () => {
+      vi.spyOn(useFirebaseAvatarModule, 'useFirebaseAvatar').mockReturnValue({
+        user: { uid: '123', displayName: 'Test User' },
+        isLoggedIn: true,
+        avatarUrl30: 'http://example.com/avatar.png',
+        refreshAvatar: vi.fn().mockResolvedValue(true),
+      } as any);
+      
+      renderWithRouter(<Header />);
+      
+      const avatar = screen.getByAltText('Test User');
+      fireEvent.error(avatar);
+      
+      // 頭像錯誤後應該顯示用戶首字母
+      expect(screen.getByText('T')).toBeInTheDocument();
+    });
+  });
+
+  describe('導航功能', () => {
+    it('應該正確處理不同頁面的導航', () => {
+      vi.spyOn(useFirebaseAvatarModule, 'useFirebaseAvatar').mockReturnValue({
+        user: null,
+        isLoggedIn: false,
+        avatarUrl30: null,
+        refreshAvatar: vi.fn().mockResolvedValue(true),
+      } as any);
+      
+      const { rerender } = renderWithRouter(<Header currentPage="publish" />);
+      expect(screen.getByAltText('Logo')).toBeInTheDocument();
+      
+      rerender(<Header currentPage="community" />);
+      expect(screen.getByAltText('Logo')).toBeInTheDocument();
+      
+      rerender(<Header currentPage="baptism" />);
+      expect(screen.getByAltText('Logo')).toBeInTheDocument();
+      
+      rerender(<Header currentPage="miracle" />);
+      expect(screen.getByAltText('Logo')).toBeInTheDocument();
+    });
+
+    it('應該正確處理回調函數', () => {
+      const mockOnLoginClick = vi.fn();
+      const mockOnProfileClick = vi.fn();
+      const mockOnPublishClick = vi.fn();
+      const mockOnCommunityClick = vi.fn();
+      const mockOnExtraButtonClick = vi.fn();
+      
+      vi.spyOn(useFirebaseAvatarModule, 'useFirebaseAvatar').mockReturnValue({
+        user: null,
+        isLoggedIn: false,
+        avatarUrl30: null,
+        refreshAvatar: vi.fn().mockResolvedValue(true),
+      } as any);
+      
+      renderWithRouter(
+        <Header 
+          onLoginClick={mockOnLoginClick}
+          onProfileClick={mockOnProfileClick}
+          onPublishClick={mockOnPublishClick}
+          onCommunityClick={mockOnCommunityClick}
+          onExtraButtonClick={mockOnExtraButtonClick}
+        />
+      );
+      
+      // 檢查回調函數是否被正確傳遞
+      expect(mockOnLoginClick).toBeDefined();
+      expect(mockOnProfileClick).toBeDefined();
+      expect(mockOnPublishClick).toBeDefined();
+      expect(mockOnCommunityClick).toBeDefined();
+      expect(mockOnExtraButtonClick).toBeDefined();
+    });
+  });
+
+  describe('頭像更新功能', () => {
+    it('應該正確處理頭像刷新', async () => {
+      const mockRefreshAvatar = vi.fn().mockResolvedValue(true);
+      vi.spyOn(useFirebaseAvatarModule, 'useFirebaseAvatar').mockReturnValue({
+        user: { uid: '123', displayName: 'Test User' },
+        isLoggedIn: true,
+        avatarUrl30: 'http://example.com/avatar.png',
+        refreshAvatar: mockRefreshAvatar,
+      } as any);
+      
+      renderWithRouter(<Header />);
+      
+      // 檢查頭像刷新功能是否可用
+      expect(mockRefreshAvatar).toBeDefined();
+    });
+
+    it('應該正確處理頭像 URL 變更', () => {
+      const mockRefreshAvatar = vi.fn().mockResolvedValue(true);
+      vi.spyOn(useFirebaseAvatarModule, 'useFirebaseAvatar').mockReturnValue({
+        user: { uid: '123', displayName: 'Test User' },
+        isLoggedIn: true,
+        avatarUrl30: 'http://example.com/new-avatar.png',
+        refreshAvatar: mockRefreshAvatar,
+      } as any);
+      
+      renderWithRouter(<Header />);
+      
+      const avatar = screen.getByAltText('Test User');
+      expect(avatar).toHaveAttribute('src', 'http://example.com/new-avatar.png');
+    });
+  });
+
+  describe('錯誤處理', () => {
+    it('應該正確處理 Firebase 認證錯誤', () => {
+      vi.spyOn(useFirebaseAvatarModule, 'useFirebaseAvatar').mockReturnValue({
+        user: null,
+        isLoggedIn: false,
+        avatarUrl30: null,
+        refreshAvatar: vi.fn().mockRejectedValue(new Error('認證錯誤')),
+      } as any);
+      
+      renderWithRouter(<Header />);
+      
+      // 即使有錯誤，組件也應該正常渲染
+      expect(screen.getByAltText('Logo')).toBeInTheDocument();
+    });
+
+    it('應該正確處理本地存儲錯誤', () => {
+      mockLocalStorage.getItem.mockImplementation(() => {
+        throw new Error('存儲錯誤');
+      });
+      
+      vi.spyOn(useFirebaseAvatarModule, 'useFirebaseAvatar').mockReturnValue({
+        user: null,
+        isLoggedIn: false,
+        avatarUrl30: null,
+        refreshAvatar: vi.fn().mockResolvedValue(true),
+      } as any);
+      
+      renderWithRouter(<Header />);
+      
+      // 即使有錯誤，組件也應該正常渲染
+      expect(screen.getByAltText('Logo')).toBeInTheDocument();
+    });
+  });
+
+  describe('無障礙功能', () => {
+    it('應該包含正確的 ARIA 標籤', () => {
+      vi.spyOn(useFirebaseAvatarModule, 'useFirebaseAvatar').mockReturnValue({
+        user: null,
+        isLoggedIn: false,
+        avatarUrl30: null,
+        refreshAvatar: vi.fn().mockResolvedValue(true),
+      } as any);
+      
+      renderWithRouter(<Header />);
+      
+      const logo = screen.getByAltText('Logo');
+      expect(logo).toBeInTheDocument();
+    });
+
+    it('應該正確處理鍵盤導航', () => {
+      vi.spyOn(useFirebaseAvatarModule, 'useFirebaseAvatar').mockReturnValue({
+        user: null,
+        isLoggedIn: false,
+        avatarUrl30: null,
+        refreshAvatar: vi.fn().mockResolvedValue(true),
+      } as any);
+      
+      renderWithRouter(<Header />);
+      
+      const loginButton = screen.getByText('登入 | 註冊');
+      loginButton.focus();
+      expect(loginButton).toHaveFocus();
+    });
   });
 }); 

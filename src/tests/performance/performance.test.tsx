@@ -1,8 +1,43 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
+
+// Mock react-router-dom
+vi.mock('react-router-dom', () => ({
+  MemoryRouter: ({ children, initialEntries }: any) => (
+    <div data-testid="memory-router" data-initial-entries={JSON.stringify(initialEntries)}>
+      {children}
+    </div>
+  ),
+  BrowserRouter: ({ children }: any) => (
+    <div data-testid="browser-router">
+      {children}
+    </div>
+  ),
+  Routes: ({ children }: any) => (
+    <div data-testid="routes">
+      {children}
+    </div>
+  ),
+  Route: ({ path, element }: any) => (
+    <div data-testid="route" data-path={path}>
+      {element}
+    </div>
+  ),
+  useNavigate: () => vi.fn(),
+  useLocation: () => ({ pathname: '/', search: '', hash: '', state: null }),
+  Link: ({ to, children, ...props }: any) => (
+    <a href={to} {...props}>
+      {children}
+    </a>
+  ),
+  NavLink: ({ to, children, ...props }: any) => (
+    <a href={to} {...props}>
+      {children}
+    </a>
+  ),
+}));
 
 // Mock heavy components for performance testing
 vi.mock('@/components/PrayerPost', () => ({
@@ -53,11 +88,12 @@ const createWrapper = () => {
     }
   });
 
-  return ({ children }: { children: React.ReactNode }) => (
-    React.createElement(MemoryRouter, { initialEntries: ['/prayers'] },
+  return ({ children }: { children: React.ReactNode }) => {
+    const { MemoryRouter } = require('react-router-dom');
+    return React.createElement(MemoryRouter, { initialEntries: ['/prayers'] },
       React.createElement(QueryClientProvider, { client: queryClient }, children)
-    )
-  );
+    );
+  };
 };
 
 // Performance measurement utilities

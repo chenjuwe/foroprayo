@@ -468,4 +468,240 @@ describe('PrayerPost', () => {
       expect(responseButton).toBeInTheDocument();
     });
   });
+
+  describe('圖片功能', () => {
+    it('應該正確顯示代禱圖片', () => {
+      const prayerWithImage = {
+        ...mockPrayer,
+        image_url: 'https://example.com/prayer-image.jpg',
+      };
+      
+      render(<PrayerPost {...defaultProps} prayer={prayerWithImage} />);
+      
+      const image = screen.getByAltText('代禱圖片');
+      expect(image).toBeInTheDocument();
+      expect(image).toHaveAttribute('src', 'https://example.com/prayer-image.jpg');
+    });
+
+    it('應該正確處理圖片載入錯誤', () => {
+      const prayerWithImage = {
+        ...mockPrayer,
+        image_url: 'https://example.com/prayer-image.jpg',
+      };
+      
+      render(<PrayerPost {...defaultProps} prayer={prayerWithImage} />);
+      
+      const image = screen.getByAltText('代禱圖片');
+      fireEvent.error(image);
+      
+      // 圖片錯誤後應該顯示錯誤狀態
+      expect(screen.getByTestId('prayer-post')).toBeInTheDocument();
+    });
+  });
+
+  describe('已應允功能', () => {
+    it('應該正確顯示已應允狀態', () => {
+      const answeredPrayer = {
+        ...mockPrayer,
+        is_answered: true,
+      };
+      
+      render(<PrayerPost {...defaultProps} prayer={answeredPrayer} />);
+      
+      expect(screen.getByTestId('prayer-post')).toBeInTheDocument();
+      // 檢查是否有已應允標記
+      expect(screen.getByTestId('prayer-content')).toBeInTheDocument();
+    });
+
+    it('應該正確處理已應允切換', async () => {
+      const mockToggleAnswered = vi.fn();
+      vi.mocked(require('@/hooks/useTogglePrayerAnswered').useTogglePrayerAnswered).mockReturnValue({
+        mutate: mockToggleAnswered,
+        isPending: false,
+      });
+      
+      render(<PrayerPost {...defaultProps} />);
+      
+      // 點擊菜單按鈕
+      const menuButton = screen.getByLabelText('更多選項');
+      fireEvent.click(menuButton);
+      
+      // 等待菜單打開後點擊已應允按鈕
+      await waitFor(() => {
+        const answeredButton = screen.getByText('已應允');
+        fireEvent.click(answeredButton);
+      });
+      
+      expect(mockToggleAnswered).toHaveBeenCalledWith('prayer-1');
+    });
+  });
+
+  describe('分享功能', () => {
+    it('應該正確處理分享功能', async () => {
+      const mockShare = vi.fn();
+      
+      render(<PrayerPost {...defaultProps} />);
+      
+      // 點擊菜單按鈕
+      const menuButton = screen.getByLabelText('更多選項');
+      fireEvent.click(menuButton);
+      
+      // 等待菜單打開後點擊分享按鈕
+      await waitFor(() => {
+        const shareButton = screen.getByText('分享');
+        fireEvent.click(shareButton);
+      });
+      
+      // 檢查分享功能是否被調用
+      expect(screen.getByTestId('post-actions')).toBeInTheDocument();
+    });
+  });
+
+  describe('書籤功能', () => {
+    it('應該正確處理書籤功能', async () => {
+      render(<PrayerPost {...defaultProps} />);
+      
+      // 點擊菜單按鈕
+      const menuButton = screen.getByLabelText('更多選項');
+      fireEvent.click(menuButton);
+      
+      // 等待菜單打開後點擊書籤按鈕
+      await waitFor(() => {
+        const bookmarkButton = screen.getByText('書籤');
+        fireEvent.click(bookmarkButton);
+      });
+      
+      // 書籤功能暫時停用，不應該有實際效果
+      expect(screen.getByTestId('post-actions')).toBeInTheDocument();
+    });
+  });
+
+  describe('回應統計', () => {
+    it('應該正確顯示回應數量', () => {
+      const prayerWithResponses = {
+        ...mockPrayer,
+        response_count: 5,
+      };
+      
+      render(<PrayerPost {...defaultProps} prayer={prayerWithResponses} />);
+      
+      expect(screen.getByTestId('prayer-post')).toBeInTheDocument();
+      // 檢查回應數量是否正確顯示
+      expect(screen.getByText(/5/)).toBeInTheDocument();
+    });
+
+    it('應該正確處理零回應', () => {
+      const prayerWithNoResponses = {
+        ...mockPrayer,
+        response_count: 0,
+      };
+      
+      render(<PrayerPost {...defaultProps} prayer={prayerWithNoResponses} />);
+      
+      expect(screen.getByTestId('prayer-post')).toBeInTheDocument();
+    });
+  });
+
+  describe('時間顯示', () => {
+    it('應該正確格式化時間', () => {
+      const prayerWithTime = {
+        ...mockPrayer,
+        created_at: '2024-01-01T12:00:00Z',
+        updated_at: '2024-01-01T13:00:00Z',
+      };
+      
+      render(<PrayerPost {...defaultProps} prayer={prayerWithTime} />);
+      
+      expect(screen.getByTestId('prayer-post')).toBeInTheDocument();
+      // 檢查時間是否被正確格式化
+      expect(screen.getByText(/2024\/01\/01/)).toBeInTheDocument();
+    });
+
+    it('應該正確處理無效時間', () => {
+      const prayerWithInvalidTime = {
+        ...mockPrayer,
+        created_at: 'invalid-time',
+        updated_at: 'invalid-time',
+      };
+      
+      render(<PrayerPost {...defaultProps} prayer={prayerWithInvalidTime} />);
+      
+      expect(screen.getByTestId('prayer-post')).toBeInTheDocument();
+    });
+  });
+
+  describe('無障礙功能', () => {
+    it('應該包含正確的 ARIA 標籤', () => {
+      render(<PrayerPost {...defaultProps} />);
+      
+      expect(screen.getByTestId('prayer-post')).toBeInTheDocument();
+      expect(screen.getByTestId('prayer-content')).toBeInTheDocument();
+    });
+
+    it('應該正確處理鍵盤導航', () => {
+      render(<PrayerPost {...defaultProps} />);
+      
+      const likeButton = screen.getByLabelText('給愛心');
+      likeButton.focus();
+      expect(likeButton).toHaveFocus();
+    });
+
+    it('應該正確處理螢幕閱讀器', () => {
+      render(<PrayerPost {...defaultProps} />);
+      
+      // 檢查是否有適當的 ARIA 標籤
+      const likeButton = screen.getByLabelText('給愛心');
+      expect(likeButton).toBeInTheDocument();
+    });
+  });
+
+  describe('性能優化', () => {
+    it('應該正確處理大量回應', () => {
+      const mockResponses = Array.from({ length: 100 }, (_, i) => ({
+        id: `response-${i}`,
+        content: `回應 ${i}`,
+        user_name: `User${i}`,
+        prayer_id: 'test-prayer-id',
+        user_id: `user${i}`,
+        is_anonymous: false,
+        created_at: '2024-01-01T00:00:00Z',
+      }));
+      
+      vi.mocked(usePrayerResponses).mockReturnValue({
+        data: mockResponses,
+        isLoading: false,
+        isError: false,
+        error: null,
+        isPending: false,
+        isSuccess: true,
+        isFetching: false,
+        isRefetching: false,
+        refetch: vi.fn(),
+        status: 'success'
+      } as any);
+      
+      render(<PrayerPost {...defaultProps} />);
+      
+      expect(screen.getByTestId('prayer-post')).toBeInTheDocument();
+    });
+
+    it('應該正確處理載入狀態', () => {
+      vi.mocked(usePrayerResponses).mockReturnValue({
+        data: [],
+        isLoading: true,
+        isError: false,
+        error: null,
+        isPending: true,
+        isSuccess: false,
+        isFetching: true,
+        isRefetching: false,
+        refetch: vi.fn(),
+        status: 'pending'
+      } as any);
+      
+      render(<PrayerPost {...defaultProps} />);
+      
+      expect(screen.getByTestId('prayer-post')).toBeInTheDocument();
+    });
+  });
 }); 

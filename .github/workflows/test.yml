@@ -1,0 +1,254 @@
+name: 測試與品質檢查
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # 依賴檢查
+  check-dependencies:
+    name: 檢查依賴
+    runs-on: ubuntu-latest
+    steps:
+      - name: 檢出程式碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 安裝依賴
+        run: npm ci
+
+      - name: 檢查依賴
+        run: npm run check-deps
+
+  # 程式碼品質檢查
+  lint:
+    name: 程式碼品質檢查
+    runs-on: ubuntu-latest
+    steps:
+      - name: 檢出程式碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 安裝依賴
+        run: npm ci
+
+      - name: 執行 ESLint
+        run: npm run lint
+
+      - name: 類型檢查
+        run: npm run build
+
+  # 單元測試
+  unit-tests:
+    name: 單元測試
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [16, 18, 20]
+    steps:
+      - name: 檢出程式碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: 安裝依賴
+        run: npm ci
+
+      - name: 執行單元測試
+        run: npm run test:unit
+
+      - name: 上傳測試覆蓋率
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/coverage-final.json
+          flags: unit
+          name: unit-coverage
+
+  # 整合測試
+  integration-tests:
+    name: 整合測試
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - name: 檢出程式碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 安裝依賴
+        run: npm ci
+
+      - name: 執行整合測試
+        run: npm run test:integration
+
+      - name: 上傳整合測試覆蓋率
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/coverage-final.json
+          flags: integration
+          name: integration-coverage
+
+  # 效能測試
+  performance-tests:
+    name: 效能測試
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    steps:
+      - name: 檢出程式碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 安裝依賴
+        run: npm ci
+
+      - name: 執行效能測試
+        run: npm run test:performance
+
+      - name: 上傳效能測試報告
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-report
+          path: performance-report.txt
+
+  # 安全性測試
+  security-tests:
+    name: 安全性測試
+    runs-on: ubuntu-latest
+    needs: performance-tests
+    steps:
+      - name: 檢出程式碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 安裝依賴
+        run: npm ci
+
+      - name: 執行安全性測試
+        run: npm run test:security
+
+      - name: 上傳安全性測試報告
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-report
+          path: security-report.txt
+
+  # E2E 測試
+  e2e-tests:
+    name: E2E 測試
+    runs-on: ubuntu-latest
+    needs: security-tests
+    steps:
+      - name: 檢出程式碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 安裝依賴
+        run: npm ci
+
+      - name: 安裝 Playwright 瀏覽器
+        run: npx playwright install --with-deps
+
+      - name: 執行 E2E 測試
+        run: npm run test:e2e
+
+      - name: 上傳 E2E 測試報告
+        uses: actions/upload-artifact@v3
+        with:
+          name: playwright-report
+          path: playwright-report/
+
+  # 測試報告整合
+  test-summary:
+    name: 測試報告整合
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, performance-tests, security-tests, e2e-tests]
+    if: always()
+    steps:
+      - name: 檢出程式碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 安裝依賴
+        run: npm ci
+
+      - name: 生成測試摘要
+        run: |
+          echo "## 測試結果摘要" >> $GITHUB_STEP_SUMMARY
+          echo "### 單元測試: ${{ needs.unit-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "### 整合測試: ${{ needs.integration-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "### 效能測試: ${{ needs.performance-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "### 安全性測試: ${{ needs.security-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "### E2E 測試: ${{ needs.e2e-tests.result }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: 上傳測試覆蓋率報告
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage/
+
+  # 建置檢查
+  build:
+    name: 建置檢查
+    runs-on: ubuntu-latest
+    needs: test-summary
+    steps:
+      - name: 檢出程式碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 安裝依賴
+        run: npm ci
+
+      - name: 建置專案
+        run: npm run build
+
+      - name: 上傳建置產物
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts
+          path: dist/ 

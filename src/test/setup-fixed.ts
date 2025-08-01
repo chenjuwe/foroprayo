@@ -1,4 +1,4 @@
-import { vi, afterEach } from 'vitest';
+import { vi, afterEach, beforeAll } from 'vitest';
 import React from 'react';
 import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
@@ -6,9 +6,73 @@ import { cleanup } from '@testing-library/react';
 // 確保每個測試後都清理 DOM
 afterEach(() => {
   cleanup();
+  vi.clearAllMocks();
 });
 
-// Mock React Query
+// 修復 window 物件問題
+beforeAll(() => {
+  // 修復 Object.defineProperty 在測試環境中的問題
+  if (typeof window !== 'undefined') {
+    // 安全地設定 window 屬性
+    try {
+      Object.defineProperty(window, 'innerWidth', {
+        value: 1024,
+        writable: true,
+        configurable: true,
+      });
+      
+      Object.defineProperty(window, 'innerHeight', {
+        value: 768,
+        writable: true,
+        configurable: true,
+      });
+      
+      Object.defineProperty(window, 'localStorage', {
+        value: {
+          getItem: vi.fn(),
+          setItem: vi.fn(),
+          removeItem: vi.fn(),
+          clear: vi.fn(),
+        },
+        writable: true,
+        configurable: true,
+      });
+      
+      Object.defineProperty(window, 'dispatchEvent', {
+        value: vi.fn(),
+        writable: true,
+        configurable: true,
+      });
+      
+      Object.defineProperty(window, 'addEventListener', {
+        value: vi.fn(),
+        writable: true,
+        configurable: true,
+      });
+      
+      Object.defineProperty(window, 'removeEventListener', {
+        value: vi.fn(),
+        writable: true,
+        configurable: true,
+      });
+    } catch (error) {
+      console.warn('無法設定某些 window 屬性:', error);
+    }
+  }
+  
+  // 修復 navigator 物件
+  try {
+    Object.defineProperty(navigator, 'onLine', {
+      value: true,
+      writable: true,
+      configurable: true,
+    });
+  } catch (error) {
+    console.warn('無法設定 navigator.onLine:', error);
+  }
+});
+
+// Mock React Query - 更穩定的版本
 vi.mock('@tanstack/react-query', () => ({
   QueryClient: vi.fn(() => ({
     invalidateQueries: vi.fn(),
@@ -75,6 +139,102 @@ vi.mock('@tanstack/react-query', () => ({
     resetQueries: vi.fn(),
     refetchQueries: vi.fn(),
   })),
+}));
+
+// Mock React Router - 修復 Routes 問題
+vi.mock('react-router-dom', () => ({
+  useNavigate: vi.fn(() => vi.fn()),
+  useLocation: vi.fn(() => ({ pathname: '/' })),
+  useSearchParams: vi.fn(() => [new URLSearchParams(), vi.fn()]),
+  useParams: vi.fn(() => ({})),
+  Link: ({ children, ...props }: any) => React.createElement('a', props, children),
+  BrowserRouter: ({ children }: any) => React.createElement('div', {}, children),
+  Routes: ({ children }: any) => React.createElement('div', { 'data-testid': 'routes' }, children),
+  Route: ({ element }: any) => element,
+  Navigate: ({ to }: any) => React.createElement('div', { 'data-testid': 'navigate', 'data-to': to }),
+  createBrowserRouter: vi.fn(() => ({})),
+  RouterProvider: ({ children }: any) => React.createElement('div', { 'data-testid': 'router-provider' }, children),
+}));
+
+// Mock Firebase Auth Context - 修復版本
+vi.mock('@/contexts/FirebaseAuthContext', () => {
+  const MockFirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => children;
+  const mockUseFirebaseAuth = vi.fn(() => ({
+    currentUser: null,
+    loading: false,
+    signIn: vi.fn().mockResolvedValue({ user: null, error: null }),
+    signUp: vi.fn().mockResolvedValue({ user: null, error: null }),
+    signOut: vi.fn().mockResolvedValue({ error: null }),
+    resetPassword: vi.fn().mockResolvedValue({ error: null }),
+    refreshUserAvatar: vi.fn(),
+    initFirebaseAuth: vi.fn().mockResolvedValue(undefined),
+  }));
+  
+  return {
+    useFirebaseAuth: mockUseFirebaseAuth,
+    FirebaseAuthProvider: MockFirebaseAuthProvider,
+    FirebaseAuthContext: {
+      Provider: MockFirebaseAuthProvider
+    }
+  };
+});
+
+// Mock Firebase client - 修復版本
+vi.mock('@/integrations/firebase/client', () => ({
+  auth: vi.fn(() => ({
+    currentUser: {
+      uid: 'test-user-id',
+      displayName: 'Test User',
+      email: 'test@example.com'
+    }
+  })),
+  db: {},
+  storage: {},
+}));
+
+// Mock Firebase Auth - 修復版本
+vi.mock('firebase/auth', () => ({
+  getAuth: vi.fn(() => ({})),
+  signInWithEmailAndPassword: vi.fn(),
+  createUserWithEmailAndPassword: vi.fn(),
+  signOut: vi.fn(),
+  onAuthStateChanged: vi.fn(),
+  User: vi.fn(),
+  Timestamp: vi.fn(() => ({
+    toDate: () => new Date(),
+    toMillis: () => Date.now(),
+  })),
+}));
+
+// Mock Firebase Firestore - 修復版本
+vi.mock('firebase/firestore', () => ({
+  getFirestore: vi.fn(() => ({})),
+  collection: vi.fn(),
+  doc: vi.fn(),
+  getDoc: vi.fn(),
+  getDocs: vi.fn(),
+  addDoc: vi.fn(),
+  updateDoc: vi.fn(),
+  deleteDoc: vi.fn(),
+  query: vi.fn(),
+  where: vi.fn(),
+  orderBy: vi.fn(),
+  limit: vi.fn(),
+  onSnapshot: vi.fn(),
+  serverTimestamp: vi.fn(() => new Date()),
+  Timestamp: vi.fn(() => ({
+    toDate: () => new Date(),
+    toMillis: () => Date.now(),
+  })),
+}));
+
+// Mock Firebase Storage - 修復版本
+vi.mock('firebase/storage', () => ({
+  getStorage: vi.fn(() => ({})),
+  ref: vi.fn(),
+  uploadBytes: vi.fn(),
+  getDownloadURL: vi.fn(),
+  deleteObject: vi.fn(),
 }));
 
 // Mock constants
@@ -235,67 +395,6 @@ vi.mock('@/lib/logger', () => ({
   },
 }));
 
-// Mock FirebaseAuthContext
-vi.mock('@/contexts/FirebaseAuthContext', () => {
-  const MockFirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => children;
-  const mockUseFirebaseAuth = vi.fn(() => ({
-    currentUser: null,
-    loading: false,
-    signIn: vi.fn().mockResolvedValue({ user: null, error: null }),
-    signUp: vi.fn().mockResolvedValue({ user: null, error: null }),
-    signOut: vi.fn().mockResolvedValue({ error: null }),
-    resetPassword: vi.fn().mockResolvedValue({ error: null }),
-    refreshUserAvatar: vi.fn()
-  }));
-  
-  return {
-    useFirebaseAuth: mockUseFirebaseAuth,
-    FirebaseAuthProvider: MockFirebaseAuthProvider,
-    FirebaseAuthContext: {
-      Provider: MockFirebaseAuthProvider
-    }
-  };
-});
-
-// Mock Firebase client
-vi.mock('@/integrations/firebase/client', () => ({
-  auth: vi.fn(() => ({
-    currentUser: {
-      uid: 'test-user-id',
-      displayName: 'Test User',
-      email: 'test@example.com'
-    }
-  }))
-}));
-
-// Mock superAdminService
-vi.mock('@/services/admin/SuperAdminService', () => ({
-  superAdminService: {
-    getInstance: vi.fn(() => ({
-      isSuperAdmin: vi.fn().mockResolvedValue(false),
-      deletePrayer: vi.fn().mockResolvedValue(true),
-    })),
-  },
-}));
-
-// Mock usePrayerAnswered hook
-vi.mock('@/hooks/usePrayerAnswered', () => ({
-  useToggleResponseAnswered: vi.fn(() => ({
-    mutate: vi.fn(),
-    isPending: false,
-    isError: false,
-    error: null,
-    data: null
-  })),
-  useTogglePrayerAnswered: vi.fn(() => ({
-    mutate: vi.fn(),
-    isPending: false,
-    isError: false,
-    error: null,
-    data: null
-  }))
-}));
-
 // Mock sonner toast
 vi.mock('sonner', () => ({
   toast: {
@@ -303,7 +402,14 @@ vi.mock('sonner', () => ({
     success: vi.fn(),
     warning: vi.fn(),
     info: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn(),
+    promise: vi.fn(),
   },
+  Toaster: vi.fn().mockImplementation(() => {
+    const React = require('react');
+    return React.createElement('div', { 'data-testid': 'sonner-toaster' }, 'Toaster');
+  }),
 }));
 
 // Mock Firebase services
@@ -340,121 +446,89 @@ vi.mock('@/lib/notifications', () => ({
   },
 }));
 
-// Mock React Router
-vi.mock('react-router-dom', () => ({
-  useNavigate: vi.fn(() => vi.fn()),
-  useLocation: vi.fn(() => ({ pathname: '/' })),
-  useSearchParams: vi.fn(() => [new URLSearchParams(), vi.fn()]),
-  Link: ({ children, ...props }: any) => React.createElement('a', props, children),
-  BrowserRouter: ({ children }: any) => React.createElement('div', {}, children),
-  Navigate: ({ to }: any) => React.createElement('div', { 'data-testid': 'navigate', 'data-to': to }),
+// Mock superAdminService
+vi.mock('@/services/admin/SuperAdminService', () => ({
+  superAdminService: {
+    getInstance: vi.fn(() => ({
+      isSuperAdmin: vi.fn().mockResolvedValue(false),
+      deletePrayer: vi.fn().mockResolvedValue(true),
+    })),
+  },
 }));
 
-// Mock Firebase Auth
-vi.mock('firebase/auth', () => ({
-  getAuth: vi.fn(() => ({})),
-  signInWithEmailAndPassword: vi.fn(),
-  createUserWithEmailAndPassword: vi.fn(),
-  signOut: vi.fn(),
-  onAuthStateChanged: vi.fn(),
-  User: vi.fn(),
+// Mock usePrayerAnswered hook
+vi.mock('@/hooks/usePrayerAnswered', () => ({
+  useToggleResponseAnswered: vi.fn(() => ({
+    mutate: vi.fn(),
+    isPending: false,
+    isError: false,
+    error: null,
+    data: null
+  })),
+  useTogglePrayerAnswered: vi.fn(() => ({
+    mutate: vi.fn(),
+    isPending: false,
+    isError: false,
+    error: null,
+    data: null
+  }))
 }));
-
-// Mock Firebase Firestore
-vi.mock('firebase/firestore', () => ({
-  getFirestore: vi.fn(() => ({})),
-  collection: vi.fn(),
-  doc: vi.fn(),
-  getDoc: vi.fn(),
-  getDocs: vi.fn(),
-  addDoc: vi.fn(),
-  updateDoc: vi.fn(),
-  deleteDoc: vi.fn(),
-  query: vi.fn(),
-  where: vi.fn(),
-  orderBy: vi.fn(),
-  limit: vi.fn(),
-  onSnapshot: vi.fn(),
-  serverTimestamp: vi.fn(() => new Date()),
-}));
-
-// Mock Firebase Storage
-vi.mock('firebase/storage', () => ({
-  getStorage: vi.fn(() => ({})),
-  ref: vi.fn(),
-  uploadBytes: vi.fn(),
-  getDownloadURL: vi.fn(),
-  deleteObject: vi.fn(),
-}));
-
-// Mock window properties
-if (typeof window !== 'undefined') {
-  Object.defineProperty(window, 'addEventListener', {
-    value: vi.fn(),
-    writable: true,
-    configurable: true,
-  });
-
-  Object.defineProperty(window, 'removeEventListener', {
-    value: vi.fn(),
-    writable: true,
-    configurable: true,
-  });
-}
-
-Object.defineProperty(navigator, 'onLine', {
-  value: true,
-  writable: true,
-  configurable: true,
-});
-
-// Mock Canvas API for heic2any
-if (typeof window !== 'undefined') {
-  Object.defineProperty(window, 'HTMLCanvasElement', {
-    value: class MockCanvas {
-      getContext() {
-        return {
-          drawImage: vi.fn(),
-          getImageData: vi.fn(() => ({ data: new Uint8Array(4) })),
-          putImageData: vi.fn(),
-          createImageData: vi.fn(() => ({ data: new Uint8Array(4) })),
-          canvas: { width: 100, height: 100 },
-        };
-      }
-    },
-    writable: true,
-    configurable: true,
-  });
-
-  // Mock Worker API
-  Object.defineProperty(window, 'Worker', {
-    value: class MockWorker {
-      postMessage = vi.fn();
-      terminate = vi.fn();
-      addEventListener = vi.fn();
-      removeEventListener = vi.fn();
-    },
-    writable: true,
-    configurable: true,
-  });
-}
-
-// Mock URL API for heic2any
-Object.defineProperty(URL, 'createObjectURL', {
-  value: vi.fn(() => 'mock-url'),
-  writable: true,
-  configurable: true,
-});
-
-Object.defineProperty(URL, 'revokeObjectURL', {
-  value: vi.fn(),
-  writable: true,
-  configurable: true,
-});
 
 // Mock ResizeObserver
 global.ResizeObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
   disconnect: vi.fn(),
-})); 
+}));
+
+// Mock Canvas API for heic2any
+if (typeof window !== 'undefined') {
+  try {
+    Object.defineProperty(window, 'HTMLCanvasElement', {
+      value: class MockCanvas {
+        getContext() {
+          return {
+            drawImage: vi.fn(),
+            getImageData: vi.fn(() => ({ data: new Uint8Array(4) })),
+            putImageData: vi.fn(),
+            createImageData: vi.fn(() => ({ data: new Uint8Array(4) })),
+            canvas: { width: 100, height: 100 },
+          };
+        }
+      },
+      writable: true,
+      configurable: true,
+    });
+
+    // Mock Worker API
+    Object.defineProperty(window, 'Worker', {
+      value: class MockWorker {
+        postMessage = vi.fn();
+        terminate = vi.fn();
+        addEventListener = vi.fn();
+        removeEventListener = vi.fn();
+      },
+      writable: true,
+      configurable: true,
+    });
+  } catch (error) {
+    console.warn('無法設定 Canvas 或 Worker API:', error);
+  }
+}
+
+// Mock URL API for heic2any
+try {
+  Object.defineProperty(URL, 'createObjectURL', {
+    value: vi.fn(() => 'mock-url'),
+    writable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(URL, 'revokeObjectURL', {
+    value: vi.fn(),
+    writable: true,
+    configurable: true,
+  });
+} catch (error) {
+  console.warn('無法設定 URL API:', error);
+} 

@@ -391,4 +391,408 @@ describe('PostActions', () => {
     // 即使有錯誤，組件也應該能夠渲染
     expect(screen.getByTestId('menu-trigger')).toBeInTheDocument();
   });
+
+  describe('載入狀態處理', () => {
+    it('應該正確處理點讚載入狀態', () => {
+      mockUsePrayerLikes.mockReturnValue({ 
+        data: undefined,
+        isLoading: true,
+        isError: false,
+        error: null,
+        isPending: true,
+        isSuccess: false,
+        isFetching: true,
+        isRefetching: false,
+        refetch: vi.fn(),
+        status: 'pending'
+      });
+
+      const wrapper = createWrapper();
+      render(<PostActions {...defaultProps} />, { wrapper });
+
+      expect(screen.getByTestId('menu-trigger')).toBeInTheDocument();
+    });
+
+    it('應該正確處理點讚提交載入狀態', () => {
+      mockUseTogglePrayerLike.mockReturnValue({
+        mutate: vi.fn(),
+        isPending: true,
+        isLoading: true,
+        isError: false,
+        error: null,
+        isSuccess: false,
+        isIdle: false,
+        status: 'pending'
+      });
+
+      const wrapper = createWrapper();
+      render(<PostActions {...defaultProps} />, { wrapper });
+
+      expect(screen.getByTestId('menu-trigger')).toBeInTheDocument();
+    });
+  });
+
+  describe('權限控制', () => {
+    it('應該正確處理超級管理員權限', () => {
+      const mockIsSuperAdmin = vi.fn().mockResolvedValue(true);
+      vi.mocked(require('@/services/admin/SuperAdminService').superAdminService.getInstance).mockReturnValue({
+        isSuperAdmin: mockIsSuperAdmin,
+        deletePrayer: vi.fn().mockResolvedValue(true),
+      });
+
+      const wrapper = createWrapper();
+      render(<PostActions {...defaultProps} isOwner={true} />, { wrapper });
+
+      // 點擊菜單觸發器
+      const menuTrigger = screen.getByTestId('menu-trigger');
+      fireEvent.click(menuTrigger);
+
+      expect(screen.getByTestId('menu-content')).toBeInTheDocument();
+    });
+
+    it('應該正確處理普通用戶權限', () => {
+      const mockIsSuperAdmin = vi.fn().mockResolvedValue(false);
+      vi.mocked(require('@/services/admin/SuperAdminService').superAdminService.getInstance).mockReturnValue({
+        isSuperAdmin: mockIsSuperAdmin,
+        deletePrayer: vi.fn().mockResolvedValue(true),
+      });
+
+      const wrapper = createWrapper();
+      render(<PostActions {...defaultProps} isOwner={true} />, { wrapper });
+
+      // 點擊菜單觸發器
+      const menuTrigger = screen.getByTestId('menu-trigger');
+      fireEvent.click(menuTrigger);
+
+      expect(screen.getByTestId('menu-content')).toBeInTheDocument();
+    });
+  });
+
+  describe('菜單交互', () => {
+    it('應該正確處理菜單打開和關閉', () => {
+      const wrapper = createWrapper();
+      render(<PostActions {...defaultProps} />, { wrapper });
+
+      // 初始狀態菜單應該關閉
+      expect(screen.queryByTestId('menu-content')).not.toBeInTheDocument();
+
+      // 點擊菜單觸發器打開菜單
+      const menuTrigger = screen.getByTestId('menu-trigger');
+      fireEvent.click(menuTrigger);
+
+      // 菜單應該打開
+      expect(screen.getByTestId('menu-content')).toBeInTheDocument();
+
+      // 再次點擊應該關閉菜單
+      fireEvent.click(menuTrigger);
+    });
+
+    it('應該正確處理菜單項點擊', () => {
+      const wrapper = createWrapper();
+      render(<PostActions {...defaultProps} />, { wrapper });
+
+      // 點擊菜單觸發器
+      const menuTrigger = screen.getByTestId('menu-trigger');
+      fireEvent.click(menuTrigger);
+
+      // 點擊菜單項
+      const menuItems = screen.getAllByTestId('menu-item');
+      if (menuItems.length > 0) {
+        fireEvent.click(menuItems[0]);
+      }
+
+      expect(screen.getByTestId('menu-content')).toBeInTheDocument();
+    });
+  });
+
+  describe('點讚功能詳情', () => {
+    it('應該正確處理已點讚狀態的視覺反饋', () => {
+      const likesWithCurrentUser = [
+        { id: '1', user_id: 'current-user-id', prayer_id: 'prayer-1', created_at: '2023-01-01' },
+        { id: '2', user_id: 'user-2', prayer_id: 'prayer-1', created_at: '2023-01-02' }
+      ];
+      
+      mockUsePrayerLikes.mockReturnValue({ 
+        data: likesWithCurrentUser,
+        isLoading: false,
+        isError: false,
+        error: null,
+        isPending: false,
+        isSuccess: true,
+        isFetching: false,
+        isRefetching: false,
+        refetch: vi.fn(),
+        status: 'success'
+      });
+
+      const wrapper = createWrapper();
+      render(<PostActions {...defaultProps} />, { wrapper });
+
+      // 檢查是否顯示正確的點讚數量
+      expect(screen.getByText('2')).toBeInTheDocument();
+    });
+
+    it('應該正確處理點讚取消', () => {
+      const mockToggleLike = vi.fn();
+      mockUseTogglePrayerLike.mockReturnValue({
+        mutate: mockToggleLike,
+        isPending: false,
+        isLoading: false,
+        isError: false,
+        error: null,
+        isSuccess: false,
+        isIdle: true,
+        status: 'idle'
+      });
+
+      const wrapper = createWrapper();
+      render(<PostActions {...defaultProps} />, { wrapper });
+
+      const likeButton = screen.getByRole('button', { name: /愛心/i });
+      fireEvent.click(likeButton);
+
+      expect(mockToggleLike).toHaveBeenCalledWith({
+        prayerId: 'prayer-1',
+        userId: 'current-user-id'
+      });
+    });
+  });
+
+  describe('刪除確認對話框', () => {
+    it('應該正確顯示刪除確認對話框', async () => {
+      const mockDeletePrayer = vi.fn();
+      mockUseDeletePrayer.mockReturnValue({
+        mutate: mockDeletePrayer,
+        isPending: false,
+        isLoading: false,
+        isError: false,
+        error: null,
+        isSuccess: false,
+        isIdle: true,
+        status: 'idle'
+      });
+
+      const wrapper = createWrapper();
+      render(<PostActions {...defaultProps} isOwner={true} />, { wrapper });
+
+      // 點擊菜單觸發器
+      const menuTrigger = screen.getByTestId('menu-trigger');
+      fireEvent.click(menuTrigger);
+
+      // 找到刪除按鈕並點擊
+      const deleteItem = screen.getAllByTestId('menu-item').find(item => 
+        item.textContent?.includes('刪除')
+      );
+      if (deleteItem) {
+        fireEvent.click(deleteItem);
+      }
+
+      // 檢查刪除確認對話框是否出現
+      expect(screen.getByTestId('alert-dialog')).toBeInTheDocument();
+      expect(screen.getByTestId('alert-dialog-title')).toBeInTheDocument();
+      expect(screen.getByTestId('alert-dialog-description')).toBeInTheDocument();
+    });
+
+    it('應該正確處理刪除確認', async () => {
+      const mockDeletePrayer = vi.fn();
+      mockUseDeletePrayer.mockReturnValue({
+        mutate: mockDeletePrayer,
+        isPending: false,
+        isLoading: false,
+        isError: false,
+        error: null,
+        isSuccess: false,
+        isIdle: true,
+        status: 'idle'
+      });
+
+      const wrapper = createWrapper();
+      render(<PostActions {...defaultProps} isOwner={true} />, { wrapper });
+
+      // 點擊菜單觸發器
+      const menuTrigger = screen.getByTestId('menu-trigger');
+      fireEvent.click(menuTrigger);
+
+      // 找到刪除按鈕並點擊
+      const deleteItem = screen.getAllByTestId('menu-item').find(item => 
+        item.textContent?.includes('刪除')
+      );
+      if (deleteItem) {
+        fireEvent.click(deleteItem);
+      }
+
+      // 點擊確認刪除按鈕
+      const confirmButton = screen.getByTestId('alert-dialog-action');
+      fireEvent.click(confirmButton);
+
+      expect(mockDeletePrayer).toHaveBeenCalledWith('prayer-1');
+    });
+
+    it('應該正確處理刪除取消', async () => {
+      const mockDeletePrayer = vi.fn();
+      mockUseDeletePrayer.mockReturnValue({
+        mutate: mockDeletePrayer,
+        isPending: false,
+        isLoading: false,
+        isError: false,
+        error: null,
+        isSuccess: false,
+        isIdle: true,
+        status: 'idle'
+      });
+
+      const wrapper = createWrapper();
+      render(<PostActions {...defaultProps} isOwner={true} />, { wrapper });
+
+      // 點擊菜單觸發器
+      const menuTrigger = screen.getByTestId('menu-trigger');
+      fireEvent.click(menuTrigger);
+
+      // 找到刪除按鈕並點擊
+      const deleteItem = screen.getAllByTestId('menu-item').find(item => 
+        item.textContent?.includes('刪除')
+      );
+      if (deleteItem) {
+        fireEvent.click(deleteItem);
+      }
+
+      // 點擊取消按鈕
+      const cancelButton = screen.getByTestId('alert-dialog-cancel');
+      fireEvent.click(cancelButton);
+
+      // 刪除不應該被調用
+      expect(mockDeletePrayer).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('舉報功能', () => {
+    it('應該正確顯示舉報對話框', () => {
+      const wrapper = createWrapper();
+      render(<PostActions {...defaultProps} />, { wrapper });
+
+      // 點擊菜單觸發器
+      const menuTrigger = screen.getByTestId('menu-trigger');
+      fireEvent.click(menuTrigger);
+
+      // 找到舉報按鈕並點擊
+      const reportItem = screen.getAllByTestId('menu-item').find(item => 
+        item.textContent?.includes('舉報')
+      );
+      if (reportItem) {
+        fireEvent.click(reportItem);
+      }
+
+      expect(screen.getByTestId('report-dialog')).toBeInTheDocument();
+    });
+
+    it('應該正確處理舉報對話框關閉', () => {
+      const wrapper = createWrapper();
+      render(<PostActions {...defaultProps} />, { wrapper });
+
+      // 點擊菜單觸發器
+      const menuTrigger = screen.getByTestId('menu-trigger');
+      fireEvent.click(menuTrigger);
+
+      // 找到舉報按鈕並點擊
+      const reportItem = screen.getAllByTestId('menu-item').find(item => 
+        item.textContent?.includes('舉報')
+      );
+      if (reportItem) {
+        fireEvent.click(reportItem);
+      }
+
+      expect(screen.getByTestId('report-dialog')).toBeInTheDocument();
+    });
+  });
+
+  describe('無障礙功能', () => {
+    it('應該包含正確的 ARIA 標籤', () => {
+      const wrapper = createWrapper();
+      render(<PostActions {...defaultProps} />, { wrapper });
+
+      const likeButton = screen.getByRole('button', { name: /愛心/i });
+      expect(likeButton).toBeInTheDocument();
+    });
+
+    it('應該正確處理鍵盤導航', () => {
+      const wrapper = createWrapper();
+      render(<PostActions {...defaultProps} />, { wrapper });
+
+      const likeButton = screen.getByRole('button', { name: /愛心/i });
+      likeButton.focus();
+      expect(likeButton).toHaveFocus();
+    });
+
+    it('應該正確處理螢幕閱讀器', () => {
+      const wrapper = createWrapper();
+      render(<PostActions {...defaultProps} />, { wrapper });
+
+      // 檢查是否有適當的 ARIA 標籤
+      const likeButton = screen.getByRole('button', { name: /愛心/i });
+      expect(likeButton).toBeInTheDocument();
+    });
+  });
+
+  describe('邊界情況', () => {
+    it('應該正確處理空的點讚數據', () => {
+      mockUsePrayerLikes.mockReturnValue({ 
+        data: [],
+        isLoading: false,
+        isError: false,
+        error: null,
+        isPending: false,
+        isSuccess: true,
+        isFetching: false,
+        isRefetching: false,
+        refetch: vi.fn(),
+        status: 'success'
+      });
+
+      const wrapper = createWrapper();
+      render(<PostActions {...defaultProps} />, { wrapper });
+
+      expect(screen.getByText('0')).toBeInTheDocument();
+    });
+
+    it('應該正確處理未定義的點讚數據', () => {
+      mockUsePrayerLikes.mockReturnValue({ 
+        data: undefined,
+        isLoading: false,
+        isError: false,
+        error: null,
+        isPending: false,
+        isSuccess: false,
+        isFetching: false,
+        isRefetching: false,
+        refetch: vi.fn(),
+        status: 'idle'
+      });
+
+      const wrapper = createWrapper();
+      render(<PostActions {...defaultProps} />, { wrapper });
+
+      expect(screen.getByTestId('menu-trigger')).toBeInTheDocument();
+    });
+
+    it('應該正確處理服務錯誤', () => {
+      mockUsePrayerLikes.mockReturnValue({ 
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        error: new Error('Service error'),
+        isPending: false,
+        isSuccess: false,
+        isFetching: false,
+        isRefetching: false,
+        refetch: vi.fn(),
+        status: 'error'
+      });
+
+      const wrapper = createWrapper();
+      render(<PostActions {...defaultProps} />, { wrapper });
+
+      // 即使有錯誤，組件也應該能夠渲染
+      expect(screen.getByTestId('menu-trigger')).toBeInTheDocument();
+    });
+  });
 }); 
