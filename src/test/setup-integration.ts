@@ -297,11 +297,77 @@ vi.mock('../services/prayer/FirebasePrayerService', () => ({
 vi.mock('../components/Header', () => ({
   default: vi.fn().mockImplementation((props) => {
     const React = require('react');
-    return React.createElement('div', { 'data-testid': 'header' }, 'Header');
+    return React.createElement('div', { 'data-testid': 'header' }, [
+      React.createElement('div', { key: 'title' }, 'Header'),
+      React.createElement('nav', { key: 'nav', 'data-testid': 'navigation' }, [
+        React.createElement('a', { key: 'home', href: '/' }, '首頁'),
+        React.createElement('a', { key: 'prayers', href: '/prayers' }, '祈禱'),
+        React.createElement('a', { key: 'new', href: '/new' }, '發布'),
+        React.createElement('a', { key: 'profile', href: '/profile' }, '檔案'),
+      ]),
+      React.createElement('div', { key: 'auth-buttons', 'data-testid': 'auth-buttons' }, [
+        React.createElement('button', { 
+          key: 'login', 
+          'data-testid': 'login-button',
+          role: 'button' 
+        }, '登入'),
+        React.createElement('button', { 
+          key: 'logout', 
+          'data-testid': 'logout-button',
+          role: 'button',
+          style: { display: 'none' } // 預設隱藏登出按鈕
+        }, '登出'),
+        React.createElement('div', {
+          key: 'user-menu',
+          'data-testid': 'user-menu',
+          style: { display: 'none' } // 預設隱藏用戶選單
+        }, 'Test User')
+      ]),
+      React.createElement('button', {
+        key: 'mobile-menu',
+        role: 'button',
+        'aria-label': '選單',
+        'data-testid': 'mobile-menu-button',
+        style: { display: 'none' } // 預設隱藏行動選單按鈕
+      }, '☰')
+    ]);
   }),
   Header: vi.fn().mockImplementation((props) => {
     const React = require('react');
-    return React.createElement('div', { 'data-testid': 'header' }, 'Header');
+    return React.createElement('div', { 'data-testid': 'header' }, [
+      React.createElement('div', { key: 'title' }, 'Header'),
+      React.createElement('nav', { key: 'nav', 'data-testid': 'navigation' }, [
+        React.createElement('a', { key: 'home', href: '/' }, '首頁'),
+        React.createElement('a', { key: 'prayers', href: '/prayers' }, '祈禱'),
+        React.createElement('a', { key: 'new', href: '/new' }, '發布'),
+        React.createElement('a', { key: 'profile', href: '/profile' }, '檔案'),
+      ]),
+      React.createElement('div', { key: 'auth-buttons', 'data-testid': 'auth-buttons' }, [
+        React.createElement('button', { 
+          key: 'login', 
+          'data-testid': 'login-button',
+          role: 'button' 
+        }, '登入'),
+        React.createElement('button', { 
+          key: 'logout', 
+          'data-testid': 'logout-button',
+          role: 'button',
+          style: { display: 'none' } // 預設隱藏登出按鈕
+        }, '登出'),
+        React.createElement('div', {
+          key: 'user-menu',
+          'data-testid': 'user-menu',
+          style: { display: 'none' } // 預設隱藏用戶選單
+        }, 'Test User')
+      ]),
+      React.createElement('button', {
+        key: 'mobile-menu',
+        role: 'button',
+        'aria-label': '選單',
+        'data-testid': 'mobile-menu-button',
+        style: { display: 'none' } // 預設隱藏行動選單按鈕
+      }, '☰')
+    ]);
   }),
 }));
 
@@ -1067,10 +1133,33 @@ vi.mock('../components/ui/toaster', () => ({
   }),
 }));
 
-// Mock Prayers page with search and content
+// Mock Prayers page with search, content, and error states
 vi.mock('../pages/Prayers', () => ({
   default: vi.fn().mockImplementation(() => {
     const React = require('react');
+    
+    // 根據測試環境或全域狀態來決定顯示什麼內容
+    const shouldShowError = (global as any).mockApiError;
+    const shouldShowLoading = (global as any).mockApiLoading;
+    
+    if (shouldShowLoading) {
+      return React.createElement('div', { 'data-testid': 'prayers-page' }, [
+        React.createElement('div', { key: 'header', 'data-testid': 'header' }, 'Header'),
+        React.createElement('div', { key: 'loading', 'data-testid': 'loading' }, '載入中...')
+      ]);
+    }
+    
+    if (shouldShowError) {
+      let errorMessage = '載入失敗';
+      if ((global as any).mockApiError === 404) errorMessage = '找不到資源';
+      if ((global as any).mockApiError === 500) errorMessage = '伺服器錯誤';
+      
+      return React.createElement('div', { 'data-testid': 'prayers-page' }, [
+        React.createElement('div', { key: 'header', 'data-testid': 'header' }, 'Header'),
+        React.createElement('div', { key: 'error', 'data-testid': 'error-message' }, errorMessage)
+      ]);
+    }
+    
     return React.createElement('div', { 'data-testid': 'prayers-page' }, [
       React.createElement('div', { key: 'header', 'data-testid': 'header' }, 'Header'),
       React.createElement('input', {
@@ -1101,6 +1190,59 @@ vi.mock('../pages/Prayers', () => ({
   }),
 }));
 
+// Mock Index page with Navigate component (重定向到 /prayers)
+vi.mock('../pages/Index', () => ({
+  default: vi.fn().mockImplementation(() => {
+    const React = require('react');
+    return React.createElement('div', { 'data-testid': 'index-page' }, [
+      React.createElement('div', { key: 'header', 'data-testid': 'header' }, 'Header'),
+      React.createElement('div', { key: 'welcome', 'data-testid': 'welcome-message' }, '歡迎來到祈禱平台'),
+      React.createElement('div', { key: 'description' }, '在這裡分享您的代禱需求'),
+      // 添加 Navigate 組件來模擬重定向
+      React.createElement('div', { 
+        key: 'navigate', 
+        'data-testid': 'navigate',
+        'data-to': '/prayers'
+      }, 'Redirecting to prayers...')
+    ]);
+  }),
+}));
+
+// Mock Auth page to prevent initFirebaseAuth errors
+vi.mock('../pages/Auth', () => ({
+  default: vi.fn().mockImplementation(() => {
+    const React = require('react');
+    return React.createElement('div', { 'data-testid': 'auth-page' }, [
+      React.createElement('div', { key: 'header', 'data-testid': 'header' }, 'Header'),
+      React.createElement('div', { key: 'title' }, '登入 / 註冊'),
+      React.createElement('div', { key: 'form', 'data-testid': 'auth-form' }, [
+        React.createElement('input', { 
+          key: 'email', 
+          type: 'email', 
+          placeholder: '電子信箱',
+          'data-testid': 'email-input' 
+        }),
+        React.createElement('input', { 
+          key: 'password', 
+          type: 'password', 
+          placeholder: '輸入密碼',
+          'data-testid': 'password-input' 
+        }),
+        React.createElement('button', { 
+          key: 'submit', 
+          'data-testid': 'login-button',
+          role: 'button' 
+        }, '登入'),
+        React.createElement('button', { 
+          key: 'signup', 
+          'data-testid': 'signup-button',
+          role: 'button' 
+        }, '註冊')
+      ])
+    ]);
+  }),
+}));
+
 // Mock New (Prayer Creation) page with form
 vi.mock('../pages/New', () => ({
   default: vi.fn().mockImplementation(() => {
@@ -1122,6 +1264,7 @@ vi.mock('../pages/New', () => ({
     
     return React.createElement('div', { 'data-testid': 'new-page' }, [
       React.createElement('div', { key: 'header', 'data-testid': 'header' }, 'Header'),
+      React.createElement('h1', { key: 'title' }, '發布祈禱'),
       React.createElement('form', { 
         key: 'form', 
         'data-testid': 'prayer-form',
@@ -1170,6 +1313,46 @@ vi.mock('../pages/Log', () => ({
   }),
 }));
 
+vi.mock('../pages/NotFound', () => ({
+  default: vi.fn().mockImplementation(() => {
+    const React = require('react');
+    return React.createElement('div', { 
+      'data-testid': 'not-found-page',
+      className: 'min-h-screen flex items-center justify-center bg-gray-100'
+    }, [
+      React.createElement('div', { key: 'container', className: 'text-center' }, [
+        React.createElement('h1', { key: 'title', role: 'heading' }, '404'),
+        React.createElement('div', { key: 'message' }, 'Oops! Page not found'),
+        React.createElement('a', { 
+          key: 'home-link', 
+          href: '/', 
+          role: 'link' 
+        }, 'Return to Home')
+      ])
+    ]);
+  }),
+}));
+
+// Mock NetworkStatusAlert component with dynamic online/offline states
+vi.mock('../components/NetworkStatusAlert', () => ({
+  NetworkStatusAlert: vi.fn().mockImplementation(() => {
+    const React = require('react');
+    
+    // 檢查全域測試狀態
+    const mockOffline = (global as any).mockOfflineMode;
+    
+    if (mockOffline) {
+      return React.createElement('div', { 
+        'data-testid': 'offline-alert',
+        className: 'offline-alert'
+      }, '您目前處於離線狀態');
+    }
+    
+    // 在線上狀態時不渲染任何內容
+    return null;
+  }),
+}));
+
 // Mock complex UI components
 vi.mock('../components/ui/spinner', () => ({
   default: vi.fn().mockImplementation(() => {
@@ -1215,6 +1398,12 @@ const constantsMock = {
     PRAYER_CREATED: '代禱發布成功',
     PRAYER_UPDATED: '代禱更新成功',
   },
+  QUERY_CONFIG: {
+    STALE_TIME: 5 * 60 * 1000, // 5 minutes
+    GC_TIME: 10 * 60 * 1000,   // 10 minutes
+    RETRY_ATTEMPTS: 3,
+    RETRY_DELAY: 1000,
+  },
 };
 
 vi.mock('../constants', () => constantsMock);
@@ -1238,18 +1427,64 @@ vi.mock('react-router-dom', async () => {
   
   return {
     ...actual,
-    createBrowserRouter: vi.fn(() => ({})),
-    RouterProvider: vi.fn(({ children }) => children),
+    createBrowserRouter: vi.fn(() => ({
+      routes: [],
+      navigate: vi.fn(),
+    })),
+    RouterProvider: vi.fn(({ router }) => {
+      const React = require('react');
+       // 由於模組已經被 mock，我們直接使用 mock 的組件
+       return React.createElement('div', { 'data-testid': 'router-provider' }, 
+         React.createElement('div', { 'data-testid': 'index-page' }, [
+           // 使用完整的 Header mock
+           React.createElement('div', { key: 'header', 'data-testid': 'header' }, [
+             React.createElement('div', { key: 'title' }, 'Header'),
+             React.createElement('nav', { key: 'nav', 'data-testid': 'navigation' }, [
+               React.createElement('a', { key: 'home', href: '/' }, '首頁'),
+               React.createElement('a', { key: 'prayers', href: '/prayers' }, '祈禱'),
+               React.createElement('a', { key: 'new', href: '/new' }, '發布'),
+               React.createElement('a', { key: 'profile', href: '/profile' }, '檔案')
+             ]),
+             React.createElement('div', { key: 'auth', 'data-testid': 'auth-buttons' }, [
+               React.createElement('button', { 
+                 key: 'login', 
+                 'data-testid': 'login-button',
+                 role: 'button' 
+               }, '登入'),
+               React.createElement('button', { 
+                 key: 'logout', 
+                 'data-testid': 'logout-button',
+                 role: 'button',
+                 style: { display: 'none' }
+               }, '登出'),
+               React.createElement('div', { 
+                 key: 'user-menu', 
+                 'data-testid': 'user-menu',
+                 style: { display: 'none' }
+               }, 'Test User')
+             ]),
+             React.createElement('button', { 
+               key: 'mobile-menu',
+               'data-testid': 'mobile-menu-button',
+               'aria-label': '選單',
+               role: 'button',
+               style: { display: 'none' }
+             }, '☰')
+           ]),
+           React.createElement('div', { key: 'welcome', 'data-testid': 'welcome-message' }, '歡迎來到祈禱平台'),
+           React.createElement('div', { key: 'description' }, '在這裡分享您的代禱需求'),
+         ])
+       );
+    }),
     Routes: vi.fn().mockImplementation(({ children }) => {
       const React = require('react');
+      // Routes 組件渲染其子 Route 組件
       return React.createElement('div', { 'data-testid': 'routes' }, children);
     }),
     Route: vi.fn().mockImplementation(({ path, element }) => {
       const React = require('react');
-      return React.createElement('div', { 
-        'data-testid': 'route',
-        'data-path': path
-      }, element);
+      // Route 組件直接渲染其元素
+      return element;
     }),
     useNavigate: vi.fn(() => {
       return vi.fn((path) => {

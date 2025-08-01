@@ -170,6 +170,16 @@ vi.mock('@/constants', () => ({
     NOT_FOUND: '*',
   },
   GUEST_DEFAULT_BACKGROUND: 'guest',
+  STORAGE_KEYS: {
+    USERNAME_PREFIX: 'username_',
+    AVATAR_PREFIX: 'avatar_',
+    USER_PREFERENCES: 'user_preferences',
+    THEME: 'theme',
+    LANGUAGE: 'language',
+    BACKGROUND: 'global_background',
+    CUSTOM_BACKGROUND: 'global_custom_background',
+    CUSTOM_BACKGROUND_SIZE: 'global_custom_background_size',
+  },
   BACKGROUND_OPTIONS: [
     { id: 'default', name: '預設二', style: '', bgColor: '#f8e9e2' },
     { id: 'default3', name: '預設三', style: '', bgColor: '#ffe6e6' },

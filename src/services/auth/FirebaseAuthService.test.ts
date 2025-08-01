@@ -1,16 +1,31 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FirebaseAuthService } from './FirebaseAuthService';
 
-// Mock Firebase auth
+// Mock Firebase auth methods
+const mockSignOut = vi.fn();
+const mockSendPasswordResetEmail = vi.fn();
+const mockOnAuthStateChanged = vi.fn();
+const mockCreateUserWithEmailAndPassword = vi.fn();
+const mockSignInWithEmailAndPassword = vi.fn();
+
 const mockAuth = {
   currentUser: null,
-  onAuthStateChanged: vi.fn(),
-  signOut: vi.fn(),
-  sendPasswordResetEmail: vi.fn(),
 };
 
+// Mock auth function
+const mockAuthFunction = vi.fn(() => mockAuth);
+
+// Mock Firebase auth functions
+vi.mock('firebase/auth', () => ({
+  createUserWithEmailAndPassword: mockCreateUserWithEmailAndPassword,
+  signInWithEmailAndPassword: mockSignInWithEmailAndPassword,
+  signOut: mockSignOut,
+  sendPasswordResetEmail: mockSendPasswordResetEmail,
+  onAuthStateChanged: mockOnAuthStateChanged,
+}));
+
 vi.mock('@/integrations/firebase/client', () => ({
-  auth: vi.fn(() => mockAuth),
+  auth: mockAuthFunction,
 }));
 
 // Mock logger
@@ -19,6 +34,7 @@ vi.mock('@/lib/logger', () => ({
     debug: vi.fn(),
     error: vi.fn(),
     info: vi.fn(),
+    warn: vi.fn(),
   },
 }));
 
@@ -36,6 +52,11 @@ Object.defineProperty(window, 'localStorage', {
 describe('FirebaseAuthService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // 重置 navigator.onLine 為 true
+    Object.defineProperty(navigator, 'onLine', {
+      value: true,
+      writable: true,
+    });
   });
 
   describe('getCachedUser', () => {
@@ -191,81 +212,111 @@ describe('FirebaseAuthService', () => {
 
   describe('signOut', () => {
     it('應該清除緩存並調用 Firebase signOut', async () => {
-      const mockSignOut = vi.fn().mockResolvedValue(undefined);
-      mockAuth.signOut = mockSignOut;
-
-      await FirebaseAuthService.signOut();
-
-      expect(mockSignOut).toHaveBeenCalled();
-    });
-
-    it('應該處理 signOut 錯誤', async () => {
-      const mockSignOut = vi.fn().mockRejectedValue(new Error('Sign out failed'));
-      mockAuth.signOut = mockSignOut;
+      mockSignOut.mockResolvedValue(undefined);
 
       const result = await FirebaseAuthService.signOut();
+
+      expect(mockSignOut).toHaveBeenCalledWith(mockAuth);
+      expect(localStorageMock.removeItem).toHaveBeenCalledWith('auth_user');
+      expect(localStorageMock.removeItem).toHaveBeenCalledWith('last_user');
+      expect(result.error).toBeNull();
+    });
+
+    it('應該處理 signOut 錯誤並仍然清除緩存', async () => {
+      mockSignOut.mockRejectedValue(new Error('Sign out failed'));
+
+      const result = await FirebaseAuthService.signOut();
+      
       expect(result.error).toBe('Sign out failed');
+      expect(localStorageMock.removeItem).toHaveBeenCalledWith('auth_user');
+      expect(localStorageMock.removeItem).toHaveBeenCalledWith('last_user');
     });
   });
 
   describe('sendPasswordResetEmail', () => {
-    it('應該在離線時返回錯誤', async () => {
-      // 模擬離線狀態
-      Object.defineProperty(navigator, 'onLine', {
-        value: false,
-        writable: true,
-      });
-
-      const mockSendPasswordResetEmail = vi.fn().mockRejectedValue(new Error('authInstance._getRecaptchaConfig is not a function'));
-      mockAuth.sendPasswordResetEmail = mockSendPasswordResetEmail;
+    it('應該成功發送密碼重置郵件', async () => {
+      mockSendPasswordResetEmail.mockResolvedValue(undefined);
 
       const result = await FirebaseAuthService.sendPasswordResetEmail('test@example.com');
 
-      expect(result.error).toBe('authInstance._getRecaptchaConfig is not a function');
-    });
-
-    it('應該在線上時調用 Firebase sendPasswordResetEmail', async () => {
-      // 模擬線上狀態
-      Object.defineProperty(navigator, 'onLine', {
-        value: true,
-        writable: true,
-      });
-
-      const mockSendPasswordResetEmail = vi.fn().mockResolvedValue(undefined);
-      mockAuth.sendPasswordResetEmail = mockSendPasswordResetEmail;
-
-      const result = await FirebaseAuthService.sendPasswordResetEmail('test@example.com');
-
-      expect(mockSendPasswordResetEmail).toHaveBeenCalledWith('test@example.com');
+      expect(mockSendPasswordResetEmail).toHaveBeenCalledWith(mockAuth, 'test@example.com');
       expect(result.error).toBeNull();
     });
 
     it('應該處理 sendPasswordResetEmail 錯誤', async () => {
-      // 模擬線上狀態
-      Object.defineProperty(navigator, 'onLine', {
-        value: true,
-        writable: true,
-      });
-
-      const mockSendPasswordResetEmail = vi.fn().mockRejectedValue(new Error('Email error'));
-      mockAuth.sendPasswordResetEmail = mockSendPasswordResetEmail;
+      const error = new Error('Email error');
+      (error as any).code = 'auth/user-not-found';
+      mockSendPasswordResetEmail.mockRejectedValue(error);
 
       const result = await FirebaseAuthService.sendPasswordResetEmail('test@example.com');
 
-      expect(result.error).toBe('Email error');
+      expect(result.error).toBe('找不到此用戶');
+    });
+
+    it('應該處理配額錯誤', async () => {
+      const error = new Error('quota exceeded');
+      (error as any).code = 'auth/quota-exceeded';
+      mockSendPasswordResetEmail.mockRejectedValue(error);
+
+      const result = await FirebaseAuthService.sendPasswordResetEmail('test@example.com');
+
+      expect(result.error).toBe('認證服務暫時不可用，請稍後再試');
     });
   });
 
   describe('onAuthStateChanged', () => {
     it('應該調用 Firebase onAuthStateChanged', () => {
       const mockCallback = vi.fn();
-      const mockOnAuthStateChanged = vi.fn().mockReturnValue(vi.fn());
-      mockAuth.onAuthStateChanged = mockOnAuthStateChanged;
+      const unsubscribe = vi.fn();
+      mockOnAuthStateChanged.mockReturnValue(unsubscribe);
 
-      FirebaseAuthService.onAuthStateChanged(mockCallback);
+      const result = FirebaseAuthService.onAuthStateChanged(mockCallback);
 
-      expect(mockOnAuthStateChanged).toHaveBeenCalledWith(mockCallback, undefined, undefined);
+      expect(mockOnAuthStateChanged).toHaveBeenCalledWith(mockAuth, mockCallback);
+      expect(result).toBe(unsubscribe);
     });
+  });
+
+  describe('signUp', () => {
+    it('應該成功註冊新用戶', async () => {
+      const mockUser = { uid: 'test-uid', email: 'test@example.com' };
+      const mockUserCredential = { user: mockUser };
+      mockCreateUserWithEmailAndPassword.mockResolvedValue(mockUserCredential);
+
+      const result = await FirebaseAuthService.signUp('test@example.com', 'password123') as { user: any; error: string | null };
+
+      expect(mockCreateUserWithEmailAndPassword).toHaveBeenCalledWith(mockAuth, 'test@example.com', 'password123');
+      expect(result.user).toEqual(mockUser);
+      expect(result.error).toBeNull();
+    });
+
+    it('應該在離線時返回錯誤', async () => {
+      Object.defineProperty(navigator, 'onLine', {
+        value: false,
+        writable: true,
+      });
+
+      const result = await FirebaseAuthService.signUp('test@example.com', 'password123') as { user: any; error: string | null };
+
+      expect(result.user).toBeNull();
+      expect(result.error).toBe('網絡連接不可用，請檢查您的連接');
+    });
+
+    it('應該處理配額超出錯誤並重試', async () => {
+      const quotaError = new Error('quota exceeded');
+      (quotaError as any).code = 'auth/quota-exceeded';
+      
+      // 第一次調用失敗，第二次成功
+      mockCreateUserWithEmailAndPassword
+        .mockRejectedValueOnce(quotaError)
+        .mockResolvedValueOnce({ user: { uid: 'test-uid', email: 'test@example.com' } });
+
+      const result = await FirebaseAuthService.signUp('test@example.com', 'password123') as { user: any; error: string | null };
+
+      // 應該有重試機制，最終成功
+      expect(result.user).toBeTruthy();
+      expect(result.error).toBeNull();
+    }, 10000); // 增加超時時間因為有重試延遲
   });
 
   describe('緩存過期時間', () => {
@@ -317,6 +368,29 @@ describe('FirebaseAuthService', () => {
       const result = FirebaseAuthService.getCachedUser();
 
       expect(result).toBeNull();
+    });
+
+    it('應該處理各種 Firebase 錯誤代碼', async () => {
+      // 這裡測試 handleAuthError 方法的各種情況
+      const testCases = [
+        { code: 'auth/invalid-email', expected: '電子郵件格式不正確' },
+        { code: 'auth/user-disabled', expected: '此用戶已被禁用' },
+        { code: 'auth/user-not-found', expected: '找不到此用戶' },
+        { code: 'auth/wrong-password', expected: '密碼不正確' },
+        { code: 'auth/email-already-in-use', expected: '此電子郵件已被使用' },
+        { code: 'auth/weak-password', expected: '密碼強度不足' },
+        { code: 'auth/too-many-requests', expected: '登入嘗試次數過多，請稍後再試' },
+        { code: 'auth/quota-exceeded', expected: '認證服務暫時不可用，請稍後再試' },
+      ];
+
+      for (const { code, expected } of testCases) {
+        const error = new Error('Test error');
+        (error as any).code = code;
+        mockSendPasswordResetEmail.mockRejectedValueOnce(error);
+
+        const result = await FirebaseAuthService.sendPasswordResetEmail('test@example.com');
+        expect(result.error).toBe(expected);
+      }
     });
   });
 }); 

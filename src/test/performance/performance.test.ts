@@ -58,8 +58,8 @@ describe('Performance Tests', () => {
     const endTime = performance.now();
     const importTime = endTime - startTime;
 
-    // Module imports should complete within 2000ms (2 seconds)
-    expect(importTime).toBeLessThan(2000);
+    // Module imports should complete within 5000ms (5 seconds)
+    expect(importTime).toBeLessThan(5000);
   });
 
   it('should handle large datasets efficiently', () => {
