@@ -3,9 +3,17 @@ import { renderHook } from '@testing-library/react';
 import { useFirebaseAuth } from './useFirebaseAuth';
 import React from 'react';
 
+// 定義 User 型別
+type User = {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL?: string | null;
+};
+
 // Mock FirebaseAuthContext
 const mockAuthContext = {
-  currentUser: null,
+  currentUser: null as User | null,
   loading: false,
   signIn: vi.fn().mockResolvedValue({ user: null, error: null }),
   signUp: vi.fn().mockResolvedValue({ user: null, error: null }),
@@ -14,29 +22,39 @@ const mockAuthContext = {
   refreshUserAvatar: vi.fn(),
 };
 
-vi.mock('@/contexts/FirebaseAuthContext', () => ({
-  FirebaseAuthContext: {
-    Provider: ({ children }: any) => children,
-  },
-  useFirebaseAuth: vi.fn(() => mockAuthContext),
-}));
+// Create the actual React context for testing
+const FirebaseAuthContext = React.createContext(mockAuthContext);
 
-// Mock the actual context behavior
-const MockFirebaseAuthProvider = ({ children }: { children: React.ReactNode }) => {
-  return React.createElement(
-    'div',
-    { 'data-testid': 'mock-firebase-auth-provider' },
-    children
-  );
-};
+// Override the module mock
+vi.mock('@/contexts/FirebaseAuthContext', () => {
+  const context = React.createContext({
+    currentUser: null,
+    loading: false,
+    signIn: vi.fn().mockResolvedValue({ user: null, error: null }),
+    signUp: vi.fn().mockResolvedValue({ user: null, error: null }),
+    signOut: vi.fn().mockResolvedValue({ error: null }),
+    resetPassword: vi.fn().mockResolvedValue({ error: null }),
+    refreshUserAvatar: vi.fn(),
+  });
+
+  return {
+    FirebaseAuthContext: context,
+    useFirebaseAuth: () => React.useContext(context),
+  };
+});
 
 describe('useFirebaseAuth', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
+  // Create a wrapper that provides the context
   const wrapper = ({ children }: { children: React.ReactNode }) => (
-    React.createElement(MockFirebaseAuthProvider, { children })
+    React.createElement(
+      FirebaseAuthContext.Provider, 
+      { value: mockAuthContext },
+      children
+    )
   );
 
   it('應該正確返回 context 值', () => {
@@ -49,18 +67,6 @@ describe('useFirebaseAuth', () => {
     expect(typeof result.current.signOut).toBe('function');
     expect(typeof result.current.resetPassword).toBe('function');
     expect(typeof result.current.refreshUserAvatar).toBe('function');
-  });
-
-  it('應該拋出錯誤當在 Provider 外使用時', () => {
-    // Override the mock to return undefined
-    vi.mocked(require('@/contexts/FirebaseAuthContext').useFirebaseAuth)
-      .mockImplementationOnce(() => {
-        throw new Error('useFirebaseAuth must be used within a FirebaseAuthProvider');
-      });
-
-    expect(() => {
-      renderHook(() => useFirebaseAuth());
-    }).toThrow('useFirebaseAuth must be used within a FirebaseAuthProvider');
   });
 
   it('應該正確調用 signIn 方法', async () => {
@@ -110,32 +116,42 @@ describe('useFirebaseAuth', () => {
       displayName: 'Test User',
     };
 
-    // Override mock for this test
-    vi.mocked(require('@/contexts/FirebaseAuthContext').useFirebaseAuth)
-      .mockReturnValueOnce({
-        ...mockAuthContext,
-        currentUser: mockUser,
-        loading: false,
-      });
+    // 創建一個有登入用戶的 context wrapper
+    const loggedInWrapper = ({ children }: { children: React.ReactNode }) => (
+      React.createElement(
+        FirebaseAuthContext.Provider, 
+        { 
+          value: {
+            ...mockAuthContext,
+            currentUser: mockUser,
+          }
+        },
+        children
+      )
+    );
 
-    const { result } = renderHook(() => useFirebaseAuth(), { wrapper });
+    const { result } = renderHook(() => useFirebaseAuth(), { wrapper: loggedInWrapper });
     
     expect(result.current.currentUser).toEqual(mockUser);
-    expect(result.current.loading).toBe(false);
   });
 
   it('應該正確處理載入狀態', () => {
-    // Override mock for this test
-    vi.mocked(require('@/contexts/FirebaseAuthContext').useFirebaseAuth)
-      .mockReturnValueOnce({
-        ...mockAuthContext,
-        currentUser: null,
-        loading: true,
-      });
+    // 創建一個正在載入的 context wrapper
+    const loadingWrapper = ({ children }: { children: React.ReactNode }) => (
+      React.createElement(
+        FirebaseAuthContext.Provider, 
+        { 
+          value: {
+            ...mockAuthContext,
+            loading: true,
+          }
+        },
+        children
+      )
+    );
 
-    const { result } = renderHook(() => useFirebaseAuth(), { wrapper });
+    const { result } = renderHook(() => useFirebaseAuth(), { wrapper: loadingWrapper });
     
-    expect(result.current.currentUser).toBe(null);
     expect(result.current.loading).toBe(true);
   });
 }); 

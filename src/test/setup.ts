@@ -110,18 +110,34 @@ vi.mock('@/stores/tempUserStore', () => ({
 }));
 
 // FirebaseAuthContext mock
-vi.mock('@/contexts/FirebaseAuthContext', () => ({
-  useFirebaseAuth: vi.fn(() => ({
-    currentUser: null,
+vi.mock('@/contexts/FirebaseAuthContext', () => {
+  const mockUser = {
+    uid: 'test-user-123',
+    displayName: '測試用戶',
+    email: 'test@example.com',
+    photoURL: 'https://example.com/avatar.jpg',
+  };
+
+  const authContextValue = {
+    currentUser: mockUser,
     loading: false,
-    signIn: vi.fn().mockResolvedValue({ user: null, error: null }),
-    signUp: vi.fn().mockResolvedValue({ user: null, error: null }),
+    signIn: vi.fn().mockResolvedValue({ user: mockUser, error: null }),
+    signUp: vi.fn().mockResolvedValue({ user: mockUser, error: null }),
     signOut: vi.fn().mockResolvedValue({ error: null }),
     resetPassword: vi.fn().mockResolvedValue({ error: null }),
     refreshUserAvatar: vi.fn()
-  })),
-  FirebaseAuthProvider: ({ children }: any) => children,
-}));
+  };
+
+  // 創建 React context
+  const React = require('react');
+  const FirebaseAuthContext = React.createContext(authContextValue);
+
+  return {
+    useFirebaseAuth: vi.fn(() => authContextValue),
+    FirebaseAuthProvider: ({ children }: { children: React.ReactNode }) => children,
+    FirebaseAuthContext: FirebaseAuthContext,
+  };
+});
 
 // PrayerAnsweredService mock
 vi.mock('@/services/prayer/PrayerAnsweredService', () => ({
@@ -459,6 +475,18 @@ if (typeof window !== 'undefined') {
       writable: true,
       configurable: true,
     });
+} else {
+  // 為 SSR 環境也提供這些函數
+  (global as any).requestIdleCallback = (callback: any) => {
+    return setTimeout(() => {
+      callback({
+        didTimeout: false,
+        timeRemaining: () => 50,
+      });
+    }, 0);
+  };
+  
+  (global as any).cancelIdleCallback = (id: number) => clearTimeout(id);
 }
 
 // 新增 - 元素選擇輔助函數，優化元素選擇邏輯
@@ -1298,3 +1326,58 @@ export class MockDatabase {
     }
   }
 } 
+
+// 添加通用測試提供者包裝器
+export const createTestProviders = () => {
+  const React = require('react');
+  const { QueryClient, QueryClientProvider } = require('@tanstack/react-query');
+  const { MemoryRouter } = require('react-router-dom');
+
+  // 創建模擬 QueryClient
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+        staleTime: 0,
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+      },
+    },
+    logger: {
+      log: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    },
+  });
+
+  // 測試提供者包裝器組件
+  const AllProviders = ({ children, initialEntries = ['/'] }: { 
+    children: React.ReactNode, 
+    initialEntries?: string[] 
+  }) => {
+    const { FirebaseAuthProvider } = require('@/contexts/FirebaseAuthContext');
+
+    return React.createElement(
+      MemoryRouter,
+      { initialEntries },
+      React.createElement(
+        QueryClientProvider,
+        { client: queryClient },
+        React.createElement(FirebaseAuthProvider, {}, children)
+      )
+    );
+  };
+
+  return {
+    AllProviders,
+    queryClient,
+  };
+};
+
+// 簡化的測試渲染函數
+export const renderWithProviders = (ui: React.ReactElement, options = {}) => {
+  const { render } = require('@testing-library/react');
+  const { AllProviders } = createTestProviders();
+  return render(ui, { wrapper: AllProviders, ...options });
+}; 

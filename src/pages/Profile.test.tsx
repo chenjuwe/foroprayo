@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import Profile from './Profile';
+import { renderWithProviders } from '@/test/setup';
 
 // Mock React Router
 vi.mock('react-router-dom', async () => {
@@ -201,25 +202,21 @@ Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
 });
 
-const renderProfile = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-      mutations: {
-        retry: false,
-      },
-    },
-  });
+// Mock useQueryClient
+vi.mock('@tanstack/react-query', async () => {
+  const actual = await vi.importActual('@tanstack/react-query');
+  return {
+    ...actual,
+    useQueryClient: () => ({
+      invalidateQueries: vi.fn(),
+      setQueryData: vi.fn(),
+      getQueryData: vi.fn(),
+    }),
+  };
+});
 
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Profile />
-      </BrowserRouter>
-    </QueryClientProvider>
-  );
+const renderProfile = () => {
+  return renderWithProviders(<Profile />);
 };
 
 describe('Profile Page', () => {
