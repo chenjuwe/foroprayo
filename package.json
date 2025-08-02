@@ -1,6 +1,6 @@
 {
   "name": "prayforo",
-  "version": "0.3.756",
+  "version": "0.3.758",
   "description": "Pray for others - A prayer sharing platform",
   "type": "module",
   "scripts": {
@@ -49,7 +49,10 @@
     "test:coverage:lcov": "vitest --coverage --reporter=lcov",
     "test:coverage:junit": "vitest --coverage --reporter=junit",
     "test:coverage:monitor": "node scripts/test-coverage-monitor.js",
-    "test:coverage:trend": "node scripts/test-coverage-monitor.js --trend-only",
+    "test:coverage:report": "node scripts/test-coverage-monitor.js --run-tests",
+    "test:coverage:detailed-report": "vitest --coverage && node scripts/test-coverage-monitor.js",
+    "test:coverage:analyze": "vitest --coverage && npm run test:coverage:monitor",
+    "test:coverage:summary": "node scripts/test-coverage-monitor.js",
     "test:report:all": "npm run test:coverage && npm run test:performance:report && npm run test:security:report",
     "test:validate:all": "npm run lint && npm run test:unit && npm run test:integration",
     "check-deps": "depcheck"
@@ -136,6 +139,7 @@
     "lightningcss": "1.30.1",
     "lru-cache": "11.1.0",
     "msw": "^2.10.4",
+    "nock": "^14.0.8",
     "postcss": "8.4.47",
     "postcss-custom-properties": "14.0.6",
     "tailwindcss": "3.3.5",

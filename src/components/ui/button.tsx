@@ -14,15 +14,20 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, isLoading = false, children, disabled, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, isLoading = false, children, disabled, type = "button", ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
+    
+    // 確保按鈕基本屬性，即使在使用 Slot 時也不丟失
+    const buttonProps = {
+      className: cn(buttonVariants({ variant, size, className })),
+      ref,
+      disabled: disabled || isLoading,
+      type, // 確保有 type 屬性
+      ...props
+    }
+
     return (
-      <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        disabled={disabled || isLoading}
-        {...props}
-      >
+      <Comp {...buttonProps}>
         {isLoading ? (
           <>
             <InlineSpinner />

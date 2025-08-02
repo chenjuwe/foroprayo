@@ -127,15 +127,18 @@ vi.mock('@/stores/tempUserStore', () => ({
   })),
 }));
 
-// FirebaseAuthContext mock
-vi.mock('@/contexts/FirebaseAuthContext', () => {
+// 設置路徑別名，確保可以正確解析以@開頭的導入路徑
+vi.mock('@/contexts/FirebaseAuthContext', async () => {
+  // 創建一個模擬的用戶對象
   const mockUser = {
     uid: 'test-user-123',
     displayName: '測試用戶',
     email: 'test@example.com',
     photoURL: 'https://example.com/avatar.jpg',
+    reload: vi.fn().mockResolvedValue(undefined)
   };
 
+  // 創建標準的身份驗證上下文值
   const authContextValue = {
     currentUser: mockUser,
     loading: false,
@@ -143,19 +146,37 @@ vi.mock('@/contexts/FirebaseAuthContext', () => {
     signUp: vi.fn().mockResolvedValue({ user: mockUser, error: null }),
     signOut: vi.fn().mockResolvedValue({ error: null }),
     resetPassword: vi.fn().mockResolvedValue({ error: null }),
-    refreshUserAvatar: vi.fn()
+    refreshUserAvatar: vi.fn(),
+    initAuth: vi.fn()
   };
 
   // 創建 React context
-  const React = require('react');
+  const React = await import('react');
   const FirebaseAuthContext = React.createContext(authContextValue);
 
   return {
-    useFirebaseAuth: vi.fn(() => authContextValue),
-    FirebaseAuthProvider: ({ children }: { children: React.ReactNode }) => children,
-    FirebaseAuthContext: FirebaseAuthContext,
+    FirebaseAuthContext,
+    FirebaseAuthProvider: ({ children }: { children: React.ReactNode }) => {
+      return React.createElement(FirebaseAuthContext.Provider, { value: authContextValue }, children);
+    }
   };
 });
+
+// 修復路徑解析，確保@別名路徑可以被正確解析
+const originalResolve = vi.importActual;
+vi.importActual = async (path: string) => {
+  // 重寫 @/ 開頭的路徑
+  if (path.startsWith('@/')) {
+    try {
+      const newPath = path.replace('@/', '../');
+      return await originalResolve(newPath);
+    } catch (error) {
+      console.warn(`無法解析路徑 ${path}，嘗試直接導入...`);
+      return await originalResolve(path);
+    }
+  }
+  return await originalResolve(path);
+};
 
 // PrayerAnsweredService mock
 vi.mock('@/services/prayer/PrayerAnsweredService', () => ({
@@ -194,179 +215,170 @@ vi.mock('../services/prayer/PrayerAnsweredService', () => ({
 }));
 
 // useFirebaseAvatar mock - 更新以符合實際返回值結構
-let mockFirebaseAvatarForLoggedOut: () => void;
-let mockFirebaseAvatarForLoggedIn: () => void;
-
+// 修復useFirebaseAvatar模擬
 vi.mock('@/hooks/useFirebaseAvatar', () => {
-  // 添加變數追蹤當前使用者狀態，用於測試不同情況
-  let mockIsLoggedIn = true;
-  let mockAuthLoading = true;
-  let mockAvatarUrls = {
-    avatarUrl: 'https://example.com/avatar.jpg' as string | null,
-    avatarUrl96: null as string | null,
-    avatarUrl48: null as string | null,
-    avatarUrl30: null as string | null
-  };
-  
-  const useFirebaseAvatar = vi.fn(() => ({
-    user: mockIsLoggedIn ? {
-      uid: 'test-user-id',
-      displayName: 'Test User',
-      email: 'test@example.com',
-      photoURL: 'https://example.com/avatar.jpg',
-    } : null,
-    loading: false,
-    error: null,
-    isLoading: false,
-    isAuthLoading: mockAuthLoading,
-    isLoggedIn: mockIsLoggedIn,
-    uploadAvatar: vi.fn().mockImplementation((file) => {
-      // 確保總是返回成功結果，無論輸入是什麼
-      return Promise.resolve({
-        success: true,
-        data: {
-          avatar_url: 'https://example.com/avatar.jpg',
-          avatar_url_96: 'https://example.com/avatar.jpg?size=96',
-          avatar_url_48: 'https://example.com/avatar.jpg?size=48',
-          avatar_url_30: 'https://example.com/avatar.jpg?size=30',
-        }
-      });
-    }),
-    refreshAvatar: vi.fn().mockResolvedValue(true),
-    avatarUrl: mockAvatarUrls.avatarUrl,
-    avatarUrl96: mockAvatarUrls.avatarUrl96,
-    avatarUrl48: mockAvatarUrls.avatarUrl48,
-    avatarUrl30: mockAvatarUrls.avatarUrl30,
-    data: mockIsLoggedIn ? {
-      avatar_url: 'https://example.com/avatar.jpg',
-      user_name: 'Test User'
-    } : null
-  }));
-
-  // 用於測試的輔助函數
-  mockFirebaseAvatarForLoggedOut = () => {
-    mockIsLoggedIn = false;
-    mockAuthLoading = false;
-    mockAvatarUrls = {
-      avatarUrl: null,
-      avatarUrl96: null,
-      avatarUrl48: null,
-      avatarUrl30: null
-    };
-  };
-  
-  mockFirebaseAvatarForLoggedIn = () => {
-    mockIsLoggedIn = true;
-    mockAuthLoading = false;
-    mockAvatarUrls = {
-      avatarUrl: 'https://example.com/avatar.jpg',
-      avatarUrl96: 'https://example.com/avatar.jpg?size=96',
-      avatarUrl48: 'https://example.com/avatar.jpg?size=48',
-      avatarUrl30: 'https://example.com/avatar.jpg?size=30'
-    };
+  // 創建標準的用戶物件
+  const mockUser = {
+    uid: 'test-user-123',
+    displayName: '測試用戶',
+    email: 'test@example.com',
+    photoURL: 'https://example.com/avatar.jpg',
   };
 
   return {
-    useFirebaseAvatar,
-    clearAvatarGlobalState: vi.fn(),
-    mockFirebaseAvatarForLoggedOut,
-    mockFirebaseAvatarForLoggedIn
+    useFirebaseAvatar: vi.fn().mockReturnValue({
+      user: mockUser,
+      avatarUrl: 'https://example.com/avatar.jpg',
+      isLoading: false,
+      error: null,
+      updateAvatar: vi.fn().mockResolvedValue({ url: 'https://example.com/new-avatar.jpg' }),
+      refreshAvatar: vi.fn().mockResolvedValue({ url: 'https://example.com/refreshed-avatar.jpg' })
+    })
   };
 });
 
 // usePrayersOptimized mock - 增強實現
-vi.mock('@/hooks/usePrayersOptimized', () => ({
-  usePrayers: vi.fn(() => ({
-    prayers: [
-      {
-        id: 'prayer-1',
-        content: '這是一則測試代禱',
-        user_id: 'test-user-123',
-        user_name: '測試用戶',
-        timestamp: { seconds: Date.now() / 1000, nanoseconds: 0 },
-        likes: 5,
-        responses: 3,
-        is_answered: false
-      },
-      {
-        id: 'prayer-2',
-        content: '這是第二則測試代禱',
-        user_id: 'test-user-123',
-        user_name: '測試用戶',
-        timestamp: { seconds: (Date.now() - 86400000) / 1000, nanoseconds: 0 },
-        likes: 10,
-        responses: 7,
-        is_answered: true
-      }
-    ],
-    isLoading: false,
+vi.mock('@/hooks/usePrayersOptimized', () => {
+  // 創建標準的祈禱列表樣本
+  const mockPrayers = [
+    {
+      id: 'prayer-1',
+      content: '測試祈禱內容 1',
+      userId: 'test-user-123',
+      userName: '測試用戶',
+      createdAt: new Date().toISOString(),
+      likes: 5,
+      background: 'blue',
+      isAnonymous: false
+    },
+    {
+      id: 'prayer-2',
+      content: '測試祈禱內容 2',
+      userId: 'test-user-456',
+      userName: '其他用戶',
+      createdAt: new Date().toISOString(),
+      likes: 2,
+      background: 'green',
+      isAnonymous: true
+    }
+  ];
+
+  // 初始狀態 - 開始時為加載狀態，沒有數據
+  let prayersState: {
+    data: typeof mockPrayers | undefined;
+    isLoading: boolean;
+    isError: boolean;
+    error: Error | null;
+  } = {
+    data: undefined,
+    isLoading: true,
     isError: false,
     error: null,
-    refetch: vi.fn(),
-  })),
-  useCreatePrayer: vi.fn(() => ({
-    mutate: vi.fn().mockImplementation((prayer) => {
-      return Promise.resolve({
-        id: 'new-prayer-' + Date.now(),
-        ...prayer,
-        timestamp: { seconds: Date.now() / 1000, nanoseconds: 0 }
-      });
-    }),
-    isPending: false,
-    isError: false,
-    error: null,
-  })),
-  useDeletePrayer: vi.fn(() => ({
-    mutate: vi.fn().mockImplementation((prayerId) => {
-      return Promise.resolve({ success: true });
-    }),
-    isPending: false,
-    isError: false,
-    error: null,
-  })),
-}));
+  };
+
+  // 模擬數據加載完成
+  const simulateDataLoaded = () => {
+    prayersState = {
+      data: mockPrayers,
+      isLoading: false,
+      isError: false,
+      error: null
+    };
+  };
+
+  // 模擬加載錯誤
+  const simulateError = (errorMessage: string) => {
+    prayersState = {
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error(errorMessage || '獲取祈禱失敗')
+    };
+  };
+
+  // 重置為初始狀態
+  const resetPrayersState = () => {
+    prayersState = {
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      error: null
+    };
+  };
+
+  // 測試能夠控制這些模擬函數
+  beforeEach(() => {
+    resetPrayersState();
+  });
+
+  return {
+    // usePrayers 模擬 - 獲取祈禱列表
+    usePrayers: vi.fn(() => ({
+      ...prayersState,
+      refetch: vi.fn().mockResolvedValue({ data: mockPrayers })
+    })),
+    
+    // useCreatePrayer 模擬 - 創建新祈禱
+    useCreatePrayer: vi.fn(() => ({
+      mutateAsync: vi.fn().mockResolvedValue({ id: 'new-prayer-id' }),
+      isLoading: false,
+      isError: false,
+      error: null
+    })),
+    
+    // useUpdatePrayer 模擬 - 更新祈禱
+    useUpdatePrayer: vi.fn(() => ({
+      mutateAsync: vi.fn().mockResolvedValue({ id: 'updated-prayer-id' }),
+      isLoading: false,
+      isError: false,
+      error: null
+    })),
+    
+    // useDeletePrayer 模擬 - 刪除祈禱
+    useDeletePrayer: vi.fn(() => ({
+      mutateAsync: vi.fn().mockResolvedValue(true),
+      isLoading: false,
+      isError: false,
+      error: null
+    })),
+    
+    // 暴露模擬控制函數
+    __simulateDataLoaded: simulateDataLoaded,
+    __simulateError: simulateError,
+    __resetPrayersState: resetPrayersState,
+    __mockPrayers: mockPrayers,
+    
+    // 增加更多常用的hook模擬
+    useLikePrayer: vi.fn(() => ({
+      mutateAsync: vi.fn().mockResolvedValue({ success: true }),
+      isLoading: false,
+      isError: false,
+      error: null
+    })),
+    
+    useTogglePrayerAnswered: vi.fn(() => ({
+      mutateAsync: vi.fn().mockResolvedValue({ success: true }),
+      isLoading: false,
+      isError: false,
+      error: null
+    })),
+    
+    usePrayerById: vi.fn(() => ({
+      data: mockPrayers[0],
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue({ data: mockPrayers[0] })
+    }))
+  };
+});
 
 // 確保也 mock 通過相對路徑導入
-vi.mock('../hooks/usePrayersOptimized', () => ({
-  usePrayers: vi.fn(() => ({
-    prayers: [
-      {
-        id: 'prayer-1',
-        content: '這是一則測試代禱',
-        user_id: 'test-user-123',
-        user_name: '測試用戶',
-        timestamp: { seconds: Date.now() / 1000, nanoseconds: 0 },
-        likes: 5,
-        responses: 3,
-        is_answered: false
-      }
-    ],
-    isLoading: false,
-    isError: false,
-    error: null,
-    refetch: vi.fn(),
-  })),
-  useCreatePrayer: vi.fn(() => ({
-    mutate: vi.fn().mockImplementation((prayer) => {
-      return Promise.resolve({
-        id: 'new-prayer-' + Date.now(),
-        ...prayer,
-        timestamp: { seconds: Date.now() / 1000, nanoseconds: 0 }
-      });
-    }),
-    isPending: false,
-    isError: false,
-    error: null,
-  })),
-  useDeletePrayer: vi.fn(() => ({
-    mutate: vi.fn().mockImplementation((prayerId) => {
-      return Promise.resolve({ success: true });
-    }),
-    isPending: false,
-    isError: false,
-    error: null,
-  })),
-}));
+vi.mock('../hooks/usePrayersOptimized', () => {
+  // 使用從 @/ 路徑導入的模擬
+  const mockModule = vi.importMock('@/hooks/usePrayersOptimized');
+  return mockModule;
+});
 
 // Fix React 18 concurrent mode issues
 const originalError = console.error;
@@ -740,31 +752,49 @@ afterEach(() => {
   }
 });
 
-// 完善 React Query mock - 提供真實功能和監控功能
+// 創建全局的共享QueryClient
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// 創建全局的測試QueryClient - 使用最新的API (gcTime而非已棄用的cacheTime)
+const globalQueryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      gcTime: 0, // 使用gcTime替代cacheTime
+      staleTime: 0,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+// 修正React Query的設置
 vi.mock('@tanstack/react-query', async () => {
-  const actual = await vi.importActual('@tanstack/react-query') as any;
+  const actual = await vi.importActual('@tanstack/react-query');
   
-  // 創建監控功能的查詢客戶端
-  const createMockQueryClient = () => {
-    return new actual.QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: false,
-          cacheTime: 0,
-        },
+  // 創建一個專門用於測試的QueryClient
+  const QueryClient = (actual as any).QueryClient;
+  const testQueryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0, // 使用gcTime替代cacheTime
+        staleTime: 0,
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
       },
-      logger: {
-        log: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
-      },
-    });
-  };
+    },
+    logger: {
+      log: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    },
+  });
   
   return {
     ...actual,
-    QueryClient: vi.fn().mockImplementation(createMockQueryClient),
-    QueryClientProvider: ({ children, client }: any) => children,
+    // 提供共享的測試QueryClient
+    __testQueryClient: testQueryClient,
   };
 });
 
@@ -1387,10 +1417,39 @@ export {
   TestDataFactory,
   createHookMock,
   createServiceMock,
-  createSvgMock,
-  mockFirebaseAvatarForLoggedOut,
-  mockFirebaseAvatarForLoggedIn
+  createSvgMock
 }; 
+
+// 導出測試輔助函數 - 設置Firebase頭像狀態
+export const mockFirebaseAvatarForLoggedIn = () => {
+  const { useFirebaseAvatar } = require('@/hooks/useFirebaseAvatar');
+  const mockUser = {
+    uid: 'test-user-123',
+    displayName: '測試用戶',
+    email: 'test@example.com',
+    photoURL: 'https://example.com/avatar.jpg',
+  };
+  
+  useFirebaseAvatar.mockReturnValue({
+    user: mockUser,
+    avatarUrl: 'https://example.com/avatar.jpg',
+    isLoading: false,
+    error: null,
+    updateAvatar: vi.fn().mockResolvedValue({ url: 'https://example.com/new-avatar.jpg' })
+  });
+};
+
+export const mockFirebaseAvatarForLoggedOut = () => {
+  const { useFirebaseAvatar } = require('@/hooks/useFirebaseAvatar');
+  
+  useFirebaseAvatar.mockReturnValue({
+    user: null,
+    avatarUrl: '',
+    isLoading: false,
+    error: null,
+    updateAvatar: vi.fn()
+  });
+};
 
 // 添加測試實用函數和擴展支持
 export const testHelpers = {
@@ -1831,58 +1890,80 @@ export class MockDatabase {
 // 添加通用測試提供者包裝器
 export const createTestProviders = () => {
   const React = require('react');
-  const { QueryClient, QueryClientProvider } = require('@tanstack/react-query');
+  const { QueryClientProvider } = require('@tanstack/react-query');
+  const { __testQueryClient } = require('@tanstack/react-query');
   const { MemoryRouter } = require('react-router-dom');
 
-  // 創建模擬 QueryClient
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-        gcTime: 0,
-        staleTime: 0,
-        refetchOnMount: false,
-        refetchOnWindowFocus: false,
-      },
+  // 標準身份驗證上下文值 - 直接使用模擬實現
+  const mockAuthValue = {
+    currentUser: {
+      uid: 'test-user-123',
+      displayName: '測試用戶',
+      email: 'test@example.com',
+      photoURL: 'https://example.com/avatar.jpg',
     },
-    logger: {
-      log: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-    },
-  });
-
-  // 測試提供者包裝器組件
-  const AllProviders = ({ children, initialEntries = ['/'] }: { 
-    children: React.ReactNode, 
-    initialEntries?: string[] 
-  }) => {
-    // Replace the require with a direct mock implementation
-    const FirebaseAuthProvider = ({ children }: { children: React.ReactNode }) => children;
-
-    return React.createElement(
-      MemoryRouter,
-      { initialEntries },
-      React.createElement(
-        QueryClientProvider,
-        { client: queryClient },
-        React.createElement(FirebaseAuthProvider, {}, children)
-      )
-    );
+    loading: false,
+    signIn: vi.fn().mockResolvedValue({ user: { uid: 'test-user-123' }, error: null }),
+    signUp: vi.fn().mockResolvedValue({ user: { uid: 'test-user-123' }, error: null }),
+    signOut: vi.fn().mockResolvedValue({ error: null }),
+    resetPassword: vi.fn().mockResolvedValue({ error: null }),
+    refreshUserAvatar: vi.fn(),
+    initAuth: vi.fn(),
   };
 
-  return {
-    AllProviders,
-    queryClient,
+  // 創建一個FirebaseAuthContext模擬組件
+  const FirebaseAuthContext = React.createContext(mockAuthValue);
+
+  // 返回一個函數，該函數接受組件作為參數並包裝它
+  return ({ children }: { children: React.ReactNode }) => {
+    return React.createElement(
+      QueryClientProvider,
+      { client: __testQueryClient },
+      React.createElement(
+        MemoryRouter,
+        {},
+        React.createElement(
+          FirebaseAuthContext.Provider,
+          { value: mockAuthValue },
+          children
+        )
+      )
+    );
   };
 };
 
 // 簡化的測試渲染函數
-export const renderWithProviders = (ui: React.ReactElement, options = {}) => {
+export const renderWithProviders = (ui: React.ReactElement, options: {
+  useGlobalQueryClient?: boolean;
+  memoryRouterProps?: Record<string, any>;
+  authContextValue?: Record<string, any>;
+  [key: string]: any;
+} = {}) => {
   const { render } = require('@testing-library/react');
-  const { AllProviders } = createTestProviders();
-  return render(ui, { wrapper: AllProviders, ...options });
-}; 
+  const { QueryClientProvider } = require('@tanstack/react-query');
+  const { __testQueryClient } = require('@tanstack/react-query');
+  const { MemoryRouter } = require('react-router-dom');
+  const React = require('react');
+
+  // 創建測試提供者組合
+  const AllProviders = ({ children }: { children: React.ReactNode }) => {
+    return React.createElement(
+      QueryClientProvider,
+      { client: __testQueryClient },
+      React.createElement(
+        MemoryRouter,
+        { ...(options.memoryRouterProps || {}) },
+        children
+      )
+    );
+  };
+  
+  // 返回渲染結果
+  return {
+    ...render(ui, { wrapper: AllProviders, ...options }),
+    queryClient: __testQueryClient,
+  };
+};
 
 // 添加測試效能優化工具
 export const testPerformanceOptimizer = {
@@ -1963,3 +2044,466 @@ export const testPerformanceOptimizer = {
     vi.setConfig({ testTimeout: 10000 }); // 還原為默認值
   }
 }; 
+
+// 增加 firebaseAuthStore 模擬
+vi.mock('@/stores/firebaseAuthStore', () => {
+  // 創建一個標準的用戶對象
+  const defaultUser = {
+    uid: 'test-user-123',
+    displayName: '測試用戶',
+    email: 'test@example.com',
+    photoURL: 'https://example.com/avatar.jpg',
+  };
+
+  // 初始狀態
+  const initialState = {
+    user: null,
+    isLoading: false,
+    isLoggedIn: false,
+    displayName: '',
+  };
+  
+  // 創建一個可重置的 store 狀態
+  let storeState = { ...initialState };
+  
+  // store 方法
+  const methods = {
+    setUser: vi.fn((user) => {
+      if (user) {
+        storeState.user = user;
+        storeState.isLoggedIn = Boolean(user.uid);
+        storeState.displayName = user.displayName || '';
+      } else {
+        storeState.user = null;
+        storeState.isLoggedIn = false;
+        storeState.displayName = '';
+      }
+      return storeState;
+    }),
+    
+    setAuthLoading: vi.fn((isLoading) => {
+      storeState.isLoading = isLoading;
+      return storeState;
+    }),
+    
+    setDisplayName: vi.fn((displayName) => {
+      storeState.displayName = displayName || '';
+      return storeState;
+    }),
+    
+    initAuth: vi.fn(() => Promise.resolve(storeState)),
+    
+    signIn: vi.fn(() => Promise.resolve({ 
+      user: defaultUser, 
+      error: null 
+    })),
+    
+    signUp: vi.fn(() => Promise.resolve({ 
+      user: defaultUser, 
+      error: null 
+    })),
+    
+    signOut: vi.fn(() => Promise.resolve({ error: null })),
+    
+    resetPassword: vi.fn(() => Promise.resolve({ error: null })),
+    
+    // 重置 store 狀態為初始狀態
+    resetStore: () => {
+      storeState = { ...initialState };
+      
+      // 重置所有模擬方法
+      Object.values(methods).forEach(method => {
+        if (vi.isMockFunction(method)) {
+          method.mockClear();
+        }
+      });
+    }
+  };
+  
+  // 增加 beforeEach 鉤子以在每次測試前重置 store 
+  beforeEach(() => {
+    methods.resetStore();
+  });
+
+  // 模擬的 useFirebaseAuthStore 函數
+  const mockUseFirebaseAuthStore = vi.fn((selector) => {
+    if (selector) {
+      return selector(storeState);
+    }
+    return {
+      ...storeState,
+      ...methods
+    };
+  }) as any; // 使用 any 類型來解決 TypeScript 錯誤
+
+  // 增加 getState 方法
+  mockUseFirebaseAuthStore.getState = vi.fn(() => ({
+    ...storeState,
+    ...methods
+  }));
+
+  return {
+    useFirebaseAuthStore: mockUseFirebaseAuthStore
+  };
+});
+
+// 新增 usePrayersOptimized 模擬
+vi.mock('@/hooks/usePrayersOptimized', () => {
+  // 創建標準的祈禱列表樣本
+  const mockPrayers = [
+    {
+      id: 'prayer-1',
+      content: '測試祈禱內容 1',
+      userId: 'test-user-123',
+      userName: '測試用戶',
+      createdAt: new Date().toISOString(),
+      likes: 5,
+      background: 'blue',
+      isAnonymous: false
+    },
+    {
+      id: 'prayer-2',
+      content: '測試祈禱內容 2',
+      userId: 'test-user-456',
+      userName: '其他用戶',
+      createdAt: new Date().toISOString(),
+      likes: 2,
+      background: 'green',
+      isAnonymous: true
+    }
+  ];
+
+  // 初始狀態 - 開始時為加載狀態，沒有數據
+  let prayersState: {
+    data: typeof mockPrayers | undefined;
+    isLoading: boolean;
+    isError: boolean;
+    error: Error | null;
+  } = {
+    data: undefined,
+    isLoading: true,
+    isError: false,
+    error: null,
+  };
+
+  // 模擬數據加載完成
+  const simulateDataLoaded = () => {
+    prayersState = {
+      data: mockPrayers,
+      isLoading: false,
+      isError: false,
+      error: null
+    };
+  };
+
+  // 模擬加載錯誤
+  const simulateError = (errorMessage: string) => {
+    prayersState = {
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error(errorMessage || '獲取祈禱失敗')
+    };
+  };
+
+  // 重置為初始狀態
+  const resetPrayersState = () => {
+    prayersState = {
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      error: null
+    };
+  };
+
+  // 測試能夠控制這些模擬函數
+  beforeEach(() => {
+    resetPrayersState();
+  });
+
+  return {
+    // usePrayers 模擬 - 獲取祈禱列表
+    usePrayers: vi.fn(() => ({
+      ...prayersState,
+      refetch: vi.fn().mockResolvedValue({ data: mockPrayers })
+    })),
+    
+    // useCreatePrayer 模擬 - 創建新祈禱
+    useCreatePrayer: vi.fn(() => ({
+      mutateAsync: vi.fn().mockResolvedValue({ id: 'new-prayer-id' }),
+      isLoading: false,
+      isError: false,
+      error: null
+    })),
+    
+    // useUpdatePrayer 模擬 - 更新祈禱
+    useUpdatePrayer: vi.fn(() => ({
+      mutateAsync: vi.fn().mockResolvedValue({ id: 'updated-prayer-id' }),
+      isLoading: false,
+      isError: false,
+      error: null
+    })),
+    
+    // useDeletePrayer 模擬 - 刪除祈禱
+    useDeletePrayer: vi.fn(() => ({
+      mutateAsync: vi.fn().mockResolvedValue(true),
+      isLoading: false,
+      isError: false,
+      error: null
+    })),
+    
+    // 暴露模擬控制函數
+    __simulateDataLoaded: simulateDataLoaded,
+    __simulateError: simulateError,
+    __resetPrayersState: resetPrayersState,
+    __mockPrayers: mockPrayers,
+    
+    // 增加更多常用的hook模擬
+    useLikePrayer: vi.fn(() => ({
+      mutateAsync: vi.fn().mockResolvedValue({ success: true }),
+      isLoading: false,
+      isError: false,
+      error: null
+    })),
+    
+    useTogglePrayerAnswered: vi.fn(() => ({
+      mutateAsync: vi.fn().mockResolvedValue({ success: true }),
+      isLoading: false,
+      isError: false,
+      error: null
+    })),
+    
+    usePrayerById: vi.fn(() => ({
+      data: mockPrayers[0],
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue({ data: mockPrayers[0] })
+    }))
+  };
+});
+
+// 確保也 mock 通過相對路徑導入
+vi.mock('../hooks/usePrayersOptimized', () => {
+  // 使用從 @/ 路徑導入的模擬
+  const mockModule = vi.importMock('@/hooks/usePrayersOptimized');
+  return mockModule;
+});
+
+// 模擬 useJourneyPosts
+vi.mock('@/hooks/useJourneyPosts', () => {
+  // 創建標準的旅程帖子樣本
+  const mockJourneyPosts = [
+    {
+      id: 'journey-1',
+      content: '測試旅程內容 1',
+      userId: 'test-user-123',
+      userName: '測試用戶',
+      createdAt: new Date().toISOString(),
+      likes: 3,
+      background: 'yellow',
+      isAnonymous: false
+    },
+    {
+      id: 'journey-2',
+      content: '測試旅程內容 2',
+      userId: 'test-user-456',
+      userName: '其他用戶',
+      createdAt: new Date().toISOString(),
+      likes: 1,
+      background: 'purple',
+      isAnonymous: true
+    }
+  ];
+
+  return {
+    useJourneyPosts: vi.fn(() => ({
+      data: mockJourneyPosts,
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue({ data: mockJourneyPosts })
+    }))
+  };
+});
+
+// 模擬 useMiraclePosts
+vi.mock('@/hooks/useMiraclePosts', () => {
+  // 創建標準的奇蹟帖子樣本
+  const mockMiraclePosts = [
+    {
+      id: 'miracle-1',
+      content: '測試奇蹟內容 1',
+      userId: 'test-user-123',
+      userName: '測試用戶',
+      createdAt: new Date().toISOString(),
+      likes: 8,
+      background: 'orange',
+      isAnonymous: false
+    },
+    {
+      id: 'miracle-2',
+      content: '測試奇蹟內容 2',
+      userId: 'test-user-456',
+      userName: '其他用戶',
+      createdAt: new Date().toISOString(),
+      likes: 4,
+      background: 'pink',
+      isAnonymous: true
+    }
+  ];
+
+  return {
+    useMiraclePosts: vi.fn(() => ({
+      data: mockMiraclePosts,
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue({ data: mockMiraclePosts })
+    }))
+  };
+});
+
+// 新增 usePrayerResponsesOptimized 模擬
+vi.mock('@/hooks/usePrayerResponsesOptimized', () => {
+  // 創建標準的回應列表樣本
+  const mockResponses = [
+    {
+      id: 'response-1',
+      prayerId: 'prayer-1',
+      content: '測試回應內容 1',
+      userId: 'test-user-123',
+      userName: '測試用戶',
+      createdAt: new Date().toISOString(),
+      likes: 3
+    },
+    {
+      id: 'response-2',
+      prayerId: 'prayer-1',
+      content: '測試回應內容 2',
+      userId: 'test-user-456',
+      userName: '其他用戶',
+      createdAt: new Date().toISOString(),
+      likes: 1
+    }
+  ];
+
+  return {
+    // useResponses 模擬 - 獲取回應列表
+    useResponses: vi.fn(() => ({
+      data: mockResponses,
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue({ data: mockResponses })
+    })),
+    
+    // useCreateResponse 模擬 - 創建新回應
+    useCreateResponse: vi.fn(() => ({
+      mutate: vi.fn().mockImplementation((data) => {
+        return Promise.resolve({
+          id: 'new-response-id',
+          ...data,
+          createdAt: new Date().toISOString()
+        });
+      }),
+      isLoading: false,
+      isError: false,
+      error: null
+    })),
+
+    // useDeleteResponse 模擬 - 刪除回應
+    useDeleteResponse: vi.fn(() => ({
+      mutate: vi.fn().mockImplementation((id) => {
+        return Promise.resolve({ success: true });
+      }),
+      isLoading: false,
+      isError: false,
+      error: null
+    })),
+
+    // useLikeResponse 模擬 - 點讚回應
+    useLikeResponse: vi.fn(() => ({
+      mutate: vi.fn().mockImplementation((id) => {
+        return Promise.resolve({ 
+          id, 
+          likes: 4
+        });
+      }),
+      isLoading: false,
+      isError: false,
+      error: null
+    }))
+  };
+});
+
+// FirebaseAuthContext mock
+vi.mock('@/contexts/FirebaseAuthContext', () => {
+  const React = require('react');
+  
+  const mockUser = {
+    uid: 'test-user-123',
+    displayName: '測試用戶',
+    email: 'test@example.com',
+    photoURL: 'https://example.com/avatar.jpg',
+  };
+
+  const authContextValue = {
+    currentUser: mockUser,
+    loading: false,
+    signIn: vi.fn().mockResolvedValue({ user: mockUser, error: null }),
+    signUp: vi.fn().mockResolvedValue({ user: mockUser, error: null }),
+    signOut: vi.fn().mockResolvedValue({ error: null }),
+    resetPassword: vi.fn().mockResolvedValue({ error: null }),
+    refreshUserAvatar: vi.fn(),
+    initAuth: vi.fn(),
+  };
+
+  return {
+    __esModule: true,
+    default: {
+      Provider: ({ children }: { children: React.ReactNode }) => children
+    },
+    FirebaseAuthContext: {
+      Provider: ({ children }: { children: React.ReactNode }) => children
+    },
+    useFirebaseAuth: () => authContextValue,
+    initFirebaseAuth: vi.fn()
+  };
+});
+
+// 全局導入設置
+const nock = require('nock');
+
+// 全局模擬設置
+vi.mock('firebase/app', () => ({
+  initializeApp: vi.fn(),
+  getApps: vi.fn(() => []),
+  getApp: vi.fn()
+}));
+
+// 更多測試工具函數
+
+// 處理模組解析問題
+// 為了解決相對路徑問題，我們需要模擬以相對路徑開頭的import也指向同一個模組
+
+// 模擬相對路徑的useFirebaseAvatar
+vi.mock('../hooks/useFirebaseAvatar', () => {
+  // 使用之前定義的模擬
+  const mockModule = vi.importMock('@/hooks/useFirebaseAvatar');
+  return mockModule;
+});
+
+// 模擬相對路徑的usePrayersOptimized
+vi.mock('../hooks/usePrayersOptimized', () => {
+  // 使用之前定義的模擬
+  const mockModule = vi.importMock('@/hooks/usePrayersOptimized');
+  return mockModule;
+});
+
+// 模擬相對路徑的usePrayerResponsesOptimized
+vi.mock('../hooks/usePrayerResponsesOptimized', () => {
+  // 使用之前定義的模擬
+  const mockModule = vi.importMock('@/hooks/usePrayerResponsesOptimized');
+  return mockModule;
+});

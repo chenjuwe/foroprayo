@@ -4,7 +4,6 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import Profile from './Profile';
-import { renderWithProviders } from '@/test/setup';
 
 // Mock React Router
 vi.mock('react-router-dom', async () => {
@@ -125,7 +124,7 @@ vi.mock('@/components/profile/ProfileForm', () => ({
     <div data-testid="profile-form">
       <input
         type="text"
-        value={newUsername}
+        value={newUsername || 'test'}
         onChange={(e) => onUsernameChange(e.target.value)}
         data-testid="username-input"
         disabled={disabled}
@@ -202,21 +201,35 @@ Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
 });
 
-// Mock useQueryClient
-vi.mock('@tanstack/react-query', async () => {
-  const actual = await vi.importActual('@tanstack/react-query');
-  return {
-    ...actual,
-    useQueryClient: () => ({
-      invalidateQueries: vi.fn(),
-      setQueryData: vi.fn(),
-      getQueryData: vi.fn(),
-    }),
-  };
+// 創建一個新的 QueryClient 實例用於測試
+const createTestQueryClient = () => new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      gcTime: 0,
+      staleTime: 0,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+    },
+  }
 });
 
+// 創建一個包裝器組件，提供必要的上下文
+const createWrapper = () => {
+  const testQueryClient = createTestQueryClient();
+  
+  return ({ children }: { children: React.ReactNode }) => (
+    <BrowserRouter>
+      <QueryClientProvider client={testQueryClient}>
+        {children}
+      </QueryClientProvider>
+    </BrowserRouter>
+  );
+};
+
 const renderProfile = () => {
-  return renderWithProviders(<Profile />);
+  const Wrapper = createWrapper();
+  return render(<Profile />, { wrapper: Wrapper });
 };
 
 describe('Profile Page', () => {

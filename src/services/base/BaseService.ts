@@ -24,4 +24,13 @@ export abstract class BaseService {
     log.error(`${this.serviceName} error: ${operation}`, error, this.serviceName);
     throw error;
   }
+
+  /**
+   * 處理錯誤但不拋出，僅記錄
+   * 返回 false 表示發生錯誤
+   */
+  protected handleErrorSilent(error: unknown, operation: string): false {
+    log.error(`${this.serviceName} error: ${operation} (silently handled)`, error, this.serviceName);
+    return false;
+  }
 } 

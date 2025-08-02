@@ -48,7 +48,8 @@ export class BackgroundService extends BaseService {
         background_id: data.background_id,
         custom_background: data.custom_background || null,
         custom_background_size: data.custom_background_size || null,
-        updated_at: data.updated_at instanceof Timestamp 
+        // 修改 Timestamp 檢查方式，使用更健壯的方法檢查
+        updated_at: data.updated_at && typeof data.updated_at === 'object' && 'toDate' in data.updated_at && typeof data.updated_at.toDate === 'function'
           ? data.updated_at.toDate().toISOString() 
           : data.updated_at
       };
@@ -56,7 +57,9 @@ export class BackgroundService extends BaseService {
       log.debug('成功獲取用戶背景', { userId, backgroundId: background.background_id }, 'BackgroundService');
       return background;
     } catch (error) {
-      this.handleError(error, 'getUserBackground');
+      // 修改錯誤處理，不重新拋出錯誤，而是記錄後使用 localStorage 回退
+      log.error(`${this.serviceName} error: getUserBackground`, error, this.serviceName);
+      
       // 回退到 localStorage
       const localKey = `background_${userId}`;
       const localBackground = localStorage.getItem(localKey);
@@ -89,7 +92,9 @@ export class BackgroundService extends BaseService {
         window.dispatchEvent(new CustomEvent('prayforo-background-updated'));
       }
     } catch (error) {
-      this.handleError(error, 'upsertUserBackground');
+      // 修改錯誤處理，不重新拋出錯誤，而是記錄後使用 localStorage 回退
+      log.error(`${this.serviceName} error: upsertUserBackground`, error, this.serviceName);
+      
       // 回退到 localStorage
       const localKey = `background_${params.user_id}`;
       localStorage.setItem(localKey, JSON.stringify(params));

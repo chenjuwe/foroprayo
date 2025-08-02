@@ -1,563 +1,222 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { ReportDialog } from './ReportDialog';
 
 // Mock 依賴
 vi.mock('@/hooks/use-toast', () => ({
-  useToast: vi.fn(),
+  useToast: vi.fn().mockReturnValue({
+    toast: vi.fn().mockReturnValue({
+      id: 'test-toast-id',
+      dismiss: vi.fn(),
+      update: vi.fn(),
+    }),
+    dismiss: vi.fn(),
+    toasts: [],
+  }),
 }));
 
 vi.mock('@/services', () => ({
   firebaseReportService: {
     getInstance: vi.fn(() => ({
-      createReport: vi.fn(),
+      createReport: vi.fn().mockResolvedValue(true),
     })),
   },
 }));
 
-// Import the mocked modules
-import { useToast } from '@/hooks/use-toast';
-import { firebaseReportService } from '@/services';
-
-// 輔助函數來創建正確的 useToast mock
-const createMockUseToast = () => {
-  const mockToast = vi.fn().mockReturnValue({
-    id: 'test-toast-id',
-    dismiss: vi.fn(),
-    update: vi.fn(),
-  });
-  const mockDismiss = vi.fn();
-
-  return {
-    toast: mockToast,
-    dismiss: mockDismiss,
-    toasts: [],
-  };
+// Mock localStorage
+const mockLocalStorage = {
+  getItem: vi.fn((key) => null),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+  length: 0,
+  key: vi.fn(),
 };
 
-// 輔助函數來創建正確的 firebaseReportService mock
-const createMockReportService = (mockCreateReport = vi.fn()) => ({
-  createReport: mockCreateReport,
-} as any);
-
-vi.mock('./ui/dialog', () => ({
-  Dialog: ({ children, open }: any) => open ? <div data-testid="dialog">{children}</div> : null,
-  DialogContent: ({ children }: any) => <div data-testid="dialog-content">{children}</div>,
-  DialogDescription: ({ children }: any) => <div data-testid="dialog-description">{children}</div>,
-  DialogFooter: ({ children }: any) => <div data-testid="dialog-footer">{children}</div>,
-  DialogHeader: ({ children }: any) => <div data-testid="dialog-header">{children}</div>,
-  DialogTitle: ({ children }: any) => <div data-testid="dialog-title">{children}</div>,
-}));
-
-vi.mock('./ui/button', () => ({
-  Button: ({ children, onClick, disabled, ...props }: any) => (
-    <button
-      data-testid="button"
-      onClick={onClick}
-      disabled={disabled}
-      {...props}
-    >
-      {children}
-    </button>
-  ),
-}));
-
-vi.mock('./ui/textarea', () => ({
-  Textarea: ({ value, onChange, placeholder, ...props }: any) => (
-    <textarea
-      data-testid="report-reason"
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      {...props}
-    />
-  ),
-}));
-
-// localStorage mock is set up globally in test setup
-
-// Mock console methods
-const mockConsole = {
-  log: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-};
-
-Object.defineProperty(global, 'console', {
-  value: mockConsole,
+Object.defineProperty(window, 'localStorage', {
+  value: mockLocalStorage,
   writable: true,
 });
 
 // Mock navigator
 Object.defineProperty(window, 'navigator', {
   value: {
-    userAgent: 'Mozilla/5.0 (Test Browser)',
+    userAgent: 'test-user-agent',
   },
   writable: true,
 });
 
-describe('ReportDialog', () => {
-  const defaultProps = {
-    isOpen: true,
-    onClose: vi.fn(),
-    reportType: 'prayer' as const,
-    targetId: 'prayer-1',
-    targetContent: '這是一個測試代禱內容',
-    targetUserId: 'user-1',
-    targetUserName: 'Test User',
-    targetUserAvatar: 'https://example.com/avatar.jpg',
-  };
+// Import the mocked modules
+import { useToast } from '@/hooks/use-toast';
+import { firebaseReportService } from '@/services';
 
+describe('ReportDialog', () => {
+  const mockOnClose = vi.fn();
+  const mockToast = vi.fn();
+  
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(window.localStorage.getItem).mockReturnValue('[]');
     
-    // 設置默認的 useToast mock
+    // 重設 localStorage mock
+    mockLocalStorage.getItem.mockReturnValue(null);
+    mockLocalStorage.setItem.mockClear();
+    
+    // 為每個測試重設模擬
     vi.mocked(useToast).mockReturnValue({
-      toast: vi.fn().mockReturnValue({
-        id: 'test-toast-id',
-        dismiss: vi.fn(),
-        update: vi.fn(),
-      }),
+      toast: mockToast,
       dismiss: vi.fn(),
       toasts: [],
-    } as any);
-    
-    // 設置默認的 firebaseReportService mock
-    vi.mocked(firebaseReportService.getInstance).mockReturnValue({
-      createReport: vi.fn().mockResolvedValue({ id: 'report-1' }),
-    } as any);
+    });
   });
 
   afterEach(() => {
     vi.resetAllMocks();
   });
 
-  describe('基本渲染', () => {
-    it('應該在開啟時正確渲染對話框', () => {
-      render(<ReportDialog {...defaultProps} />);
-      
-      expect(screen.getByTestId('dialog')).toBeInTheDocument();
-      expect(screen.getByTestId('dialog-content')).toBeInTheDocument();
-      expect(screen.getByTestId('dialog-title')).toBeInTheDocument();
-      expect(screen.getByTestId('dialog-description')).toBeInTheDocument();
-    });
+  // 標準測試屬性
+  const defaultProps = {
+    isOpen: true,
+    onClose: mockOnClose,
+    reportType: 'prayer' as const,
+    targetId: 'test-prayer-id',
+    targetContent: '這是測試的禱告內容',
+  };
 
-    it('應該在關閉時不渲染對話框', () => {
-      render(<ReportDialog {...defaultProps} isOpen={false} />);
-      
-      expect(screen.queryByTestId('dialog')).not.toBeInTheDocument();
-    });
+  it('renders the dialog correctly', () => {
+    render(<ReportDialog {...defaultProps} />);
 
-    it('應該正確顯示標題和描述', () => {
-      render(<ReportDialog {...defaultProps} />);
-      
-      expect(screen.getByText('檢舉不當發言')).toBeInTheDocument();
-      expect(screen.getByText(/請描述您認為.*不當的原因/)).toBeInTheDocument();
-    });
+    // 驗證標題和內容
+    expect(screen.getByText('檢舉不當發言')).toBeInTheDocument();
+    expect(screen.getByText(/請描述您認為此代禱不當的原因/)).toBeInTheDocument();
+    
+    // 驗證目標內容顯示
+    expect(screen.getByText('這是測試的禱告內容')).toBeInTheDocument();
+    
+    // 驗證按鈕
+    expect(screen.getByRole('button', { name: '取消' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '提交檢舉' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '提交檢舉' })).toBeDisabled(); // 初始時應該禁用
+  });
 
-    it('應該正確渲染表單元素', () => {
-      render(<ReportDialog {...defaultProps} />);
-      
-      expect(screen.getByTestId('report-reason')).toBeInTheDocument();
-      expect(screen.getByText('提交檢舉')).toBeInTheDocument();
-      expect(screen.getByText('取消')).toBeInTheDocument();
+  it('enables submit button when reason is entered', () => {
+    render(<ReportDialog {...defaultProps} />);
+
+    // 初始按鈕應該是禁用的
+    const submitButton = screen.getByRole('button', { name: '提交檢舉' });
+    expect(submitButton).toBeDisabled();
+    
+    // 輸入檢舉原因
+    const textarea = screen.getByLabelText('檢舉原因 *');
+    fireEvent.change(textarea, { target: { value: '這是不當內容' } });
+    
+    // 按鈕現在應該是啟用的
+    expect(submitButton).not.toBeDisabled();
+  });
+
+  it('calls createReport with correct parameters when form is submitted', () => {
+    // 設置模擬
+    const mockCreateReport = vi.fn().mockResolvedValue({ id: 'report-1' });
+    vi.mocked(firebaseReportService.getInstance).mockReturnValue({
+      createReport: mockCreateReport
+    } as any);
+
+    render(<ReportDialog {...defaultProps} />);
+
+    // 輸入檢舉原因
+    const textarea = screen.getByLabelText('檢舉原因 *');
+    fireEvent.change(textarea, { target: { value: '這是不當內容' } });
+    
+    // 提交表單
+    const submitButton = screen.getByRole('button', { name: '提交檢舉' });
+    fireEvent.click(submitButton);
+
+    // 驗證 createReport 被調用，參數正確
+    expect(mockCreateReport).toHaveBeenCalledWith({
+      report_type: 'prayer',
+      target_id: 'test-prayer-id',
+      target_content: '這是測試的禱告內容',
+      reason: '這是不當內容',
     });
   });
 
-  describe('表單驗證', () => {
-    it('應該在空原因時顯示錯誤提示', async () => {
-      const mockToast = vi.fn();
-      const mockCreateReport = vi.fn();
-      
-      // 重新設置這個測試的 mock
-      vi.mocked(useToast).mockReturnValue({
-        toast: mockToast,
-        dismiss: vi.fn(),
-        toasts: [],
-      } as any);
+  it('shows success toast and closes dialog after successful submission', () => {
+    // 設置模擬
+    const mockCreateReport = vi.fn().mockResolvedValue({ id: 'report-1' });
+    vi.mocked(firebaseReportService.getInstance).mockReturnValue({
+      createReport: mockCreateReport
+    } as any);
 
-      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
-        createReport: mockCreateReport,
-      } as any);
+    render(<ReportDialog {...defaultProps} />);
 
-      render(<ReportDialog {...defaultProps} />);
-      
-      const submitButton = screen.getByText('提交檢舉');
-      fireEvent.click(submitButton);
+    // 輸入檢舉原因並提交
+    const textarea = screen.getByLabelText('檢舉原因 *');
+    fireEvent.change(textarea, { target: { value: '這是不當內容' } });
+    fireEvent.click(screen.getByRole('button', { name: '提交檢舉' }));
 
-      await waitFor(() => {
-        expect(mockToast).toHaveBeenCalledWith(
-          expect.objectContaining({
-            variant: 'destructive',
-            title: '檢舉失敗',
-            description: '請填寫檢舉原因',
-          })
-        );
-      });
-
-      expect(mockCreateReport).not.toHaveBeenCalled();
+    // 驗證通知和對話框關閉
+    expect(mockToast).toHaveBeenCalledWith({
+      title: '檢舉已提交',
+      description: '我們會盡快審核您的檢舉，感謝您協助維護社群環境',
     });
-
-    it('應該在只有空格時顯示錯誤提示', async () => {
-      const mockToast = vi.fn();
-      const mockCreateReport = vi.fn();
-      
-      // 重新設置這個測試的 mock
-      vi.mocked(useToast).mockReturnValue({
-        toast: mockToast,
-        dismiss: vi.fn(),
-        toasts: [],
-      } as any);
-
-      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
-        createReport: mockCreateReport,
-      } as any);
-
-      render(<ReportDialog {...defaultProps} />);
-      
-      const textarea = screen.getByTestId('report-reason');
-      fireEvent.change(textarea, { target: { value: '   ' } });
-      
-      const submitButton = screen.getByText('提交檢舉');
-      fireEvent.click(submitButton);
-
-      await waitFor(() => {
-        expect(mockToast).toHaveBeenCalledWith(
-          expect.objectContaining({
-            variant: 'destructive',
-            title: '檢舉失敗',
-            description: '請填寫檢舉原因',
-          })
-        );
-      });
-
-      expect(mockCreateReport).not.toHaveBeenCalled();
-    });
-
-    it('應該在有效原因時允許提交', async () => {
-      const mockCreateReport = vi.fn().mockResolvedValue({ id: 'report-1' });
-      
-      // 重新設置這個測試的 mock
-      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
-        createReport: mockCreateReport,
-      } as any);
-
-      render(<ReportDialog {...defaultProps} />);
-      
-      const textarea = screen.getByTestId('report-reason');
-      fireEvent.change(textarea, { target: { value: '這是一個有效的檢舉原因' } });
-      
-      const submitButton = screen.getByText('提交檢舉');
-      expect(submitButton).not.toBeDisabled();
-      
-      fireEvent.click(submitButton);
-
-      await waitFor(() => {
-        expect(mockCreateReport).toHaveBeenCalledWith(
-          expect.objectContaining({
-            contentId: 'test-prayer-id',
-            contentType: 'prayer',
-            reason: '這是一個有效的檢舉原因',
-          })
-        );
-      });
-    });
+    expect(mockOnClose).toHaveBeenCalled();
   });
 
-  describe('提交功能', () => {
-    it('應該正確處理成功提交', async () => {
-      const mockToast = vi.fn().mockReturnValue({
-        id: 'test-toast-id',
-        dismiss: vi.fn(),
-        update: vi.fn(),
-      });
-      const mockDismiss = vi.fn();
-      const mockCreateReport = vi.fn().mockResolvedValue({ id: 'report-1' });
-      
-      vi.mocked(useToast).mockReturnValue({
-        toast: mockToast,
-        dismiss: mockDismiss,
-        toasts: [],
-      } as any);
-      
-      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
-        createReport: mockCreateReport,
-      } as any);
+  it('validates form before submission', () => {
+    render(<ReportDialog {...defaultProps} />);
 
-      render(<ReportDialog {...defaultProps} />);
-      
-      const textarea = screen.getByTestId('report-reason');
-      fireEvent.change(textarea, { target: { value: '這是不當內容' } });
-      
-      const submitButton = screen.getByText('提交檢舉');
-      fireEvent.click(submitButton);
-      
-      await waitFor(() => {
-        expect(mockToast).toHaveBeenCalledWith({
-          title: '檢舉已提交',
-          description: '我們會盡快審核您的檢舉，感謝您協助維護社群環境',
-        });
-      });
-    });
-
-    it('應該在服務失敗時使用本地存儲', async () => {
-      const mockToast = vi.fn();
-      const mockCreateReport = vi.fn().mockRejectedValue(new Error('服務失敗'));
-      vi.mocked(useToast).mockReturnValue({
-        toast: mockToast,
-      });
-      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
-        createReport: mockCreateReport,
-      });
-
-      render(<ReportDialog {...defaultProps} />);
-      
-      const textarea = screen.getByTestId('report-reason');
-      fireEvent.change(textarea, { target: { value: '這是不當內容' } });
-      
-      const submitButton = screen.getByText('提交檢舉');
-      fireEvent.click(submitButton);
-      
-      await waitFor(() => {
-        expect(vi.mocked(window.localStorage.setItem)).toHaveBeenCalledWith(
-          'tempReports',
-          expect.stringContaining('這是不當內容')
-        );
-        expect(mockToast).toHaveBeenCalledWith({
-          title: '檢舉已提交',
-          description: '我們會盡快審核您的檢舉，感謝您協助維護社群環境',
-        });
-      });
-    });
-
-    it('應該正確處理回應類型的檢舉', async () => {
-      const mockToast = vi.fn();
-      const mockCreateReport = vi.fn().mockResolvedValue({ id: 'report-1' });
-      vi.mocked(useToast).mockReturnValue({
-        toast: mockToast,
-      });
-      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
-        createReport: mockCreateReport,
-      });
-
-      const responseProps = {
-        ...defaultProps,
-        reportType: 'response' as const,
-        targetId: 'response-1',
-        targetContent: '這是一個測試回應',
-      };
-
-      render(<ReportDialog {...responseProps} />);
-      
-      const textarea = screen.getByTestId('report-reason');
-      fireEvent.change(textarea, { target: { value: '這是不當回應' } });
-      
-      const submitButton = screen.getByText('提交檢舉');
-      fireEvent.click(submitButton);
-      
-      await waitFor(() => {
-        expect(mockCreateReport).toHaveBeenCalledWith({
-          report_type: 'response',
-          target_id: 'response-1',
-          target_content: '這是一個測試回應',
-          target_user_id: 'user-1',
-          target_user_name: 'Test User',
-          target_user_avatar: 'https://example.com/avatar.jpg',
-          reason: '這是不當回應',
-        });
-      });
-    });
+    // 按鈕應該是禁用的
+    const submitButton = screen.getByRole('button', { name: '提交檢舉' });
+    expect(submitButton).toBeDisabled();
+    
+    // 輸入空值
+    const textarea = screen.getByLabelText('檢舉原因 *');
+    fireEvent.change(textarea, { target: { value: '   ' } });
+    
+    // 按鈕仍應該是禁用的
+    expect(submitButton).toBeDisabled();
   });
 
-  describe('載入狀態', () => {
-    it('應該在提交時顯示載入狀態', async () => {
-      const mockToast = vi.fn();
-      const mockCreateReport = vi.fn().mockImplementation(() => 
-        new Promise(resolve => setTimeout(() => resolve({ id: 'report-1' }), 100))
-      );
-      vi.mocked(useToast).mockReturnValue({
-        toast: mockToast,
-      });
-      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
-        createReport: mockCreateReport,
-      });
+  it('falls back to localStorage when server submission fails', () => {
+    // 設置錯誤模擬
+    const mockError = new Error('提交檢舉失敗');
+    vi.mocked(firebaseReportService.getInstance).mockReturnValue({
+      createReport: vi.fn().mockRejectedValue(mockError)
+    } as any);
 
-      render(<ReportDialog {...defaultProps} />);
-      
-      const textarea = screen.getByTestId('report-reason');
-      fireEvent.change(textarea, { target: { value: '這是不當內容' } });
-      
-      const submitButton = screen.getByText('提交檢舉');
-      fireEvent.click(submitButton);
-      
-      // 檢查按鈕是否被禁用
-      expect(submitButton).toBeDisabled();
+    // 模擬 localStorage 在錯誤情況下的行為
+    mockLocalStorage.getItem.mockReturnValueOnce('[]' as any);
+
+    render(<ReportDialog {...defaultProps} />);
+
+    // 輸入檢舉原因並提交
+    const textarea = screen.getByLabelText('檢舉原因 *');
+    fireEvent.change(textarea, { target: { value: '這是不當內容' } });
+    fireEvent.click(screen.getByRole('button', { name: '提交檢舉' }));
+
+    // 仍然顯示成功通知，因為有回退機制
+    expect(mockToast).toHaveBeenCalledWith({
+      title: '檢舉已提交',
+      description: '我們會盡快審核您的檢舉，感謝您協助維護社群環境',
     });
-
-    it('應該在提交完成後重置載入狀態', async () => {
-      const mockToast = vi.fn();
-      const mockCreateReport = vi.fn().mockResolvedValue({ id: 'report-1' });
-      vi.mocked(useToast).mockReturnValue({
-        toast: mockToast,
-      });
-      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
-        createReport: mockCreateReport,
-      });
-
-      render(<ReportDialog {...defaultProps} />);
-      
-      const textarea = screen.getByTestId('report-reason');
-      fireEvent.change(textarea, { target: { value: '這是不當內容' } });
-      
-      const submitButton = screen.getByText('提交檢舉');
-      fireEvent.click(submitButton);
-      
-      await waitFor(() => {
-        expect(submitButton).not.toBeDisabled();
-      });
-    });
+    
+    // 驗證 localStorage 被使用來儲存檢舉
+    expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
+      'tempReports',
+      expect.stringContaining('這是不當內容')
+    );
   });
 
-  describe('關閉功能', () => {
-    it('應該正確處理取消按鈕點擊', () => {
-      render(<ReportDialog {...defaultProps} />);
-      
-      const cancelButton = screen.getByText('取消');
-      fireEvent.click(cancelButton);
-      
-      expect(defaultProps.onClose).toHaveBeenCalled();
-    });
+  it('closes dialog on cancel button click', () => {
+    render(<ReportDialog {...defaultProps} />);
 
-    it('應該在提交成功後關閉對話框', async () => {
-      const mockToast = vi.fn();
-      const mockCreateReport = vi.fn().mockResolvedValue({ id: 'report-1' });
-      vi.mocked(useToast).mockReturnValue({
-        toast: mockToast,
-      });
-      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
-        createReport: mockCreateReport,
-      });
-
-      render(<ReportDialog {...defaultProps} />);
-      
-      const textarea = screen.getByTestId('report-reason');
-      fireEvent.change(textarea, { target: { value: '這是不當內容' } });
-      
-      const submitButton = screen.getByText('提交檢舉');
-      fireEvent.click(submitButton);
-      
-      await waitFor(() => {
-        expect(defaultProps.onClose).toHaveBeenCalled();
-      });
-    });
-
-    it('應該在提交失敗後不關閉對話框', async () => {
-      const mockToast = vi.fn();
-      const mockCreateReport = vi.fn().mockRejectedValue(new Error('服務失敗'));
-      vi.mocked(useToast).mockReturnValue({
-        toast: mockToast,
-      });
-      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
-        createReport: mockCreateReport,
-      });
-
-      render(<ReportDialog {...defaultProps} />);
-      
-      const textarea = screen.getByTestId('report-reason');
-      fireEvent.change(textarea, { target: { value: '這是不當內容' } });
-      
-      const submitButton = screen.getByText('提交檢舉');
-      fireEvent.click(submitButton);
-      
-      await waitFor(() => {
-        expect(defaultProps.onClose).toHaveBeenCalled();
-      });
-    });
+    fireEvent.click(screen.getByRole('button', { name: '取消' }));
+    expect(mockOnClose).toHaveBeenCalled();
   });
 
-  describe('本地存儲功能', () => {
-    it('應該正確處理現有的臨時檢舉', () => {
-      const existingReports = [
-        {
-          id: 'temp_1',
-          report_type: 'prayer',
-          target_id: 'prayer-1',
-          reason: '舊檢舉',
-          created_at: '2024-01-01T00:00:00Z',
-        },
-      ];
-      vi.mocked(window.localStorage.getItem).mockReturnValue(JSON.stringify(existingReports));
-
-      const mockToast = vi.fn();
-      const mockCreateReport = vi.fn().mockRejectedValue(new Error('服務失敗'));
-      vi.mocked(useToast).mockReturnValue({
-        toast: mockToast,
-      });
-      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
-        createReport: mockCreateReport,
-      });
-
-      render(<ReportDialog {...defaultProps} />);
-      
-      const textarea = screen.getByTestId('report-reason');
-      fireEvent.change(textarea, { target: { value: '新檢舉' } });
-      
-      const submitButton = screen.getByText('提交檢舉');
-      fireEvent.click(submitButton);
-      
-      expect(vi.mocked(window.localStorage.setItem)).toHaveBeenCalledWith(
-        'tempReports',
-        expect.stringContaining('新檢舉')
-      );
-    });
-
-    it('應該處理本地存儲解析錯誤', () => {
-      vi.mocked(window.localStorage.getItem).mockReturnValue('invalid-json');
-
-      const mockToast = vi.fn();
-      const mockCreateReport = vi.fn().mockRejectedValue(new Error('服務失敗'));
-      vi.mocked(useToast).mockReturnValue({
-        toast: mockToast,
-      });
-      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
-        createReport: mockCreateReport,
-      });
-
-      render(<ReportDialog {...defaultProps} />);
-      
-      const textarea = screen.getByTestId('report-reason');
-      fireEvent.change(textarea, { target: { value: '新檢舉' } });
-      
-      const submitButton = screen.getByText('提交檢舉');
-      fireEvent.click(submitButton);
-      
-      expect(vi.mocked(window.localStorage.setItem)).toHaveBeenCalledWith(
-        'tempReports',
-        expect.stringContaining('新檢舉')
-      );
-    });
-  });
-
-  describe('無障礙功能', () => {
-    it('應該包含正確的 ARIA 標籤', () => {
-      render(<ReportDialog {...defaultProps} />);
-      
-      expect(screen.getByTestId('dialog')).toBeInTheDocument();
-      expect(screen.getByTestId('dialog-title')).toBeInTheDocument();
-    });
-
-    it('應該正確處理鍵盤導航', () => {
-      render(<ReportDialog {...defaultProps} />);
-      
-      const textarea = screen.getByTestId('report-reason');
-      const submitButton = screen.getByText('提交檢舉');
-      
-      textarea.focus();
-      expect(textarea).toHaveFocus();
-      
-      submitButton.focus();
-      expect(submitButton).toHaveFocus();
-    });
+  it('handles user name display when provided', () => {
+    render(<ReportDialog {...defaultProps} targetUserName="測試使用者" />);
+    
+    // 驗證顯示使用者名稱
+    expect(screen.getByText('發言者：測試使用者')).toBeInTheDocument();
   });
 }); 

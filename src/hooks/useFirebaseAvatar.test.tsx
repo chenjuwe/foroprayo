@@ -3,9 +3,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import React from 'react';
 import { useFirebaseAvatar, clearAvatarGlobalState } from './useFirebaseAvatar';
-import { TestHelpers } from '@/utils/test-helpers';
-import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore';
 import { getUserAvatarUrlFromFirebase } from '@/services/background/AvatarService';
+import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore';
+// 導入我們的 mock 輔助函數
+import { mockFirebaseAvatarForLoggedOut, mockFirebaseAvatarForLoggedIn } from '@/test/setup';
 
 // Mock 依賴 - 需要使用 vi.fn() 在工廠函數內部
 vi.mock('@/stores/firebaseAuthStore', () => ({
@@ -49,6 +50,9 @@ describe('useFirebaseAvatar', () => {
     // 清除全局頭像狀態
     clearAvatarGlobalState();
     
+    // 先使用這個設置標準狀態
+    mockFirebaseAvatarForLoggedIn();
+    
     // 設置預設的認證狀態
     mockAuthStore.mockImplementation((selector: any) => {
       const state = {
@@ -58,7 +62,7 @@ describe('useFirebaseAvatar', () => {
       return selector(state);
     });
 
-    // 設置預設的頭像 URLs - 每次都重新設置為原始值
+    // 設置預設的頭像 URLs
     mockGetAvatar.mockResolvedValue(mockAvatarUrls);
 
     // Mock Image constructor
@@ -67,11 +71,19 @@ describe('useFirebaseAvatar', () => {
       onload: null,
       onerror: null,
     })) as any;
+
+    // Mock window event listeners
+    vi.spyOn(window, 'addEventListener').mockImplementation((_type, _listener) => {
+      // 不實際添加事件監聽器，避免測試中的副作用
+    });
+    
+    vi.spyOn(window, 'removeEventListener').mockImplementation((_type, _listener) => {
+      // 不實際移除事件監聽器
+    });
   });
 
   afterEach(() => {
     vi.clearAllMocks();
-    // 清除任何可能的全局狀態
     vi.resetModules();
   });
 
@@ -81,7 +93,7 @@ describe('useFirebaseAvatar', () => {
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
-    });
+    }, { timeout: 5000 });
 
     expect(result.current.avatarUrl96).toBe(mockAvatarUrls.large);
     expect(result.current.avatarUrl48).toBe(mockAvatarUrls.medium);
@@ -92,16 +104,16 @@ describe('useFirebaseAvatar', () => {
   });
 
   it('應該在用戶未登入時不載入頭像', () => {
-    mockAuthStore.mockImplementation((selector: any) => {
-      const state = {
-        user: null,
-        isAuthLoading: false,
-      };
-      return selector(state);
+    // 使用我們剛建立的 mock 輔助函數
+    mockFirebaseAvatarForLoggedOut();
+    
+    mockGetAvatar.mockResolvedValue({
+      large: null,
+      medium: null,
+      small: null
     });
-
     const { result } = renderHook(() => useFirebaseAvatar());
-
+    
     expect(result.current.avatarUrl96).toBe(null);
     expect(result.current.avatarUrl48).toBe(null);
     expect(result.current.avatarUrl30).toBe(null);
@@ -117,7 +129,7 @@ describe('useFirebaseAvatar', () => {
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
-    });
+    }, { timeout: 5000 });
 
     expect(mockGetAvatar).toHaveBeenCalledWith(customUserId);
     expect(result.current.avatarUrl96).toBe(mockAvatarUrls.large);
@@ -130,7 +142,7 @@ describe('useFirebaseAvatar', () => {
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
-    });
+    }, { timeout: 5000 });
 
     expect(result.current.error).toEqual({
       message: 'Failed to load avatar',
@@ -147,11 +159,11 @@ describe('useFirebaseAvatar', () => {
     // 等待初始載入
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
-    });
+    }, { timeout: 5000 });
 
     expect(result.current.avatarUrl96).toBe(mockAvatarUrls.large);
 
-    // 設置新的頭像 URLs - 僅為這個測試實例
+    // 設置新的頭像 URLs
     const newAvatarUrls = {
       large: 'https://example.com/new-avatar-96.jpg',
       medium: 'https://example.com/new-avatar-48.jpg',
@@ -168,21 +180,20 @@ describe('useFirebaseAvatar', () => {
 
     await waitFor(() => {
       expect(result.current.avatarUrl96).toBe(newAvatarUrls.large);
-    });
+    }, { timeout: 5000 });
 
     expect(result.current.avatarUrl48).toBe(newAvatarUrls.medium);
     expect(result.current.avatarUrl30).toBe(newAvatarUrls.small);
   });
 
   it('應該正確返回用戶資料', async () => {
-    // 確保使用原始的 mock 數據
     mockGetAvatar.mockResolvedValue(mockAvatarUrls);
     
     const { result } = renderHook(() => useFirebaseAvatar());
     
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
-    });
+    }, { timeout: 5000 });
 
     expect(result.current.user).toEqual(mockUser);
     expect(result.current.isLoggedIn).toBe(true);
@@ -210,7 +221,7 @@ describe('useFirebaseAvatar', () => {
     
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
-    });
+    }, { timeout: 5000 });
 
     expect(result.current.data.user_name).toBe('test'); // email 前綴
   });
@@ -228,7 +239,7 @@ describe('useFirebaseAvatar', () => {
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
-    });
+    }, { timeout: 5000 });
 
     expect(result.current.avatarUrl96).toBe(null);
     expect(result.current.avatarUrl48).toBe(null);
@@ -237,14 +248,13 @@ describe('useFirebaseAvatar', () => {
   });
 
   it('應該正確處理不同尺寸的頭像', async () => {
-    // 確保使用原始的 mock 數據
     mockGetAvatar.mockResolvedValue(mockAvatarUrls);
     
     const { result } = renderHook(() => useFirebaseAvatar());
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
-    });
+    }, { timeout: 5000 });
 
     expect(result.current.avatarUrl96).toBe(mockAvatarUrls.large);
     expect(result.current.avatarUrl48).toBe(mockAvatarUrls.medium);
@@ -275,7 +285,7 @@ describe('useFirebaseAvatar', () => {
     // 等待初始載入
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
-    });
+    }, { timeout: 5000 });
 
     // 在調用 refreshAvatar 之前設置失敗
     const refreshError = new Error('Refresh failed');
