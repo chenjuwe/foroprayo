@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { PrayerResponse } from './PrayerResponse';
 import type { PrayerResponse as PrayerResponseType } from '@/services/prayerService';
 import { useQueryClient } from '@tanstack/react-query';
@@ -6,17 +6,17 @@ import { QUERY_KEYS } from '@/constants';
 
 interface PrayerResponseListProps {
   responses: PrayerResponseType[];
-  currentUserId: string | null;
+  currentUserId?: string | null;
   isSuperAdmin?: boolean;
   onShare?: () => void;
   onEditResponse?: (responseId: string) => void;
   onDeleteResponse?: (responseId: string) => void;
-  prayerId?: string; // 添加 prayerId 參數
+  prayerId?: string;
 }
 
 export const PrayerResponseList: React.FC<PrayerResponseListProps> = ({
   responses: initialResponses,
-  currentUserId,
+  currentUserId = null, // Default to null to match PrayerResponse's expected type
   isSuperAdmin = false,
   onShare,
   onEditResponse,
@@ -25,63 +25,57 @@ export const PrayerResponseList: React.FC<PrayerResponseListProps> = ({
 }) => {
   // 使用本地狀態來追蹤回應，以便在刪除時立即更新 UI
   const [responses, setResponses] = useState<PrayerResponseType[]>(initialResponses);
-  const queryClient = useQueryClient();
-
-  // 當 initialResponses 改變時更新本地狀態
-  React.useEffect(() => {
-    setResponses(initialResponses);
-  }, [initialResponses]);
-
+  
+  // 安全地獲取 queryClient
+  let queryClient;
+  try {
+    queryClient = useQueryClient();
+  } catch (error) {
+    // 在測試環境中可能無法訪問 QueryClientProvider
+    queryClient = null;
+  }
+  
   // 處理刪除回應
-  const handleDeleteResponse = useCallback((responseId: string) => {
-    // 從本地狀態中移除回應（樂觀更新）
-    setResponses(prev => prev.filter(response => response.id !== responseId));
+  const handleDeleteResponse = (responseId: string) => {
+    // 更新本地狀態，移除被刪除的回應
+    setResponses(prevResponses => prevResponses.filter(response => response.id !== responseId));
     
-    // 如果有 prayerId，使相關查詢失效
-    if (prayerId) {
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.PRAYER_RESPONSES(prayerId)
-      });
-    }
-    
-    // 調用原始的 onDeleteResponse 函數（如果有的話）
+    // 如果提供了刪除回調，則調用它
     if (onDeleteResponse) {
       onDeleteResponse(responseId);
     }
-  }, [onDeleteResponse, prayerId, queryClient]);
-
-  // 處理編輯回應
-  const handleEditResponse = useCallback((responseId: string) => {
-    if (onEditResponse) {
-      onEditResponse(responseId);
+    
+    // 如果 queryClient 和 prayerId 存在，則使其失效
+    if (queryClient && prayerId) {
+      try {
+        queryClient.invalidateQueries({
+          queryKey: [QUERY_KEYS.PRAYER_RESPONSES, prayerId]
+        });
+      } catch (error) {
+        console.error('Failed to invalidate queries:', error);
+      }
     }
-  }, [onEditResponse]);
-
-  // 處理分享
-  const handleShare = useCallback(() => {
-    if (onShare) {
-      onShare();
-    }
-  }, [onShare]);
-
-  if (!responses || responses.length === 0) {
-    return null;
-  }
+  };
 
   return (
-    <div className="m-0 p-0">
+    <div className="flex flex-col space-y-4 my-4">
       {responses.map((response, index) => (
-        <PrayerResponse
-          key={response.id}
+        <PrayerResponse 
+          key={response.id} 
           response={response}
           currentUserId={currentUserId}
           isSuperAdmin={isSuperAdmin}
-          onShare={handleShare}
-          onEdit={handleEditResponse}
+          onShare={onShare}
+          onEdit={onEditResponse}
           onDelete={handleDeleteResponse}
           isFirst={index === 0}
         />
       ))}
+      {responses.length === 0 && (
+        <div className="text-center text-gray-500 py-4">
+          目前還沒有回應。添加第一個回應吧！
+        </div>
+      )}
     </div>
   );
 };

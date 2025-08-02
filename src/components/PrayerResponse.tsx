@@ -202,9 +202,9 @@ const PrayerResponseComponent: React.FC<PrayerResponseProps> = ({
                 responseUserAvatar={response.user_avatar || ''}
                 prayerId={response.prayer_id || ''}
                 isOwner={currentUserId === response.user_id}
-                onShare={onShare || (() => {})}
-                onEdit={() => onEdit?.(response.id)}
-                onDelete={() => onDelete?.(response.id)}
+                onShare={onShare}
+                onEdit={onEdit ? () => onEdit(response.id) : undefined}
+                onDelete={onDelete ? () => onDelete(response.id) : undefined}
               />
             </div>
           </div>

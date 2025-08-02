@@ -34,9 +34,20 @@ export function useIdlePrefetch(userId?: string) {
       }, 5000);
     };
     
-    // 使用 requestIdleCallback 或 setTimeout 作為備用
-    if ('requestIdleCallback' in window) {
-      idleCallbackId = window.requestIdleCallback(handleIdle, { timeout: 10000 });
+    // 安全檢查：確保 window 物件存在，並且 requestIdleCallback 可用
+    const hasIdleCallback = typeof window !== 'undefined' && 
+                          'requestIdleCallback' in window && 
+                          typeof window.requestIdleCallback === 'function';
+    
+    if (hasIdleCallback) {
+      try {
+        // 使用 try-catch 防止在測試環境中的問題
+        idleCallbackId = window.requestIdleCallback(handleIdle, { timeout: 10000 });
+      } catch (error) {
+        // 出錯時使用備用方案
+        log.warn('requestIdleCallback 失敗，使用 setTimeout 備用', error, 'useIdlePrefetch');
+        timeoutId = setTimeout(handleIdle, 15000);
+      }
     } else {
       // 備用方案：使用 setTimeout
       timeoutId = setTimeout(handleIdle, 15000);
@@ -44,9 +55,18 @@ export function useIdlePrefetch(userId?: string) {
     
     // 清理函數
     return () => {
-      if ('requestIdleCallback' in window && idleCallbackId) {
-        window.cancelIdleCallback(idleCallbackId);
+      const hasIdleCallback = typeof window !== 'undefined' && 
+                            'requestIdleCallback' in window && 
+                            typeof window.cancelIdleCallback === 'function';
+      
+      if (hasIdleCallback && idleCallbackId) {
+        try {
+          window.cancelIdleCallback(idleCallbackId);
+        } catch (error) {
+          log.warn('cancelIdleCallback 失敗', error, 'useIdlePrefetch');
+        }
       }
+      
       if (timeoutId) {
         clearTimeout(timeoutId);
       }

@@ -55,9 +55,9 @@ interface ResponseActionsProps {
   responseUserAvatar?: string;
   prayerId: string;
   isOwner?: boolean;
-  onEdit?: () => void;
-  onDelete?: () => void;
-  onShare?: () => void;
+  onEdit?: (() => void) | undefined;
+  onDelete?: (() => void) | undefined;
+  onShare?: (() => void) | undefined;
   className?: string;
 }
 
@@ -95,7 +95,10 @@ export const ResponseActions: React.FC<ResponseActionsProps> = ({
   }, [currentUser]);
 
   // 檢查當前用戶是否已經按過愛心
-  const userLike = currentUserId ? likes.find((like: Like) => like.user_id === currentUserId) : null;
+  // Fix the type issue with find by using type assertion
+  const userLike = currentUserId 
+    ? likes.find((like: any) => like.user_id === currentUserId) as Like | undefined
+    : null;
   const isLiked = !!userLike;
   const likeCount = likes.length;
 
@@ -111,9 +114,9 @@ export const ResponseActions: React.FC<ResponseActionsProps> = ({
     
     log.debug('點擊回應愛心按鈕', { responseId, isLiked, likeId: userLike?.id }, 'ResponseActions');
     
-    // 切換愛心狀態
+    // 切換愛心狀態 - Fix property name
     toggleLikeMutation.mutate({
-      prayerId: responseId, // 使用 responseId 代替 prayerId
+      responseId, // Use responseId instead of prayerId
       isLiked,
       ...(userLike?.id ? { likeId: userLike.id } : {})
     });
@@ -141,15 +144,18 @@ export const ResponseActions: React.FC<ResponseActionsProps> = ({
   const handleEdit = () => {
     if (onEdit) {
       onEdit();
+      setMenuOpen(false);
     }
   };
 
   const handleReport = () => {
     setIsReportDialogOpen(true);
+    setMenuOpen(false);
   };
 
   const handleDeleteClick = () => {
     setIsDeleteDialogOpen(true);
+    setMenuOpen(false);
   };
 
   const handleDeleteConfirm = async () => {

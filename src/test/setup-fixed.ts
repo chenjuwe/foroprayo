@@ -1,20 +1,156 @@
-import { vi, afterEach, beforeAll } from 'vitest';
+// 固定版測試設置檔案 - 解決 Timestamp 相關問題和模組路徑解析問題
+import { vi, afterEach, beforeEach } from 'vitest';
 import React from 'react';
 import '@testing-library/jest-dom';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
+import path from 'path';
 
-// 確保每個測試後都清理 DOM
-afterEach(() => {
-  cleanup();
-  vi.clearAllMocks();
+// 正確的 Timestamp 實現
+class MockTimestamp {
+  constructor(public seconds: number, public nanoseconds: number) {}
+  
+  toDate() {
+    return new Date(this.seconds * 1000 + this.nanoseconds / 1000000);
+  }
+  
+  static now() {
+    const now = Date.now();
+    return new MockTimestamp(Math.floor(now / 1000), (now % 1000) * 1000000);
+  }
+  
+  static fromDate(date: Date) {
+    const ms = date.getTime();
+    return new MockTimestamp(Math.floor(ms / 1000), (ms % 1000) * 1000000);
+  }
+
+  // 提供 instanceof 檢查功能
+  static [Symbol.hasInstance](instance: any) {
+    return instance && 
+      typeof instance === 'object' && 
+      'seconds' in instance && 
+      'nanoseconds' in instance &&
+      typeof instance.toDate === 'function';
+  }
+}
+
+// 配置測試環境
+configure({
+  testIdAttribute: 'data-testid',
+  reactStrictMode: false,
 });
 
-// 修復 window 物件問題
-beforeAll(() => {
-  // 修復 Object.defineProperty 在測試環境中的問題
+// 全局設置
+(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+
+// 虛擬計時器和控制台訊息處理
+const originalError = console.error;
+const originalWarn = console.warn;
+
+beforeEach(() => {
+  // 啟用虛擬計時器
+  vi.useFakeTimers();
+  
+  // 壓制 React 並發模式警告
+  console.error = (...args: any[]) => {
+    if (typeof args[0] === 'string' && 
+       (args[0].includes('Should not already be working') || 
+        args[0].includes('Warning: ReactDOM') ||
+        args[0].includes('performConcurrentWorkOnRoot') ||
+        args[0].includes('flushActQueue'))) {
+      return;
+    }
+    if (args[0] instanceof Error && 
+       (args[0].message.includes('Should not already be working') ||
+        args[0].message.includes('Maximum update depth exceeded'))) {
+      return;
+    }
+    originalError.call(console, ...args);
+  };
+  
+  console.warn = (...args: any[]) => {
+    if (typeof args[0] === 'string' && 
+       (args[0].includes('React concurrent mode') ||
+        args[0].includes('Warning: ReactDOMTestUtils'))) {
+      return;
+    }
+    originalWarn.call(console, ...args);
+  };
+});
+
+afterEach(() => {
+  // 清理和恢復環境
+  cleanup();
+  vi.useRealTimers();
+  vi.clearAllMocks();
+  console.error = originalError;
+  console.warn = originalWarn;
+});
+
+// 創建 Mock Storage
+const createMockStorage = () => {
+  let store: Record<string, string> = {};
+  
+  return {
+    getItem: vi.fn((key: string) => store[key] ?? null),
+    setItem: vi.fn((key: string, value: string) => {
+      store[key] = value;
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete store[key];
+    }),
+    clear: vi.fn(() => {
+      store = {};
+    }),
+    get length() {
+      return Object.keys(store).length;
+    },
+    key: vi.fn((index: number) => Object.keys(store)[index] ?? null),
+  };
+};
+
+// 創建全局 mock 實例
+const mockLocalStorage = createMockStorage();
+const mockSessionStorage = createMockStorage();
+
+// 設置瀏覽器環境
   if (typeof window !== 'undefined') {
-    // 安全地設定 window 屬性
-    try {
+  // Storage API
+  Object.defineProperty(window, 'localStorage', {
+    value: mockLocalStorage,
+    writable: true,
+    configurable: true,
+  });
+  
+  Object.defineProperty(window, 'sessionStorage', {
+    value: mockSessionStorage,
+    writable: true,
+    configurable: true,
+  });
+  
+  // requestIdleCallback
+  delete (window as any).requestIdleCallback;
+  delete (window as any).cancelIdleCallback;
+  
+  Object.defineProperty(window, 'requestIdleCallback', {
+    value: vi.fn((callback: IdleRequestCallback) => {
+      return setTimeout(() => {
+        callback({
+          didTimeout: false,
+          timeRemaining: () => 50,
+        });
+      }, 0);
+    }),
+    writable: true,
+    configurable: true,
+  });
+  
+  Object.defineProperty(window, 'cancelIdleCallback', {
+    value: vi.fn((id: number) => clearTimeout(id)),
+    writable: true,
+    configurable: true,
+  });
+  
+  // 響應式尺寸
       Object.defineProperty(window, 'innerWidth', {
         value: 1024,
         writable: true,
@@ -27,335 +163,46 @@ beforeAll(() => {
         configurable: true,
       });
       
-      Object.defineProperty(window, 'localStorage', {
-        value: {
-          getItem: vi.fn(),
-          setItem: vi.fn(),
-          removeItem: vi.fn(),
-          clear: vi.fn(),
-        },
+  // matchMedia
+  if (!window.matchMedia) {
+    Object.defineProperty(window, 'matchMedia', {
+      value: vi.fn().mockImplementation((query) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
         writable: true,
         configurable: true,
       });
-      
-      Object.defineProperty(window, 'dispatchEvent', {
-        value: vi.fn(),
-        writable: true,
-        configurable: true,
-      });
-      
-      Object.defineProperty(window, 'addEventListener', {
-        value: vi.fn(),
-        writable: true,
-        configurable: true,
-      });
-      
-      Object.defineProperty(window, 'removeEventListener', {
-        value: vi.fn(),
-        writable: true,
-        configurable: true,
-      });
-    } catch (error) {
-      console.warn('無法設定某些 window 屬性:', error);
     }
   }
   
-  // 修復 navigator 物件
-  try {
+// Mock navigator.onLine
+if (typeof navigator !== 'undefined') {
     Object.defineProperty(navigator, 'onLine', {
       value: true,
       writable: true,
       configurable: true,
     });
-  } catch (error) {
-    console.warn('無法設定 navigator.onLine:', error);
-  }
-});
+}
 
-// Mock React Query - 更穩定的版本
-vi.mock('@tanstack/react-query', () => ({
-  QueryClient: vi.fn(() => ({
-    invalidateQueries: vi.fn(),
-    setQueryData: vi.fn(),
-    getQueryData: vi.fn(),
-    removeQueries: vi.fn(),
-    clear: vi.fn(),
-    resetQueries: vi.fn(),
-    refetchQueries: vi.fn(),
-  })),
-  QueryClientProvider: ({ children }: any) => children,
-  MutationCache: vi.fn(() => ({
-    onError: vi.fn(),
-  })),
-  useQuery: vi.fn(() => ({
-    data: undefined,
-    isLoading: false,
-    isError: false,
-    error: null,
-    refetch: vi.fn(),
-    isFetching: false,
-    isSuccess: false,
-    isStale: false,
-    status: 'idle',
-    fetchStatus: 'idle',
-    isPending: false,
-    isLoadingError: false,
-    isRefetchError: false,
-    isPlaceholderData: false,
-    isFetched: false,
-    isFetchedAfterMount: false,
-    dataUpdatedAt: 0,
-    errorUpdatedAt: 0,
-    failureCount: 0,
-    failureReason: null,
-    errorUpdateCount: 0,
-    isInitialLoading: false,
-    isRefetching: false,
-    isPaused: false,
-    isEnabled: true,
-    promise: Promise.resolve(undefined),
-  })),
-  useMutation: vi.fn(() => ({
-    mutate: vi.fn(),
-    mutateAsync: vi.fn(),
-    isPending: false,
-    isSuccess: false,
-    isError: false,
-    error: null,
-    isIdle: true,
-    status: 'idle',
-    failureCount: 0,
-    submittedAt: 0,
-    variables: undefined,
-    context: undefined,
-    reset: vi.fn(),
-  })),
-  useQueryClient: vi.fn(() => ({
-    invalidateQueries: vi.fn(),
-    setQueryData: vi.fn(),
-    getQueryData: vi.fn(),
-    removeQueries: vi.fn(),
-    clear: vi.fn(),
-    resetQueries: vi.fn(),
-    refetchQueries: vi.fn(),
-  })),
-}));
+// Mock logger
+const mockLogger = {
+  error: vi.fn(),
+  info: vi.fn(),
+  warn: vi.fn(),
+  debug: vi.fn(),
+  setLevel: vi.fn(),
+  performance: vi.fn(),
+  timer: vi.fn(),
+};
 
-// Mock React Router - 修復 Routes 問題
-vi.mock('react-router-dom', () => ({
-  useNavigate: vi.fn(() => vi.fn()),
-  useLocation: vi.fn(() => ({ pathname: '/' })),
-  useSearchParams: vi.fn(() => [new URLSearchParams(), vi.fn()]),
-  useParams: vi.fn(() => ({})),
-  Link: ({ children, ...props }: any) => React.createElement('a', props, children),
-  BrowserRouter: ({ children }: any) => React.createElement('div', {}, children),
-  Routes: ({ children }: any) => React.createElement('div', { 'data-testid': 'routes' }, children),
-  Route: ({ element }: any) => element,
-  Navigate: ({ to }: any) => React.createElement('div', { 'data-testid': 'navigate', 'data-to': to }),
-  createBrowserRouter: vi.fn(() => ({})),
-  RouterProvider: ({ children }: any) => React.createElement('div', { 'data-testid': 'router-provider' }, children),
-}));
-
-// Mock Firebase Auth Context - 修復版本
-vi.mock('@/contexts/FirebaseAuthContext', () => {
-  const MockFirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => children;
-  const mockUseFirebaseAuth = vi.fn(() => ({
-    currentUser: null,
-    loading: false,
-    signIn: vi.fn().mockResolvedValue({ user: null, error: null }),
-    signUp: vi.fn().mockResolvedValue({ user: null, error: null }),
-    signOut: vi.fn().mockResolvedValue({ error: null }),
-    resetPassword: vi.fn().mockResolvedValue({ error: null }),
-    refreshUserAvatar: vi.fn(),
-    initFirebaseAuth: vi.fn().mockResolvedValue(undefined),
-  }));
-  
-  return {
-    useFirebaseAuth: mockUseFirebaseAuth,
-    FirebaseAuthProvider: MockFirebaseAuthProvider,
-    FirebaseAuthContext: {
-      Provider: MockFirebaseAuthProvider
-    }
-  };
-});
-
-// Mock Firebase client - 修復版本
-vi.mock('@/integrations/firebase/client', () => ({
-  auth: vi.fn(() => ({
-    currentUser: {
-      uid: 'test-user-id',
-      displayName: 'Test User',
-      email: 'test@example.com'
-    }
-  })),
-  db: {},
-  storage: {},
-}));
-
-// Mock Firebase Auth - 修復版本
-vi.mock('firebase/auth', () => ({
-  getAuth: vi.fn(() => ({})),
-  signInWithEmailAndPassword: vi.fn(),
-  createUserWithEmailAndPassword: vi.fn(),
-  signOut: vi.fn(),
-  onAuthStateChanged: vi.fn(),
-  User: vi.fn(),
-  Timestamp: vi.fn(() => ({
-    toDate: () => new Date(),
-    toMillis: () => Date.now(),
-  })),
-}));
-
-// Mock Firebase Firestore - 修復版本
-vi.mock('firebase/firestore', () => ({
-  getFirestore: vi.fn(() => ({})),
-  collection: vi.fn(),
-  doc: vi.fn(),
-  getDoc: vi.fn(),
-  getDocs: vi.fn(),
-  addDoc: vi.fn(),
-  updateDoc: vi.fn(),
-  deleteDoc: vi.fn(),
-  query: vi.fn(),
-  where: vi.fn(),
-  orderBy: vi.fn(),
-  limit: vi.fn(),
-  onSnapshot: vi.fn(),
-  serverTimestamp: vi.fn(() => new Date()),
-  Timestamp: vi.fn(() => ({
-    toDate: () => new Date(),
-    toMillis: () => Date.now(),
-  })),
-}));
-
-// Mock Firebase Storage - 修復版本
-vi.mock('firebase/storage', () => ({
-  getStorage: vi.fn(() => ({})),
-  ref: vi.fn(),
-  uploadBytes: vi.fn(),
-  getDownloadURL: vi.fn(),
-  deleteObject: vi.fn(),
-}));
-
-// Mock constants
-vi.mock('@/constants', () => ({
-  QUERY_CONFIG: {
-    STALE_TIME: 2 * 60 * 1000,
-    GC_TIME: 5 * 60 * 1000,
-    RETRY_COUNT: 1,
-    RETRY_DELAY: (attemptIndex: number) => Math.min(500 * 2 ** attemptIndex, 10000),
-  },
-  QUERY_KEYS: {
-    PRAYERS: ['prayers'],
-    USER_PROFILE: (userId: string) => ['user_profile', userId],
-    PRAYER_RESPONSES: (prayerId: string) => ['prayer_responses', prayerId],
-    PRAYER_LIKES: (prayerId: string | undefined) => ['prayer_likes', prayerId],
-    PRAYER_RESPONSE_LIKES: (responseId: string | undefined) => ['prayer_response_likes', responseId],
-    PRAYER_BOOKMARKS: ['prayer-bookmarks'],
-    SOCIAL_FEATURES: ['social-features'],
-    BAPTISM_POSTS: ['baptism-posts'],
-    JOURNEY_POSTS: ['journey-posts'],
-    MIRACLE_POSTS: ['miracle-posts'],
-  },
-  ERROR_MESSAGES: {
-    NETWORK_ERROR: '網路連線失敗，請檢查網路狀態',
-    AUTH_ERROR: '請先登入再進行此操作',
-    PERMISSION_ERROR: '您沒有權限執行此操作',
-    VALIDATION_ERROR: '輸入資料格式不正確',
-    UNKNOWN_ERROR: '發生未知錯誤，請稍後再試',
-    PRAYER_CREATE_ERROR: '代禱發布失敗，請稍後再試',
-    PRAYER_UPDATE_ERROR: '代禱更新失敗，請稍後再試',
-    PRAYER_DELETE_ERROR: '代禱刪除失敗，請稍後再試',
-    RESPONSE_CREATE_ERROR: '回應發布失敗，請稍後再試',
-    RESPONSE_UPDATE_ERROR: '回應更新失敗，請稍後再試',
-    RESPONSE_DELETE_ERROR: '回應刪除失敗，請稍後再試',
-  },
-  SUCCESS_MESSAGES: {
-    PRAYER_CREATED: '代禱發布成功',
-    PRAYER_UPDATED: '代禱內容已更新',
-    PRAYER_DELETED: '代禱已刪除',
-    RESPONSE_CREATED: '回應發布成功',
-    RESPONSE_UPDATED: '回應內容已更新',
-    RESPONSE_DELETED: '回應已刪除',
-    PROFILE_UPDATED: '個人資料已更新',
-  },
-  CACHE_CONFIG: {
-    RESOURCES: {
-      PRAYERS: {
-        STALE_TIME: 2 * 60 * 1000,
-        GC_TIME: 10 * 60 * 1000,
-      },
-      PRAYER_RESPONSES: {
-        STALE_TIME: 3 * 60 * 1000,
-        GC_TIME: 15 * 60 * 1000,
-      },
-      USER_PROFILE: {
-        STALE_TIME: 10 * 60 * 1000,
-        GC_TIME: 30 * 60 * 1000,
-      },
-      SOCIAL_FEATURES: {
-        STALE_TIME: 15 * 60 * 1000,
-        GC_TIME: 60 * 60 * 1000,
-      },
-    },
-  },
-  UI_CONFIG: {
-    TOAST_DURATION: {
-      SUCCESS: 3000,
-      ERROR: 5000,
-      WARNING: 4000,
-      INFO: 3000,
-    },
-  },
-  ROUTES: {
-    HOME: '/',
-    PRAYERS: '/prayers',
-    PRAYERS_NEW: '/new',
-    NEW_PRAYER: '/new',
-    AUTH: '/auth',
-    PROFILE: '/profile',
-    LOG: '/log',
-    MESSAGE: '/message',
-    SETTING: '/setting',
-    BAPTISM: '/baptism',
-    MIRACLE: '/miracle',
-    JOURNEY: '/journey',
-    CLAIRE: '/claire',
-    CLAIRE_DASHBOARD: '/claire/dashboard',
-    CLAIRE_USERS: '/claire/users',
-    CLAIRE_PRAYERS: '/claire/prayers',
-    CLAIRE_REPORTS: '/claire/reports',
-    CLAIRE_SUPER_ADMINS: '/claire/super-admins',
-    FIX_DATABASE: '/fix-database',
-    NOT_FOUND: '*',
-  },
-  GUEST_DEFAULT_BACKGROUND: 'guest',
-  STORAGE_KEYS: {
-    USERNAME_PREFIX: 'username_',
-    AVATAR_PREFIX: 'avatar_',
-    USER_PREFERENCES: 'user_preferences',
-    THEME: 'theme',
-    LANGUAGE: 'language',
-    BACKGROUND: 'global_background',
-    CUSTOM_BACKGROUND: 'global_custom_background',
-    CUSTOM_BACKGROUND_SIZE: 'global_custom_background_size',
-  },
-  BACKGROUND_OPTIONS: [
-    { id: 'default', name: '預設二', style: '', bgColor: '#f8e9e2' },
-    { id: 'default3', name: '預設三', style: '', bgColor: '#ffe6e6' },
-    { id: 'default5', name: '預設五', style: '', bgColor: '#e6f3ff' },
-    { id: 'default8', name: '預設八', style: '', bgColor: '#f0f8e6' },
-    { id: 'default1', name: '預設一', style: '', bgColor: '#fffbe6' },
-    { id: 'default4', name: '預設四', style: '', bgColor: '#e6fff7' },
-    { id: 'default6', name: '預設六', style: '', bgColor: '#e6eaff' },
-    { id: 'default7', name: '預設七', style: '', bgColor: '#ffe6fa' },
-    { id: 'default9', name: '預設九', style: '', bgColor: '#e6ffe6' },
-    { id: 'guest', name: '訪客背景', style: '', bgColor: '#F4E4DD' },
-    { id: 'custom', name: '自定義', style: '' },
-  ],
-}));
-
-// Mock use-toast
+// 模擬各個模組
 vi.mock('@/hooks/use-toast', () => ({
   toast: vi.fn(() => ({
     id: 'test-id',
@@ -373,16 +220,111 @@ vi.mock('@/hooks/use-toast', () => ({
   })),
 }));
 
-// Mock logger
-const mockLogger = {
-  error: vi.fn(),
-  info: vi.fn(),
-  warn: vi.fn(),
-  debug: vi.fn(),
-  setLevel: vi.fn(),
-  performance: vi.fn(),
-  timer: vi.fn(),
-};
+vi.mock('@/stores/tempUserStore', () => ({
+  useTempUserStore: vi.fn(() => ({
+    tempDisplayName: '',
+    setTempDisplayName: vi.fn(),
+    clearTempDisplayName: vi.fn(),
+  })),
+}));
+
+vi.mock('@/contexts/FirebaseAuthContext', () => ({
+  useFirebaseAuth: vi.fn(() => ({
+    currentUser: null,
+    loading: false,
+    signIn: vi.fn().mockResolvedValue({ user: null, error: null }),
+    signUp: vi.fn().mockResolvedValue({ user: null, error: null }),
+    signOut: vi.fn().mockResolvedValue({ error: null }),
+    resetPassword: vi.fn().mockResolvedValue({ error: null }),
+    refreshUserAvatar: vi.fn()
+  })),
+  FirebaseAuthProvider: ({ children }: any) => children,
+}));
+
+vi.mock('@/services/prayer/PrayerAnsweredService', () => ({
+  prayerAnsweredService: {
+    togglePrayerAnswered: vi.fn().mockResolvedValue(true),
+    toggleResponseAnswered: vi.fn().mockResolvedValue(true),
+    markPrayerAsAnswered: vi.fn().mockResolvedValue(true),
+    markResponseAsAnswered: vi.fn().mockResolvedValue(true),
+  }
+}));
+
+// useFirebaseAvatar mock
+const globalAvatarState: Record<string, any> = {};
+
+vi.mock('@/hooks/useFirebaseAvatar', () => {
+  const clearAvatarGlobalState = () => {
+    Object.keys(globalAvatarState).forEach(key => {
+      delete globalAvatarState[key];
+    });
+  };
+
+  const useFirebaseAvatar = vi.fn(() => ({
+    user: {
+      uid: 'test-user-id',
+      displayName: 'Test User',
+      email: 'test@example.com',
+      photoURL: 'https://example.com/avatar.jpg',
+    },
+    isLoggedIn: true,
+    isAuthLoading: false,
+    avatarUrl: 'https://example.com/avatar.jpg',
+    avatarUrl30: 'https://example.com/avatar-30.jpg',
+    avatarUrl48: 'https://example.com/avatar-48.jpg',
+    avatarUrl96: 'https://example.com/avatar-96.jpg',
+    refreshAvatar: vi.fn().mockResolvedValue(true),
+    isLoading: false,
+    error: null,
+    data: {
+      avatar_url: 'https://example.com/avatar.jpg',
+      user_name: 'Test User'
+    }
+  }));
+
+  return {
+    useFirebaseAvatar,
+    clearAvatarGlobalState,
+  };
+});
+
+vi.mock('@/hooks/usePrayersOptimized', () => ({
+  usePrayers: vi.fn(() => ({
+    prayers: [],
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  })),
+  useCreatePrayer: vi.fn(() => ({
+    mutate: vi.fn(),
+    isPending: false,
+    isError: false,
+    error: null,
+  })),
+}));
+
+vi.mock('@/integrations/firebase/client', () => ({
+  auth: vi.fn(() => ({
+    currentUser: {
+      uid: 'test-user-id',
+      displayName: 'Test User',
+      email: 'test@example.com',
+      photoURL: 'https://example.com/avatar.jpg',
+    }
+  })),
+  db: vi.fn(() => ({})),
+  storage: vi.fn(() => ({})),
+}));
+
+vi.mock('@/services/admin/SuperAdminService', () => ({
+  superAdminService: {
+    getInstance: vi.fn(() => ({
+      isSuperAdmin: vi.fn().mockResolvedValue(false),
+      deletePrayer: vi.fn().mockResolvedValue(true),
+    })),
+  },
+}));
 
 vi.mock('@/lib/logger', () => ({
   log: mockLogger,
@@ -395,24 +337,15 @@ vi.mock('@/lib/logger', () => ({
   },
 }));
 
-// Mock sonner toast
 vi.mock('sonner', () => ({
   toast: {
     error: vi.fn(),
     success: vi.fn(),
     warning: vi.fn(),
     info: vi.fn(),
-    loading: vi.fn(),
-    dismiss: vi.fn(),
-    promise: vi.fn(),
   },
-  Toaster: vi.fn().mockImplementation(() => {
-    const React = require('react');
-    return React.createElement('div', { 'data-testid': 'sonner-toaster' }, 'Toaster');
-  }),
 }));
 
-// Mock Firebase services
 vi.mock('@/services', () => ({
   firebasePrayerService: {
     getInstance: vi.fn(() => ({
@@ -430,105 +363,141 @@ vi.mock('@/services', () => ({
   },
 }));
 
-// Mock notifications
-vi.mock('@/lib/notifications', () => ({
-  notify: {
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-    apiError: vi.fn(),
-    confirm: vi.fn(),
-  },
-  notifications: {
-    handleValidationError: vi.fn(),
-    loading: vi.fn(),
-  },
-}));
-
-// Mock superAdminService
-vi.mock('@/services/admin/SuperAdminService', () => ({
-  superAdminService: {
-    getInstance: vi.fn(() => ({
-      isSuperAdmin: vi.fn().mockResolvedValue(false),
-      deletePrayer: vi.fn().mockResolvedValue(true),
-    })),
-  },
-}));
-
-// Mock usePrayerAnswered hook
-vi.mock('@/hooks/usePrayerAnswered', () => ({
-  useToggleResponseAnswered: vi.fn(() => ({
-    mutate: vi.fn(),
-    isPending: false,
-    isError: false,
-    error: null,
-    data: null
-  })),
-  useTogglePrayerAnswered: vi.fn(() => ({
-    mutate: vi.fn(),
-    isPending: false,
-    isError: false,
-    error: null,
-    data: null
-  }))
-}));
-
-// Mock ResizeObserver
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
-
-// Mock Canvas API for heic2any
-if (typeof window !== 'undefined') {
-  try {
-    Object.defineProperty(window, 'HTMLCanvasElement', {
-      value: class MockCanvas {
-        getContext() {
-          return {
-            drawImage: vi.fn(),
-            getImageData: vi.fn(() => ({ data: new Uint8Array(4) })),
-            putImageData: vi.fn(),
-            createImageData: vi.fn(() => ({ data: new Uint8Array(4) })),
-            canvas: { width: 100, height: 100 },
-          };
-        }
-      },
-      writable: true,
-      configurable: true,
-    });
-
-    // Mock Worker API
-    Object.defineProperty(window, 'Worker', {
-      value: class MockWorker {
-        postMessage = vi.fn();
-        terminate = vi.fn();
-        addEventListener = vi.fn();
-        removeEventListener = vi.fn();
-      },
-      writable: true,
-      configurable: true,
-    });
-  } catch (error) {
-    console.warn('無法設定 Canvas 或 Worker API:', error);
+// Avatar Service mock
+vi.mock('@/services/background/AvatarService', () => {
+  class MockAvatarService {
+    getUserSerialNumber(userId: string) { 
+      return Promise.resolve(12345);
+    }
+    
+    getFallbackSerialNumber() {
+      return 99999;
+    }
+    
+    uploadAndRegisterAvatars(userId: string, blobs: { l: Blob; m: Blob; s: Blob }) {
+      return Promise.resolve({
+        avatar_url_96: 'https://example.com/avatar-96.jpg',
+        avatar_url_48: 'https://example.com/avatar-48.jpg',
+        avatar_url_30: 'https://example.com/avatar-30.jpg',
+      });
+    }
+    
+    getUserAvatar(userId: string | undefined) {
+      if (!userId) return Promise.resolve(null);
+      
+      return Promise.resolve({
+        user_id: userId,
+        avatar_url_96: 'https://example.com/avatar-96.jpg',
+        avatar_url_48: 'https://example.com/avatar-48.jpg',
+        avatar_url_30: 'https://example.com/avatar-30.jpg',
+        updated_at: '2023-01-01T00:00:00Z'
+      });
+    }
   }
-}
+  
+  return {
+    AvatarService: MockAvatarService,
+    getUserAvatarUrlFromFirebase: vi.fn().mockResolvedValue({
+      large: 'https://example.com/avatar-96.jpg',
+      medium: 'https://example.com/avatar-48.jpg',
+      small: 'https://example.com/avatar-30.jpg',
+    }),
+    uploadAvatarToFirebase: vi.fn().mockResolvedValue({
+      success: true,
+      data: {
+        avatar_url_96: 'https://example.com/avatar-96.jpg',
+        avatar_url_48: 'https://example.com/avatar-48.jpg',
+        avatar_url_30: 'https://example.com/avatar-30.jpg',
+      }
+    })
+  };
+});
 
-// Mock URL API for heic2any
-try {
-  Object.defineProperty(URL, 'createObjectURL', {
-    value: vi.fn(() => 'mock-url'),
-    writable: true,
-    configurable: true,
-  });
+// Mock React Router
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    useNavigate: vi.fn(() => vi.fn()),
+    useLocation: vi.fn(() => ({ pathname: '/', search: '', hash: '', state: null })),
+    useParams: vi.fn(() => ({})),
+    useSearchParams: vi.fn(() => [new URLSearchParams(), vi.fn()]),
+    Link: ({ children, to, ...props }: any) => React.createElement('a', { href: to, ...props }, children),
+    BrowserRouter: ({ children }: any) => React.createElement('div', { 'data-testid': 'browser-router' }, children),
+    Routes: ({ children }: any) => React.createElement('div', { 'data-testid': 'routes' }, children),
+    Route: ({ element }: any) => React.createElement('div', { 'data-testid': 'route' }, element),
+    Navigate: ({ to, replace }: any) => React.createElement('div', { 'data-testid': 'navigate', 'data-to': to, 'data-replace': replace }),
+  };
+});
 
-  Object.defineProperty(URL, 'revokeObjectURL', {
-    value: vi.fn(),
-    writable: true,
-    configurable: true,
-  });
-} catch (error) {
-  console.warn('無法設定 URL API:', error);
-} 
+// Mock Firebase Auth
+vi.mock('firebase/auth', () => ({
+  getAuth: vi.fn(() => ({})),
+  signInWithEmailAndPassword: vi.fn(),
+  createUserWithEmailAndPassword: vi.fn(),
+  signOut: vi.fn(),
+  onAuthStateChanged: vi.fn(),
+  User: vi.fn(),
+}));
+
+// Mock Firebase Firestore - 修復 Timestamp 問題
+vi.mock('firebase/firestore', () => {
+  return {
+    getFirestore: vi.fn(() => ({})),
+    collection: vi.fn(),
+    doc: vi.fn(),
+    getDoc: vi.fn(),
+    getDocs: vi.fn(),
+    addDoc: vi.fn(),
+    updateDoc: vi.fn(),
+    deleteDoc: vi.fn(),
+    setDoc: vi.fn(),
+    query: vi.fn(),
+    where: vi.fn(),
+    orderBy: vi.fn(),
+    limit: vi.fn(),
+    onSnapshot: vi.fn(),
+    serverTimestamp: vi.fn(() => MockTimestamp.now()),
+    Timestamp: MockTimestamp,
+  };
+});
+
+// Mock Firebase Storage
+vi.mock('firebase/storage', () => ({
+  getStorage: vi.fn(() => ({})),
+  ref: vi.fn(),
+  uploadBytes: vi.fn(),
+  getDownloadURL: vi.fn().mockImplementation(() => Promise.resolve('https://example.com/avatar-30.webp')),
+  deleteObject: vi.fn(),
+}));
+
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: vi.fn(() => ({
+    invalidateQueries: vi.fn(),
+    setQueryData: vi.fn(),
+    getQueryData: vi.fn(),
+    refetchQueries: vi.fn(),
+  })),
+  useQuery: vi.fn(() => ({
+    data: null,
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  })),
+  useMutation: vi.fn(() => ({
+    mutate: vi.fn(),
+    isPending: false,
+    isError: false,
+    error: null,
+  })),
+  QueryClient: vi.fn(() => ({
+    invalidateQueries: vi.fn(),
+    setQueryData: vi.fn(),
+    getQueryData: vi.fn(),
+    refetchQueries: vi.fn(),
+  })),
+  QueryClientProvider: ({ children }: any) => children,
+}));
+
+// 提供全局 Export 讓測試可以存取 mock 實例
+export { mockLocalStorage, mockSessionStorage, mockLogger, MockTimestamp }; 

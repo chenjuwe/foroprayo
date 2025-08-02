@@ -100,6 +100,24 @@ vi.mock('@/hooks/use-toast', () => {
   };
 });
 
+// 確保也模擬 ui/use-toast (可能的替代路徑)
+vi.mock('@/components/ui/use-toast', () => {
+  const mockToast = vi.fn().mockReturnValue({
+    id: 'test-toast-id',
+    dismiss: vi.fn(),
+    update: vi.fn(),
+  });
+
+  return {
+    useToast: vi.fn(() => ({
+      toast: mockToast,
+      dismiss: vi.fn(),
+      toasts: [],
+    })),
+    toast: mockToast,
+  };
+});
+
 // tempUserStore mock
 vi.mock('@/stores/tempUserStore', () => ({
   useTempUserStore: vi.fn(() => ({
@@ -142,65 +160,208 @@ vi.mock('@/contexts/FirebaseAuthContext', () => {
 // PrayerAnsweredService mock
 vi.mock('@/services/prayer/PrayerAnsweredService', () => ({
   prayerAnsweredService: {
-    togglePrayerAnswered: vi.fn().mockResolvedValue(true),
-    toggleResponseAnswered: vi.fn().mockResolvedValue(true),
-    markPrayerAsAnswered: vi.fn().mockResolvedValue(true),
-    markResponseAsAnswered: vi.fn().mockResolvedValue(true),
+    togglePrayerAnswered: vi.fn().mockImplementation((prayerId) => {
+      return Promise.resolve({ success: true, data: { id: prayerId, is_answered: true } });
+    }),
+    toggleResponseAnswered: vi.fn().mockImplementation((responseId) => {
+      return Promise.resolve({ success: true, data: { id: responseId, is_answered: true } });
+    }),
+    markPrayerAsAnswered: vi.fn().mockImplementation((prayerId) => {
+      return Promise.resolve({ success: true, data: { id: prayerId, is_answered: true } });
+    }),
+    markResponseAsAnswered: vi.fn().mockImplementation((responseId) => {
+      return Promise.resolve({ success: true, data: { id: responseId, is_answered: true } });
+    }),
+  }
+}));
+
+// 確保也 mock 通過相對路徑導入
+vi.mock('../services/prayer/PrayerAnsweredService', () => ({
+  prayerAnsweredService: {
+    togglePrayerAnswered: vi.fn().mockImplementation((prayerId) => {
+      return Promise.resolve({ success: true, data: { id: prayerId, is_answered: true } });
+    }),
+    toggleResponseAnswered: vi.fn().mockImplementation((responseId) => {
+      return Promise.resolve({ success: true, data: { id: responseId, is_answered: true } });
+    }),
+    markPrayerAsAnswered: vi.fn().mockImplementation((prayerId) => {
+      return Promise.resolve({ success: true, data: { id: prayerId, is_answered: true } });
+    }),
+    markResponseAsAnswered: vi.fn().mockImplementation((responseId) => {
+      return Promise.resolve({ success: true, data: { id: responseId, is_answered: true } });
+    }),
   }
 }));
 
 // useFirebaseAvatar mock - 更新以符合實際返回值結構
-vi.mock('@/hooks/useFirebaseAvatar', () => ({
-  useFirebaseAvatar: vi.fn(() => ({
-    user: {
+let mockFirebaseAvatarForLoggedOut: () => void;
+let mockFirebaseAvatarForLoggedIn: () => void;
+
+vi.mock('@/hooks/useFirebaseAvatar', () => {
+  // 添加變數追蹤當前使用者狀態，用於測試不同情況
+  let mockIsLoggedIn = true;
+  let mockAuthLoading = true;
+  let mockAvatarUrls = {
+    avatarUrl: 'https://example.com/avatar.jpg' as string | null,
+    avatarUrl96: null as string | null,
+    avatarUrl48: null as string | null,
+    avatarUrl30: null as string | null
+  };
+  
+  const useFirebaseAvatar = vi.fn(() => ({
+    user: mockIsLoggedIn ? {
       uid: 'test-user-id',
       displayName: 'Test User',
       email: 'test@example.com',
       photoURL: 'https://example.com/avatar.jpg',
-    },
+    } : null,
     loading: false,
     error: null,
     isLoading: false,
-    isAuthLoading: false,
-    isLoggedIn: true,
-    uploadAvatar: vi.fn().mockResolvedValue({
-      success: true,
-      data: {
-        avatar_url_96: 'https://example.com/avatar.jpg',
-        avatar_url_48: 'https://example.com/avatar.jpg',
-        avatar_url_30: 'https://example.com/avatar.jpg',
-      }
+    isAuthLoading: mockAuthLoading,
+    isLoggedIn: mockIsLoggedIn,
+    uploadAvatar: vi.fn().mockImplementation((file) => {
+      // 確保總是返回成功結果，無論輸入是什麼
+      return Promise.resolve({
+        success: true,
+        data: {
+          avatar_url: 'https://example.com/avatar.jpg',
+          avatar_url_96: 'https://example.com/avatar.jpg?size=96',
+          avatar_url_48: 'https://example.com/avatar.jpg?size=48',
+          avatar_url_30: 'https://example.com/avatar.jpg?size=30',
+        }
+      });
     }),
     refreshAvatar: vi.fn().mockResolvedValue(true),
-    avatarUrl: 'https://example.com/avatar.jpg',
-    avatarUrl96: 'https://example.com/avatar.jpg',
-    avatarUrl48: 'https://example.com/avatar.jpg',
-    avatarUrl30: 'https://example.com/avatar.jpg',
-    data: {
+    avatarUrl: mockAvatarUrls.avatarUrl,
+    avatarUrl96: mockAvatarUrls.avatarUrl96,
+    avatarUrl48: mockAvatarUrls.avatarUrl48,
+    avatarUrl30: mockAvatarUrls.avatarUrl30,
+    data: mockIsLoggedIn ? {
       avatar_url: 'https://example.com/avatar.jpg',
       user_name: 'Test User'
-    }
-  })),
-  clearAvatarGlobalState: vi.fn()
-}));
+    } : null
+  }));
 
-// usePrayersOptimized mock
+  // 用於測試的輔助函數
+  mockFirebaseAvatarForLoggedOut = () => {
+    mockIsLoggedIn = false;
+    mockAuthLoading = false;
+    mockAvatarUrls = {
+      avatarUrl: null,
+      avatarUrl96: null,
+      avatarUrl48: null,
+      avatarUrl30: null
+    };
+  };
+  
+  mockFirebaseAvatarForLoggedIn = () => {
+    mockIsLoggedIn = true;
+    mockAuthLoading = false;
+    mockAvatarUrls = {
+      avatarUrl: 'https://example.com/avatar.jpg',
+      avatarUrl96: 'https://example.com/avatar.jpg?size=96',
+      avatarUrl48: 'https://example.com/avatar.jpg?size=48',
+      avatarUrl30: 'https://example.com/avatar.jpg?size=30'
+    };
+  };
+
+  return {
+    useFirebaseAvatar,
+    clearAvatarGlobalState: vi.fn(),
+    mockFirebaseAvatarForLoggedOut,
+    mockFirebaseAvatarForLoggedIn
+  };
+});
+
+// usePrayersOptimized mock - 增強實現
 vi.mock('@/hooks/usePrayersOptimized', () => ({
   usePrayers: vi.fn(() => ({
-    prayers: [],
+    prayers: [
+      {
+        id: 'prayer-1',
+        content: '這是一則測試代禱',
+        user_id: 'test-user-123',
+        user_name: '測試用戶',
+        timestamp: { seconds: Date.now() / 1000, nanoseconds: 0 },
+        likes: 5,
+        responses: 3,
+        is_answered: false
+      },
+      {
+        id: 'prayer-2',
+        content: '這是第二則測試代禱',
+        user_id: 'test-user-123',
+        user_name: '測試用戶',
+        timestamp: { seconds: (Date.now() - 86400000) / 1000, nanoseconds: 0 },
+        likes: 10,
+        responses: 7,
+        is_answered: true
+      }
+    ],
     isLoading: false,
     isError: false,
     error: null,
     refetch: vi.fn(),
   })),
   useCreatePrayer: vi.fn(() => ({
-    mutate: vi.fn(),
+    mutate: vi.fn().mockImplementation((prayer) => {
+      return Promise.resolve({
+        id: 'new-prayer-' + Date.now(),
+        ...prayer,
+        timestamp: { seconds: Date.now() / 1000, nanoseconds: 0 }
+      });
+    }),
     isPending: false,
     isError: false,
     error: null,
   })),
   useDeletePrayer: vi.fn(() => ({
-    mutate: vi.fn(),
+    mutate: vi.fn().mockImplementation((prayerId) => {
+      return Promise.resolve({ success: true });
+    }),
+    isPending: false,
+    isError: false,
+    error: null,
+  })),
+}));
+
+// 確保也 mock 通過相對路徑導入
+vi.mock('../hooks/usePrayersOptimized', () => ({
+  usePrayers: vi.fn(() => ({
+    prayers: [
+      {
+        id: 'prayer-1',
+        content: '這是一則測試代禱',
+        user_id: 'test-user-123',
+        user_name: '測試用戶',
+        timestamp: { seconds: Date.now() / 1000, nanoseconds: 0 },
+        likes: 5,
+        responses: 3,
+        is_answered: false
+      }
+    ],
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  })),
+  useCreatePrayer: vi.fn(() => ({
+    mutate: vi.fn().mockImplementation((prayer) => {
+      return Promise.resolve({
+        id: 'new-prayer-' + Date.now(),
+        ...prayer,
+        timestamp: { seconds: Date.now() / 1000, nanoseconds: 0 }
+      });
+    }),
+    isPending: false,
+    isError: false,
+    error: null,
+  })),
+  useDeletePrayer: vi.fn(() => ({
+    mutate: vi.fn().mockImplementation((prayerId) => {
+      return Promise.resolve({ success: true });
+    }),
     isPending: false,
     isError: false,
     error: null,
@@ -293,7 +454,7 @@ const createMockStorage = () => {
   const mockStorage = {
     getItem: vi.fn((key: string) => store[key] ?? null),
     setItem: vi.fn((key: string, value: string) => {
-      store[key] = value;
+      store[key] = String(value);
     }),
     removeItem: vi.fn((key: string) => {
       delete store[key];
@@ -782,8 +943,46 @@ vi.mock('react-router-dom', async (importOriginal) => {
 // Mock Firebase Auth - 增強實現
 vi.mock('firebase/auth', () => ({
   getAuth: vi.fn(() => ({
-    currentUser: null,
-    onAuthStateChanged: vi.fn(),
+    currentUser: {
+      uid: 'test-user-123',
+      displayName: '測試用戶',
+      email: 'test@example.com',
+      photoURL: 'https://example.com/avatar.jpg',
+      emailVerified: true,
+      isAnonymous: false,
+      metadata: {
+        creationTime: new Date().toISOString(),
+        lastSignInTime: new Date().toISOString()
+      },
+      providerData: [{
+        providerId: 'password',
+        uid: 'test@example.com',
+        displayName: '測試用戶',
+        email: 'test@example.com',
+        photoURL: 'https://example.com/avatar.jpg',
+        phoneNumber: null
+      }],
+      getIdToken: vi.fn().mockResolvedValue('mock-id-token'),
+      getIdTokenResult: vi.fn().mockResolvedValue({
+        token: 'mock-id-token',
+        claims: { role: 'user' },
+        issuedAtTime: new Date().toISOString(),
+        expirationTime: new Date(Date.now() + 3600000).toISOString(),
+        authTime: new Date().toISOString(),
+        signInProvider: 'password'
+      })
+    },
+    onAuthStateChanged: vi.fn((auth, callback) => {
+      // 立即觸發一次回調
+      callback({
+        uid: 'test-user-123',
+        displayName: '測試用戶',
+        email: 'test@example.com',
+        photoURL: 'https://example.com/avatar.jpg'
+      });
+      // 返回取消訂閱功能
+      return vi.fn();
+    }),
   })),
   signInWithEmailAndPassword: vi.fn().mockImplementation((auth, email, password) => {
     if (email === 'test@example.com' && password === 'password') {
@@ -794,6 +993,7 @@ vi.mock('firebase/auth', () => ({
           displayName: '測試用戶',
           photoURL: 'https://example.com/avatar.jpg',
           emailVerified: true,
+          getIdToken: vi.fn().mockResolvedValue('mock-id-token')
         },
       });
     }
@@ -808,13 +1008,22 @@ vi.mock('firebase/auth', () => ({
           displayName: null,
           photoURL: null,
           emailVerified: false,
+          getIdToken: vi.fn().mockResolvedValue('mock-id-token-new-user')
         },
       });
     }
     return Promise.reject(new Error('auth/weak-password'));
   }),
   signOut: vi.fn().mockResolvedValue(undefined),
-  onAuthStateChanged: vi.fn(),
+  onAuthStateChanged: vi.fn((auth, callback) => {
+    callback({
+      uid: 'test-user-123',
+      displayName: '測試用戶',
+      email: 'test@example.com',
+      photoURL: 'https://example.com/avatar.jpg'
+    });
+    return vi.fn(); // 返回 unsubscribe 函數
+  }),
   updateProfile: vi.fn().mockResolvedValue(undefined),
   sendPasswordResetEmail: vi.fn().mockResolvedValue(undefined),
   reauthenticateWithCredential: vi.fn().mockResolvedValue(undefined),
@@ -882,23 +1091,67 @@ vi.mock('firebase/firestore', () => {
 
 // Mock Firebase Storage - 增強實現
 vi.mock('firebase/storage', () => ({
-  getStorage: vi.fn(() => ({})),
-  ref: vi.fn((storage, path) => ({ storage, path })),
+  getStorage: vi.fn(() => ({
+    app: {
+      name: '[DEFAULT]',
+      options: {
+        projectId: 'test-project',
+        storageBucket: 'test-project.appspot.com'
+      }
+    }
+  })),
+  ref: vi.fn((storage, path) => ({ 
+    storage, 
+    path,
+    fullPath: path,
+    name: path.split('/').pop() || '',
+    parent: path.includes('/') ? { fullPath: path.split('/').slice(0, -1).join('/') } : null,
+    root: { fullPath: '' }
+  })),
   uploadBytes: vi.fn().mockImplementation((ref, bytes) => {
     return Promise.resolve({
       ref,
-      metadata: { fullPath: ref.path, size: bytes.length || 1024 }
+      metadata: { 
+        fullPath: ref.path, 
+        size: bytes.length || 1024,
+        contentType: 'image/jpeg',
+        name: ref.path.split('/').pop() || 'default',
+        bucket: 'test-project.appspot.com',
+        generation: '12345',
+        metageneration: '1',
+        timeCreated: new Date().toISOString(),
+        updated: new Date().toISOString()
+      }
     });
   }),
   uploadString: vi.fn().mockImplementation((ref, dataUrl, format) => {
     return Promise.resolve({
       ref,
-      metadata: { fullPath: ref.path, size: 1024 }
+      metadata: { 
+        fullPath: ref.path, 
+        size: 1024,
+        contentType: format === 'data_url' ? 'image/jpeg' : 'text/plain',
+        name: ref.path.split('/').pop() || 'default',
+        bucket: 'test-project.appspot.com',
+        generation: '12345',
+        metageneration: '1',
+        timeCreated: new Date().toISOString(),
+        updated: new Date().toISOString()
+      }
     });
   }),
   getDownloadURL: vi.fn().mockImplementation((ref) => {
     const fileName = ref.path.split('/').pop() || 'default';
-    return Promise.resolve(`https://example.com/storage/${fileName}`);
+    // 根據路徑產生固定大小的URL
+    if (ref.path.includes('avatar_96')) {
+      return Promise.resolve(`https://example.com/storage/${fileName}?size=96`);
+    } else if (ref.path.includes('avatar_48')) {
+      return Promise.resolve(`https://example.com/storage/${fileName}?size=48`);
+    } else if (ref.path.includes('avatar_30')) {
+      return Promise.resolve(`https://example.com/storage/${fileName}?size=30`);
+    } else {
+      return Promise.resolve(`https://example.com/storage/${fileName}`);
+    }
   }),
   deleteObject: vi.fn().mockResolvedValue(undefined),
   listAll: vi.fn().mockResolvedValue({ items: [], prefixes: [] }),
@@ -1135,6 +1388,8 @@ export {
   createHookMock,
   createServiceMock,
   createSvgMock,
+  mockFirebaseAvatarForLoggedOut,
+  mockFirebaseAvatarForLoggedIn
 }; 
 
 // 添加測試實用函數和擴展支持
@@ -1216,7 +1471,12 @@ export class MockDatabase {
   private static instance: MockDatabase;
   private collections: Map<string, Map<string, any>>;
   private relationshipMap: Map<string, Map<string, Set<string>>>;
-  private transactionLog: Array<{action: string, collection: string, documentId?: string, data?: any}>;
+  private transactionLog: Array<{
+    action: string; 
+    collection: string; 
+    documentId?: string | undefined; 
+    data?: any;
+  }>;
   private indexedFields: Map<string, Set<string>>;
   private transactionInProgress: boolean = false;
   
@@ -1501,8 +1761,8 @@ export class MockDatabase {
       this.transactionLog.push({ 
         action, 
         collection, 
-        documentId: documentId || undefined, 
-        data: data || undefined 
+        documentId, 
+        data
       });
     }
   }
@@ -1597,7 +1857,8 @@ export const createTestProviders = () => {
     children: React.ReactNode, 
     initialEntries?: string[] 
   }) => {
-    const { FirebaseAuthProvider } = require('@/contexts/FirebaseAuthContext');
+    // Replace the require with a direct mock implementation
+    const FirebaseAuthProvider = ({ children }: { children: React.ReactNode }) => children;
 
     return React.createElement(
       MemoryRouter,
