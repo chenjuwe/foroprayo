@@ -7,10 +7,15 @@
  * 可在本地開發環境或 CI/CD 管道中執行。
  */
 
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
-const os = require('os');
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
+import os from 'os';
+import { fileURLToPath } from 'url';
+
+// 獲取當前文件的目錄路徑
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // 配置
 const CONFIG = {
