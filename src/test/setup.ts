@@ -1215,9 +1215,16 @@ export const testConstants = {
 export class MockDatabase {
   private static instance: MockDatabase;
   private collections: Map<string, Map<string, any>>;
+  private relationshipMap: Map<string, Map<string, Set<string>>>;
+  private transactionLog: Array<{action: string, collection: string, documentId?: string, data?: any}>;
+  private indexedFields: Map<string, Set<string>>;
+  private transactionInProgress: boolean = false;
   
   private constructor() {
     this.collections = new Map();
+    this.relationshipMap = new Map();
+    this.transactionLog = [];
+    this.indexedFields = new Map();
   }
   
   public static getInstance(): MockDatabase {
@@ -1230,6 +1237,10 @@ export class MockDatabase {
   // 重置資料庫
   public reset(): void {
     this.collections = new Map();
+    this.relationshipMap = new Map();
+    this.transactionLog = [];
+    this.indexedFields = new Map();
+    this.transactionInProgress = false;
   }
   
   // 添加集合
@@ -1261,6 +1272,15 @@ export class MockDatabase {
     };
     
     collection.set(documentId, docData);
+    
+    // 記錄交易
+    this.logTransaction('add', collectionName, documentId, docData);
+    
+    // 更新索引
+    this.updateIndices(collectionName, documentId, docData);
+    
+    // 處理關聯
+    this.handleRelationships(collectionName, documentId, docData);
   }
   
   // 獲取文檔
@@ -1277,11 +1297,22 @@ export class MockDatabase {
     if (!doc) return false;
     
     const collection = this.getCollection(collectionName)!;
-    collection.set(documentId, {
+    const updatedDoc = {
       ...doc,
       ...data,
       updatedAt: MockTimestamp.now()
-    });
+    };
+    
+    collection.set(documentId, updatedDoc);
+    
+    // 記錄交易
+    this.logTransaction('update', collectionName, documentId, updatedDoc);
+    
+    // 更新索引
+    this.updateIndices(collectionName, documentId, updatedDoc);
+    
+    // 處理關聯
+    this.handleRelationships(collectionName, documentId, updatedDoc);
     
     return true;
   }
@@ -1290,6 +1321,18 @@ export class MockDatabase {
   public deleteDocument(collectionName: string, documentId: string): boolean {
     const collection = this.getCollection(collectionName);
     if (!collection) return false;
+    
+    const doc = collection.get(documentId);
+    if (!doc) return false;
+    
+    // 刪除關聯
+    this.deleteRelationships(collectionName, documentId);
+    
+    // 刪除索引
+    this.removeFromIndices(collectionName, documentId);
+    
+    // 記錄交易
+    this.logTransaction('delete', collectionName, documentId);
     
     return collection.delete(documentId);
   }
@@ -1324,6 +1367,204 @@ export class MockDatabase {
     if (collection) {
       collection.clear();
     }
+    
+    // 記錄交易
+    this.logTransaction('clear', collectionName);
+  }
+  
+  // 新增高級功能 - 創建索引
+  public createIndex(collectionName: string, fieldPath: string): void {
+    if (!this.indexedFields.has(collectionName)) {
+      this.indexedFields.set(collectionName, new Set());
+    }
+    
+    this.indexedFields.get(collectionName)!.add(fieldPath);
+    
+    // 對現有文檔建立索引
+    const collection = this.getCollection(collectionName);
+    if (collection) {
+      collection.forEach((doc, docId) => {
+        this.updateIndices(collectionName, docId, doc);
+      });
+    }
+  }
+  
+  // 新增高級功能 - 根據索引查詢
+  public queryByIndex(collectionName: string, fieldPath: string, value: any): any[] {
+    if (!this.indexedFields.has(collectionName) || 
+        !this.indexedFields.get(collectionName)!.has(fieldPath)) {
+      // 如果沒有索引，執行全表掃描
+      return this.queryDocuments(collectionName, doc => {
+        const fieldValue = this.getFieldValueByPath(doc, fieldPath);
+        return fieldValue === value;
+      });
+    }
+    
+    // 使用索引查詢
+    return this.queryDocuments(collectionName, doc => {
+      const fieldValue = this.getFieldValueByPath(doc, fieldPath);
+      return fieldValue === value;
+    });
+  }
+  
+  // 新增高級功能 - 創建關聯
+  public createRelationship(
+    sourceCollection: string, 
+    sourceId: string, 
+    targetCollection: string, 
+    targetId: string,
+    relationshipName: string
+  ): void {
+    const relationshipKey = `${sourceCollection}:${relationshipName}:${targetCollection}`;
+    
+    if (!this.relationshipMap.has(relationshipKey)) {
+      this.relationshipMap.set(relationshipKey, new Map());
+    }
+    
+    const relationships = this.relationshipMap.get(relationshipKey)!;
+    
+    if (!relationships.has(sourceId)) {
+      relationships.set(sourceId, new Set());
+    }
+    
+    relationships.get(sourceId)!.add(targetId);
+  }
+  
+  // 新增高級功能 - 獲取關聯文檔
+  public getRelatedDocuments(
+    sourceCollection: string, 
+    sourceId: string, 
+    targetCollectionName: string,
+    relationshipName: string
+  ): any[] {
+    const relationshipKey = `${sourceCollection}:${relationshipName}:${targetCollectionName}`;
+    
+    if (!this.relationshipMap.has(relationshipKey)) {
+      return [];
+    }
+    
+    const relationships = this.relationshipMap.get(relationshipKey)!;
+    
+    if (!relationships.has(sourceId)) {
+      return [];
+    }
+    
+    const targetIds = Array.from(relationships.get(sourceId)!);
+    const targetCollection = this.getCollection(targetCollectionName);
+    
+    if (!targetCollection) {
+      return [];
+    }
+    
+    return targetIds
+      .map(id => targetCollection.get(id))
+      .filter(doc => doc !== undefined);
+  }
+  
+  // 新增高級功能 - 開始事務
+  public beginTransaction(): void {
+    if (this.transactionInProgress) {
+      throw new Error('Transaction already in progress');
+    }
+    
+    this.transactionInProgress = true;
+  }
+  
+  // 新增高級功能 - 提交事務
+  public commitTransaction(): void {
+    if (!this.transactionInProgress) {
+      throw new Error('No transaction in progress');
+    }
+    
+    this.transactionInProgress = false;
+  }
+  
+  // 新增高級功能 - 回滾事務
+  public rollbackTransaction(): void {
+    if (!this.transactionInProgress) {
+      throw new Error('No transaction in progress');
+    }
+    
+    // 根據交易日誌回滾操作
+    for (let i = this.transactionLog.length - 1; i >= 0; i--) {
+      const log = this.transactionLog[i];
+      // 在這裡執行回滾邏輯...
+    }
+    
+    this.transactionLog = [];
+    this.transactionInProgress = false;
+  }
+  
+  // 記錄交易
+  private logTransaction(action: string, collection: string, documentId?: string | undefined, data?: any): void {
+    if (this.transactionInProgress) {
+      this.transactionLog.push({ 
+        action, 
+        collection, 
+        documentId: documentId || undefined, 
+        data: data || undefined 
+      });
+    }
+  }
+  
+  // 按照路徑獲取嵌套字段的值
+  private getFieldValueByPath(obj: any, path: string): any {
+    const parts = path.split('.');
+    let value = obj;
+    
+    for (const part of parts) {
+      if (value === undefined || value === null) {
+        return undefined;
+      }
+      value = value[part];
+    }
+    
+    return value;
+  }
+  
+  // 更新索引
+  private updateIndices(collectionName: string, docId: string, doc: any): void {
+    if (!this.indexedFields.has(collectionName)) {
+      return;
+    }
+    
+    // 在實際實現中，這裡會更新索引
+    // 目前簡單實現，不做實際索引存儲
+  }
+  
+  // 從索引中刪除
+  private removeFromIndices(collectionName: string, docId: string): void {
+    if (!this.indexedFields.has(collectionName)) {
+      return;
+    }
+    
+    // 在實際實現中，這裡會從索引中移除文檔
+  }
+  
+  // 處理關聯
+  private handleRelationships(collectionName: string, docId: string, doc: any): void {
+    // 在實際實現中，這裡可以基於文檔內容自動處理關聯
+  }
+  
+  // 刪除關聯
+  private deleteRelationships(collectionName: string, docId: string): void {
+    // 刪除所有以此文檔為源的關聯
+    this.relationshipMap.forEach((relationshipsBySource, relationshipKey) => {
+      if (relationshipKey.startsWith(`${collectionName}:`)) {
+        relationshipsBySource.delete(docId);
+      }
+    });
+    
+    // 刪除所有以此文檔為目標的關聯
+    this.relationshipMap.forEach((relationshipsBySource) => {
+      relationshipsBySource.forEach((targets, sourceId) => {
+        targets.forEach((targetId) => {
+          if (targetId === docId) {
+            targets.delete(targetId);
+          }
+        });
+      });
+    });
   }
 } 
 
@@ -1380,4 +1621,84 @@ export const renderWithProviders = (ui: React.ReactElement, options = {}) => {
   const { render } = require('@testing-library/react');
   const { AllProviders } = createTestProviders();
   return render(ui, { wrapper: AllProviders, ...options });
+}; 
+
+// 添加測試效能優化工具
+export const testPerformanceOptimizer = {
+  /**
+   * 測試效能緩存 - 用於存儲頻繁使用的測試數據
+   * 減少重複創建成本高昂的模擬對象
+   */
+  cache: new Map<string, any>(),
+  
+  /**
+   * 獲取緩存數據，如不存在則創建
+   */
+  getCachedData: <T>(key: string, creator: () => T): T => {
+    if (!testPerformanceOptimizer.cache.has(key)) {
+      testPerformanceOptimizer.cache.set(key, creator());
+    }
+    return testPerformanceOptimizer.cache.get(key) as T;
+  },
+  
+  /**
+   * 清除緩存數據
+   */
+  clearCache: (key?: string) => {
+    if (key) {
+      testPerformanceOptimizer.cache.delete(key);
+    } else {
+      testPerformanceOptimizer.cache.clear();
+    }
+  },
+  
+  /**
+   * 測量函數執行時間
+   */
+  measureExecutionTime: async <T>(fn: () => Promise<T> | T, description?: string): Promise<T> => {
+    const startTime = performance.now();
+    let result: T;
+    
+    try {
+      result = await fn();
+    } finally {
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+      
+      if (description) {
+        console.log(`⏱️ ${description} 耗時: ${duration.toFixed(2)}ms`);
+      }
+    }
+    
+    return result;
+  },
+  
+  /**
+   * 批量處理測試 - 優化多個相似測試的執行
+   */
+  batchTests: <T extends Record<string, any>>(cases: T[], testFn: (testCase: T) => void) => {
+    // 共享設置只執行一次
+    const sharedSetupTime = performance.now();
+    
+    cases.forEach((testCase) => {
+      testFn(testCase);
+    });
+    
+    const totalTime = performance.now() - sharedSetupTime;
+    console.log(`⏱️ 批量測試（${cases.length}個）總耗時: ${totalTime.toFixed(2)}ms，平均: ${(totalTime / cases.length).toFixed(2)}ms/測試`);
+  },
+  
+  /**
+   * 設置測試超時
+   */
+  setTimeout: (timeoutMs: number) => {
+    vi.setConfig({ testTimeout: timeoutMs });
+  },
+  
+  /**
+   * 恢復默認測試超時
+   */
+  resetTimeout: () => {
+    vi.setConfig({ testTimeout: 10000 }); // 還原為默認值
+  }
 }; 

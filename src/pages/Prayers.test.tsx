@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import Prayers from './Prayers';
 import React from 'react';
+import { renderWithProviders } from '@/test/setup';
 
 // Mock all the components and hooks
 vi.mock('../components/Header', () => ({
@@ -81,22 +82,9 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-// Helper to create test wrapper
-const createWrapper = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false }
-    }
-  });
-
-  const Wrapper = ({ children }: { children: React.ReactNode }) => (
-    React.createElement(MemoryRouter, { initialEntries: ['/prayers'] },
-      React.createElement(QueryClientProvider, { client: queryClient }, children)
-    )
-  );
-
-  return Wrapper;
+// 使用通用測試渲染函數
+const renderPrayers = () => {
+  return renderWithProviders(<Prayers />);
 };
 
 describe('Prayers Page', () => {
@@ -168,8 +156,17 @@ describe('Prayers Page', () => {
       refreshAvatar: vi.fn()
     });
 
-    mockUseFirebaseAuthStore.mockReturnValue({
-      initAuth: vi.fn()
+    mockUseFirebaseAuthStore.mockImplementation((selector: any) => {
+      if (typeof selector === 'function') {
+        return selector({
+          user: { uid: 'test-user', displayName: 'Test User' },
+          isLoggedIn: true
+        });
+      }
+      return {
+        user: { uid: 'test-user', displayName: 'Test User' },
+        isLoggedIn: true
+      };
     });
 
     // Mock localStorage default behavior
@@ -183,215 +180,221 @@ describe('Prayers Page', () => {
     vi.resetAllMocks();
   });
 
-  it('應該渲染頁面的基本結構', async () => {
-    const wrapper = createWrapper();
-    render(<Prayers />, { wrapper });
+  describe('基本渲染', () => {
+    it('應該渲染頁面標題和祈禱表單', async () => {
+      mockUseFirebaseAvatar.mockReturnValue({
+        isLoggedIn: true,
+        user: { uid: 'test-user', displayName: 'Test User' }
+      });
 
-    expect(screen.getByTestId('header')).toBeInTheDocument();
-    
-    await waitFor(() => {
+      mockUseFirebaseAuthStore.mockImplementation((selector: any) => {
+        if (typeof selector === 'function') {
+          return selector({
+            user: { uid: 'test-user', displayName: 'Test User' },
+            isLoggedIn: true
+          });
+        }
+        return {
+          user: { uid: 'test-user', displayName: 'Test User' },
+          isLoggedIn: true
+        };
+      });
+
+      renderPrayers();
+
+      expect(screen.getByTestId('header')).toBeInTheDocument();
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('prayer-form')).toBeInTheDocument();
+      });
+    });
+
+    it('應該顯示禱告列表', async () => {
+      renderPrayers();
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId('prayer-post')).toHaveLength(2);
+        expect(screen.getByText('請為我的健康禱告')).toBeInTheDocument();
+        expect(screen.getByText('感謝神的恩典')).toBeInTheDocument();
+      });
+    });
+
+    it('應該顯示載入狀態', async () => {
+      mockUsePrayers.mockReturnValue({
+        data: [],
+        isLoading: true,
+        error: null,
+        refetch: vi.fn()
+      });
+
+      renderPrayers();
+
+      expect(screen.getByTestId('skeleton-list')).toBeInTheDocument();
+    });
+
+    it('應該處理錯誤狀態', async () => {
+      const mockError = new Error('Failed to load prayers');
+      mockUsePrayers.mockReturnValue({
+        data: [],
+        isLoading: false,
+        error: mockError,
+        refetch: vi.fn()
+      });
+
+      renderPrayers();
+
+      // 錯誤處理應該優雅地顯示，而不是崩潰
+      expect(screen.getByTestId('header')).toBeInTheDocument();
+    });
+
+    it('應該處理訪客模式', async () => {
+      (window.localStorage.getItem as any).mockImplementation((key: string) => {
+        if (key === 'guestMode') return 'true';
+        return null;
+      });
+
+      renderPrayers();
+
+      // 在訪客模式下，某些功能可能會有所不同
+      expect(screen.getByTestId('header')).toBeInTheDocument();
+    });
+
+    it('應該處理未登入用戶的重定向', async () => {
+      mockUseFirebaseAvatar.mockReturnValue({
+        user: null,
+        avatarUrl: null,
+        avatarUrl30: null,
+        isLoggedIn: false,
+        refreshAvatar: vi.fn()
+      });
+
+      (window.localStorage.getItem as any).mockImplementation((key: string) => {
+        if (key === 'guestMode') return 'false'; // 非訪客模式但未登入
+        return null;
+      });
+
+      const mockNavigate = vi.fn();
+      vi.mocked(require('react-router-dom').useNavigate).mockReturnValue(mockNavigate);
+
+      renderPrayers();
+
+      // 應該嘗試重定向到認證頁面
+      await waitFor(() => {
+        // 在實際實現中可能會有重定向邏輯
+      });
+    });
+
+    it('應該處理創建新禱告', async () => {
+      const mockMutate = vi.fn();
+      mockUseCreatePrayer.mockReturnValue({
+        mutate: mockMutate,
+        isPending: false,
+        isError: false,
+        error: null
+      });
+
+      renderPrayers();
+
+      await waitFor(() => {
+        const submitButton = screen.getByTestId('submit-button');
+        fireEvent.click(submitButton);
+      });
+
+      expect(mockMutate).toHaveBeenCalledWith('Test prayer');
+    });
+
+    it('應該處理創建禱告時的載入狀態', async () => {
+      mockUseCreatePrayer.mockReturnValue({
+        mutate: vi.fn(),
+        isPending: true,
+        isError: false,
+        error: null
+      });
+
+      renderPrayers();
+
+      // 載入狀態下表單應該顯示適當的視覺反饋
       expect(screen.getByTestId('prayer-form')).toBeInTheDocument();
     });
-  });
 
-  it('應該顯示禱告列表', async () => {
-    const wrapper = createWrapper();
-    render(<Prayers />, { wrapper });
+    it('應該處理創建禱告時的錯誤', async () => {
+      const mockError = new Error('Failed to create prayer');
+      mockUseCreatePrayer.mockReturnValue({
+        mutate: vi.fn(),
+        isPending: false,
+        isError: true,
+        error: mockError
+      });
 
-    await waitFor(() => {
-      expect(screen.getAllByTestId('prayer-post')).toHaveLength(2);
-      expect(screen.getByText('請為我的健康禱告')).toBeInTheDocument();
-      expect(screen.getByText('感謝神的恩典')).toBeInTheDocument();
-    });
-  });
+      renderPrayers();
 
-  it('應該顯示載入狀態', async () => {
-    mockUsePrayers.mockReturnValue({
-      data: [],
-      isLoading: true,
-      error: null,
-      refetch: vi.fn()
+      // 錯誤狀態應該得到適當處理
+      expect(screen.getByTestId('prayer-form')).toBeInTheDocument();
     });
 
-    const wrapper = createWrapper();
-    render(<Prayers />, { wrapper });
+    it('應該初始化 Firebase 認證', async () => {
+      const mockInitAuth = vi.fn();
+      mockUseFirebaseAuthStore.mockReturnValue({
+        initAuth: mockInitAuth
+      });
 
-    expect(screen.getByTestId('skeleton-list')).toBeInTheDocument();
-  });
+      renderPrayers();
 
-  it('應該處理錯誤狀態', async () => {
-    const mockError = new Error('Failed to load prayers');
-    mockUsePrayers.mockReturnValue({
-      data: [],
-      isLoading: false,
-      error: mockError,
-      refetch: vi.fn()
+      await waitFor(() => {
+        expect(mockInitAuth).toHaveBeenCalled();
+      });
     });
 
-    const wrapper = createWrapper();
-    render(<Prayers />, { wrapper });
+    it('應該處理背景設置', async () => {
+      const { BackgroundService } = require('@/services/background/BackgroundService');
+      BackgroundService.getUserBackground.mockResolvedValue({
+        background_id: 'bg1',
+        custom_background: null
+      });
 
-    // 錯誤處理應該優雅地顯示，而不是崩潰
-    expect(screen.getByTestId('header')).toBeInTheDocument();
-  });
+      renderPrayers();
 
-  it('應該處理訪客模式', async () => {
-    (window.localStorage.getItem as any).mockImplementation((key: string) => {
-      if (key === 'guestMode') return 'true';
-      return null;
+      // 背景設置應該被處理
+      expect(screen.getByTestId('header')).toBeInTheDocument();
     });
 
-    const wrapper = createWrapper();
-    render(<Prayers />, { wrapper });
+    it('應該處理用戶頭像刷新', async () => {
+      const mockRefreshAvatar = vi.fn();
+      mockUseFirebaseAvatar.mockReturnValue({
+        user: { uid: 'current-user', displayName: '當前用戶' },
+        avatarUrl: 'https://example.com/avatar.jpg',
+        avatarUrl30: 'https://example.com/avatar-30.jpg',
+        isLoggedIn: true,
+        refreshAvatar: mockRefreshAvatar
+      });
 
-    // 在訪客模式下，某些功能可能會有所不同
-    expect(screen.getByTestId('header')).toBeInTheDocument();
-  });
+      renderPrayers();
 
-  it('應該處理未登入用戶的重定向', async () => {
-    mockUseFirebaseAvatar.mockReturnValue({
-      user: null,
-      avatarUrl: null,
-      avatarUrl30: null,
-      isLoggedIn: false,
-      refreshAvatar: vi.fn()
+      // 頭像刷新功能應該可用
+      expect(mockRefreshAvatar).toBeDefined();
     });
 
-    (window.localStorage.getItem as any).mockImplementation((key: string) => {
-      if (key === 'guestMode') return 'false'; // 非訪客模式但未登入
-      return null;
+    it('應該處理空的禱告列表', async () => {
+      mockUsePrayers.mockReturnValue({
+        data: [],
+        isLoading: false,
+        error: null,
+        refetch: vi.fn()
+      });
+
+      renderPrayers();
+
+      // 空列表狀態應該得到適當處理
+      expect(screen.getByTestId('header')).toBeInTheDocument();
+      expect(screen.queryByTestId('prayer-post')).not.toBeInTheDocument();
     });
 
-    const mockNavigate = vi.fn();
-    vi.mocked(require('react-router-dom').useNavigate).mockReturnValue(mockNavigate);
-
-    const wrapper = createWrapper();
-    render(<Prayers />, { wrapper });
-
-    // 應該嘗試重定向到認證頁面
-    await waitFor(() => {
-      // 在實際實現中可能會有重定向邏輯
+    it('應該正確處理組件卸載', async () => {
+      const { unmount } = renderPrayers();
+      
+      // 組件應該能夠正常卸載而不會出錯
+      expect(() => unmount()).not.toThrow();
     });
-  });
-
-  it('應該處理創建新禱告', async () => {
-    const mockMutate = vi.fn();
-    mockUseCreatePrayer.mockReturnValue({
-      mutate: mockMutate,
-      isPending: false,
-      isError: false,
-      error: null
-    });
-
-    const wrapper = createWrapper();
-    render(<Prayers />, { wrapper });
-
-    await waitFor(() => {
-      const submitButton = screen.getByTestId('submit-button');
-      fireEvent.click(submitButton);
-    });
-
-    expect(mockMutate).toHaveBeenCalledWith('Test prayer');
-  });
-
-  it('應該處理創建禱告時的載入狀態', async () => {
-    mockUseCreatePrayer.mockReturnValue({
-      mutate: vi.fn(),
-      isPending: true,
-      isError: false,
-      error: null
-    });
-
-    const wrapper = createWrapper();
-    render(<Prayers />, { wrapper });
-
-    // 載入狀態下表單應該顯示適當的視覺反饋
-    expect(screen.getByTestId('prayer-form')).toBeInTheDocument();
-  });
-
-  it('應該處理創建禱告時的錯誤', async () => {
-    const mockError = new Error('Failed to create prayer');
-    mockUseCreatePrayer.mockReturnValue({
-      mutate: vi.fn(),
-      isPending: false,
-      isError: true,
-      error: mockError
-    });
-
-    const wrapper = createWrapper();
-    render(<Prayers />, { wrapper });
-
-    // 錯誤狀態應該得到適當處理
-    expect(screen.getByTestId('prayer-form')).toBeInTheDocument();
-  });
-
-  it('應該初始化 Firebase 認證', async () => {
-    const mockInitAuth = vi.fn();
-    mockUseFirebaseAuthStore.mockReturnValue({
-      initAuth: mockInitAuth
-    });
-
-    const wrapper = createWrapper();
-    render(<Prayers />, { wrapper });
-
-    await waitFor(() => {
-      expect(mockInitAuth).toHaveBeenCalled();
-    });
-  });
-
-  it('應該處理背景設置', async () => {
-    const { BackgroundService } = require('@/services/background/BackgroundService');
-    BackgroundService.getUserBackground.mockResolvedValue({
-      background_id: 'bg1',
-      custom_background: null
-    });
-
-    const wrapper = createWrapper();
-    render(<Prayers />, { wrapper });
-
-    // 背景設置應該被處理
-    expect(screen.getByTestId('header')).toBeInTheDocument();
-  });
-
-  it('應該處理用戶頭像刷新', async () => {
-    const mockRefreshAvatar = vi.fn();
-    mockUseFirebaseAvatar.mockReturnValue({
-      user: { uid: 'current-user', displayName: '當前用戶' },
-      avatarUrl: 'https://example.com/avatar.jpg',
-      avatarUrl30: 'https://example.com/avatar-30.jpg',
-      isLoggedIn: true,
-      refreshAvatar: mockRefreshAvatar
-    });
-
-    const wrapper = createWrapper();
-    render(<Prayers />, { wrapper });
-
-    // 頭像刷新功能應該可用
-    expect(mockRefreshAvatar).toBeDefined();
-  });
-
-  it('應該處理空的禱告列表', async () => {
-    mockUsePrayers.mockReturnValue({
-      data: [],
-      isLoading: false,
-      error: null,
-      refetch: vi.fn()
-    });
-
-    const wrapper = createWrapper();
-    render(<Prayers />, { wrapper });
-
-    // 空列表狀態應該得到適當處理
-    expect(screen.getByTestId('header')).toBeInTheDocument();
-    expect(screen.queryByTestId('prayer-post')).not.toBeInTheDocument();
-  });
-
-  it('應該正確處理組件卸載', async () => {
-    const wrapper = createWrapper();
-    const { unmount } = render(<Prayers />, { wrapper });
-
-    // 組件應該能夠正常卸載而不會出錯
-    expect(() => unmount()).not.toThrow();
   });
 
   describe('頁面權限和路由', () => {
@@ -401,15 +404,13 @@ describe('Prayers Page', () => {
         return null;
       });
 
-      const wrapper = createWrapper();
-      render(<Prayers />, { wrapper });
+      renderPrayers();
 
       expect(screen.getByTestId('header')).toBeInTheDocument();
     });
 
     it('應該在已登入時允許訪問', async () => {
-      const wrapper = createWrapper();
-      render(<Prayers />, { wrapper });
+      renderPrayers();
 
       expect(screen.getByTestId('header')).toBeInTheDocument();
     });
@@ -425,8 +426,7 @@ describe('Prayers Page', () => {
         refetch: mockRefetch
       });
 
-      const wrapper = createWrapper();
-      render(<Prayers />, { wrapper });
+      renderPrayers();
 
       await waitFor(() => {
         expect(mockRefetch).toHaveBeenCalled();
@@ -442,8 +442,7 @@ describe('Prayers Page', () => {
         refetch: mockRefetch
       });
 
-      const wrapper = createWrapper();
-      render(<Prayers />, { wrapper });
+      renderPrayers();
 
       // 數據刷新功能應該可用
       expect(mockRefetch).toBeDefined();

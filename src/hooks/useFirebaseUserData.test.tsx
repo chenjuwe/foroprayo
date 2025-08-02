@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useFirebaseUserData } from './useFirebaseUserData';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act } from 'react-dom/test-utils';
 import { FirebaseUserService } from '@/services/auth/FirebaseUserService';
+import { createTestProviders } from '@/test/setup';
 
 // Mock Firebase auth
 const mockAuth = {
@@ -119,20 +119,10 @@ describe('useFirebaseUserData', () => {
     displayName: 'Test User',
   };
 
+  // 使用通用測試提供者
   const createWrapper = () => {
-    const queryClient = new QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: false,
-        },
-      },
-    });
-    
-    return ({ children }: { children: React.ReactNode }) => (
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
-    );
+    const { AllProviders } = createTestProviders();
+    return AllProviders;
   };
 
   beforeEach(() => {
