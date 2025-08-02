@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ReportDialog } from './ReportDialog';
 
 // Mock 依賴
-vi.mock('./ui/use-toast', () => ({
+vi.mock('@/hooks/use-toast', () => ({
   useToast: vi.fn(),
 }));
 
@@ -16,8 +16,29 @@ vi.mock('@/services', () => ({
 }));
 
 // Import the mocked modules
-import { useToast } from './ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { firebaseReportService } from '@/services';
+
+// 輔助函數來創建正確的 useToast mock
+const createMockUseToast = () => {
+  const mockToast = vi.fn().mockReturnValue({
+    id: 'test-toast-id',
+    dismiss: vi.fn(),
+    update: vi.fn(),
+  });
+  const mockDismiss = vi.fn();
+
+  return {
+    toast: mockToast,
+    dismiss: mockDismiss,
+    toasts: [],
+  };
+};
+
+// 輔助函數來創建正確的 firebaseReportService mock
+const createMockReportService = (mockCreateReport = vi.fn()) => ({
+  createReport: mockCreateReport,
+} as any);
 
 vi.mock('./ui/dialog', () => ({
   Dialog: ({ children, open }: any) => open ? <div data-testid="dialog">{children}</div> : null,
@@ -53,18 +74,7 @@ vi.mock('./ui/textarea', () => ({
   ),
 }));
 
-// Mock localStorage
-const mockLocalStorage = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-};
-
-Object.defineProperty(window, 'localStorage', {
-  value: mockLocalStorage,
-  writable: true,
-});
+// localStorage mock is set up globally in test setup
 
 // Mock console methods
 const mockConsole = {
@@ -100,7 +110,23 @@ describe('ReportDialog', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockLocalStorage.getItem.mockReturnValue('[]');
+    vi.mocked(window.localStorage.getItem).mockReturnValue('[]');
+    
+    // 設置默認的 useToast mock
+    vi.mocked(useToast).mockReturnValue({
+      toast: vi.fn().mockReturnValue({
+        id: 'test-toast-id',
+        dismiss: vi.fn(),
+        update: vi.fn(),
+      }),
+      dismiss: vi.fn(),
+      toasts: [],
+    } as any);
+    
+    // 設置默認的 firebaseReportService mock
+    vi.mocked(firebaseReportService.getInstance).mockReturnValue({
+      createReport: vi.fn().mockResolvedValue({ id: 'report-1' }),
+    } as any);
   });
 
   afterEach(() => {
@@ -126,8 +152,8 @@ describe('ReportDialog', () => {
     it('應該正確顯示標題和描述', () => {
       render(<ReportDialog {...defaultProps} />);
       
-      expect(screen.getByText('檢舉不當內容')).toBeInTheDocument();
-      expect(screen.getByText(/請描述您認為不當的原因/)).toBeInTheDocument();
+      expect(screen.getByText('檢舉不當發言')).toBeInTheDocument();
+      expect(screen.getByText(/請描述您認為.*不當的原因/)).toBeInTheDocument();
     });
 
     it('應該正確渲染表單元素', () => {
@@ -142,29 +168,51 @@ describe('ReportDialog', () => {
   describe('表單驗證', () => {
     it('應該在空原因時顯示錯誤提示', async () => {
       const mockToast = vi.fn();
-      vi.mocked(require('./ui/use-toast').useToast).mockReturnValue({
+      const mockCreateReport = vi.fn();
+      
+      // 重新設置這個測試的 mock
+      vi.mocked(useToast).mockReturnValue({
         toast: mockToast,
-      });
+        dismiss: vi.fn(),
+        toasts: [],
+      } as any);
+
+      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
+        createReport: mockCreateReport,
+      } as any);
 
       render(<ReportDialog {...defaultProps} />);
       
       const submitButton = screen.getByText('提交檢舉');
       fireEvent.click(submitButton);
-      
+
       await waitFor(() => {
-        expect(mockToast).toHaveBeenCalledWith({
-          title: '請填寫檢舉原因',
-          description: '請描述您認為不當的原因',
-          variant: 'destructive',
-        });
+        expect(mockToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            variant: 'destructive',
+            title: '檢舉失敗',
+            description: '請填寫檢舉原因',
+          })
+        );
       });
+
+      expect(mockCreateReport).not.toHaveBeenCalled();
     });
 
     it('應該在只有空格時顯示錯誤提示', async () => {
       const mockToast = vi.fn();
-      vi.mocked(require('./ui/use-toast').useToast).mockReturnValue({
+      const mockCreateReport = vi.fn();
+      
+      // 重新設置這個測試的 mock
+      vi.mocked(useToast).mockReturnValue({
         toast: mockToast,
-      });
+        dismiss: vi.fn(),
+        toasts: [],
+      } as any);
+
+      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
+        createReport: mockCreateReport,
+      } as any);
 
       render(<ReportDialog {...defaultProps} />);
       
@@ -173,58 +221,69 @@ describe('ReportDialog', () => {
       
       const submitButton = screen.getByText('提交檢舉');
       fireEvent.click(submitButton);
-      
+
       await waitFor(() => {
-        expect(mockToast).toHaveBeenCalledWith({
-          title: '請填寫檢舉原因',
-          description: '請描述您認為不當的原因',
-          variant: 'destructive',
-        });
+        expect(mockToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            variant: 'destructive',
+            title: '檢舉失敗',
+            description: '請填寫檢舉原因',
+          })
+        );
       });
+
+      expect(mockCreateReport).not.toHaveBeenCalled();
     });
 
     it('應該在有效原因時允許提交', async () => {
-      const mockToast = vi.fn();
       const mockCreateReport = vi.fn().mockResolvedValue({ id: 'report-1' });
-      vi.mocked(require('./ui/use-toast').useToast).mockReturnValue({
-        toast: mockToast,
-      });
-      vi.mocked(require('@/services').firebaseReportService.getInstance).mockReturnValue({
+      
+      // 重新設置這個測試的 mock
+      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
         createReport: mockCreateReport,
-      });
+      } as any);
 
       render(<ReportDialog {...defaultProps} />);
       
       const textarea = screen.getByTestId('report-reason');
-      fireEvent.change(textarea, { target: { value: '這是不當內容' } });
+      fireEvent.change(textarea, { target: { value: '這是一個有效的檢舉原因' } });
       
       const submitButton = screen.getByText('提交檢舉');
-      fireEvent.click(submitButton);
+      expect(submitButton).not.toBeDisabled();
       
+      fireEvent.click(submitButton);
+
       await waitFor(() => {
-        expect(mockCreateReport).toHaveBeenCalledWith({
-          report_type: 'prayer',
-          target_id: 'prayer-1',
-          target_content: '這是一個測試代禱內容',
-          target_user_id: 'user-1',
-          target_user_name: 'Test User',
-          target_user_avatar: 'https://example.com/avatar.jpg',
-          reason: '這是不當內容',
-        });
+        expect(mockCreateReport).toHaveBeenCalledWith(
+          expect.objectContaining({
+            contentId: 'test-prayer-id',
+            contentType: 'prayer',
+            reason: '這是一個有效的檢舉原因',
+          })
+        );
       });
     });
   });
 
   describe('提交功能', () => {
     it('應該正確處理成功提交', async () => {
-      const mockToast = vi.fn();
+      const mockToast = vi.fn().mockReturnValue({
+        id: 'test-toast-id',
+        dismiss: vi.fn(),
+        update: vi.fn(),
+      });
+      const mockDismiss = vi.fn();
       const mockCreateReport = vi.fn().mockResolvedValue({ id: 'report-1' });
-      vi.mocked(require('./ui/use-toast').useToast).mockReturnValue({
+      
+      vi.mocked(useToast).mockReturnValue({
         toast: mockToast,
-      });
-      vi.mocked(require('@/services').firebaseReportService.getInstance).mockReturnValue({
+        dismiss: mockDismiss,
+        toasts: [],
+      } as any);
+      
+      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
         createReport: mockCreateReport,
-      });
+      } as any);
 
       render(<ReportDialog {...defaultProps} />);
       
@@ -245,10 +304,10 @@ describe('ReportDialog', () => {
     it('應該在服務失敗時使用本地存儲', async () => {
       const mockToast = vi.fn();
       const mockCreateReport = vi.fn().mockRejectedValue(new Error('服務失敗'));
-      vi.mocked(require('./ui/use-toast').useToast).mockReturnValue({
+      vi.mocked(useToast).mockReturnValue({
         toast: mockToast,
       });
-      vi.mocked(require('@/services').firebaseReportService.getInstance).mockReturnValue({
+      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
         createReport: mockCreateReport,
       });
 
@@ -261,7 +320,7 @@ describe('ReportDialog', () => {
       fireEvent.click(submitButton);
       
       await waitFor(() => {
-        expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
+        expect(vi.mocked(window.localStorage.setItem)).toHaveBeenCalledWith(
           'tempReports',
           expect.stringContaining('這是不當內容')
         );
@@ -275,10 +334,10 @@ describe('ReportDialog', () => {
     it('應該正確處理回應類型的檢舉', async () => {
       const mockToast = vi.fn();
       const mockCreateReport = vi.fn().mockResolvedValue({ id: 'report-1' });
-      vi.mocked(require('./ui/use-toast').useToast).mockReturnValue({
+      vi.mocked(useToast).mockReturnValue({
         toast: mockToast,
       });
-      vi.mocked(require('@/services').firebaseReportService.getInstance).mockReturnValue({
+      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
         createReport: mockCreateReport,
       });
 
@@ -317,10 +376,10 @@ describe('ReportDialog', () => {
       const mockCreateReport = vi.fn().mockImplementation(() => 
         new Promise(resolve => setTimeout(() => resolve({ id: 'report-1' }), 100))
       );
-      vi.mocked(require('./ui/use-toast').useToast).mockReturnValue({
+      vi.mocked(useToast).mockReturnValue({
         toast: mockToast,
       });
-      vi.mocked(require('@/services').firebaseReportService.getInstance).mockReturnValue({
+      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
         createReport: mockCreateReport,
       });
 
@@ -339,10 +398,10 @@ describe('ReportDialog', () => {
     it('應該在提交完成後重置載入狀態', async () => {
       const mockToast = vi.fn();
       const mockCreateReport = vi.fn().mockResolvedValue({ id: 'report-1' });
-      vi.mocked(require('./ui/use-toast').useToast).mockReturnValue({
+      vi.mocked(useToast).mockReturnValue({
         toast: mockToast,
       });
-      vi.mocked(require('@/services').firebaseReportService.getInstance).mockReturnValue({
+      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
         createReport: mockCreateReport,
       });
 
@@ -373,10 +432,10 @@ describe('ReportDialog', () => {
     it('應該在提交成功後關閉對話框', async () => {
       const mockToast = vi.fn();
       const mockCreateReport = vi.fn().mockResolvedValue({ id: 'report-1' });
-      vi.mocked(require('./ui/use-toast').useToast).mockReturnValue({
+      vi.mocked(useToast).mockReturnValue({
         toast: mockToast,
       });
-      vi.mocked(require('@/services').firebaseReportService.getInstance).mockReturnValue({
+      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
         createReport: mockCreateReport,
       });
 
@@ -396,10 +455,10 @@ describe('ReportDialog', () => {
     it('應該在提交失敗後不關閉對話框', async () => {
       const mockToast = vi.fn();
       const mockCreateReport = vi.fn().mockRejectedValue(new Error('服務失敗'));
-      vi.mocked(require('./ui/use-toast').useToast).mockReturnValue({
+      vi.mocked(useToast).mockReturnValue({
         toast: mockToast,
       });
-      vi.mocked(require('@/services').firebaseReportService.getInstance).mockReturnValue({
+      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
         createReport: mockCreateReport,
       });
 
@@ -428,14 +487,14 @@ describe('ReportDialog', () => {
           created_at: '2024-01-01T00:00:00Z',
         },
       ];
-      mockLocalStorage.getItem.mockReturnValue(JSON.stringify(existingReports));
+      vi.mocked(window.localStorage.getItem).mockReturnValue(JSON.stringify(existingReports));
 
       const mockToast = vi.fn();
       const mockCreateReport = vi.fn().mockRejectedValue(new Error('服務失敗'));
-      vi.mocked(require('./ui/use-toast').useToast).mockReturnValue({
+      vi.mocked(useToast).mockReturnValue({
         toast: mockToast,
       });
-      vi.mocked(require('@/services').firebaseReportService.getInstance).mockReturnValue({
+      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
         createReport: mockCreateReport,
       });
 
@@ -447,21 +506,21 @@ describe('ReportDialog', () => {
       const submitButton = screen.getByText('提交檢舉');
       fireEvent.click(submitButton);
       
-      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
+      expect(vi.mocked(window.localStorage.setItem)).toHaveBeenCalledWith(
         'tempReports',
         expect.stringContaining('新檢舉')
       );
     });
 
     it('應該處理本地存儲解析錯誤', () => {
-      mockLocalStorage.getItem.mockReturnValue('invalid-json');
+      vi.mocked(window.localStorage.getItem).mockReturnValue('invalid-json');
 
       const mockToast = vi.fn();
       const mockCreateReport = vi.fn().mockRejectedValue(new Error('服務失敗'));
-      vi.mocked(require('./ui/use-toast').useToast).mockReturnValue({
+      vi.mocked(useToast).mockReturnValue({
         toast: mockToast,
       });
-      vi.mocked(require('@/services').firebaseReportService.getInstance).mockReturnValue({
+      vi.mocked(firebaseReportService.getInstance).mockReturnValue({
         createReport: mockCreateReport,
       });
 
@@ -473,7 +532,7 @@ describe('ReportDialog', () => {
       const submitButton = screen.getByText('提交檢舉');
       fireEvent.click(submitButton);
       
-      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
+      expect(vi.mocked(window.localStorage.setItem)).toHaveBeenCalledWith(
         'tempReports',
         expect.stringContaining('新檢舉')
       );

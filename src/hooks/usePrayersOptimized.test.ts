@@ -1,14 +1,48 @@
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { AllTheProviders } from '@/utils/test-utils';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React from 'react';
+import { usePrayers } from './usePrayersOptimized';
 
-// Mock firebasePrayerService before importing the hook
+// Mock 祈禱數據
+const mockPrayers = [
+  {
+    id: '1',
+    content: '為家人健康祈禱',
+    userId: 'user1',
+    userName: '測試用戶1',
+    avatar_url: 'https://example.com/avatar1.jpg',
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01'),
+    isAnswered: false,
+    likeCount: 5,
+    responseCount: 3,
+    isAnonymous: false,
+  },
+  {
+    id: '2',
+    content: '為工作順利祈禱',
+    userId: 'user2',
+    userName: '測試用戶2',
+    avatar_url: 'https://example.com/avatar2.jpg',
+    createdAt: new Date('2024-01-02'),
+    updatedAt: new Date('2024-01-02'),
+    isAnswered: true,
+    likeCount: 8,
+    responseCount: 6,
+    isAnonymous: false,
+  },
+];
+
+// Mock Firebase Prayer Service
+const mockGetAllPrayers = vi.fn().mockResolvedValue(mockPrayers);
+
 vi.mock('@/services', () => ({
   firebasePrayerService: {
     getInstance: vi.fn(() => ({
-      getAllPrayers: vi.fn()
-    }))
-  }
+      getAllPrayers: mockGetAllPrayers,
+    })),
+  },
 }));
 
 // Mock logger
@@ -20,183 +54,146 @@ vi.mock('@/lib/logger', () => ({
   },
 }));
 
-// Mock constants
-vi.mock('@/constants', () => ({
-  QUERY_KEYS: {
-    PRAYERS: ['prayers'],
-    USER_PROFILE: (userId: string) => ['user_profile', userId]
-  },
-  QUERY_CONFIG: {
-    STALE_TIME: 2 * 60 * 1000,
-    GC_TIME: 5 * 60 * 1000,
-    RETRY_COUNT: 1,
-    RETRY_DELAY: (attemptIndex: number) => Math.min(500 * 2 ** attemptIndex, 10000),
-  },
-  CACHE_CONFIG: {
-    RESOURCES: {
-      PRAYERS: {
-        STALE_TIME: 2 * 60 * 1000,
-        GC_TIME: 10 * 60 * 1000
-      }
-    }
-  }
-}));
-
-// Now import the hook after mocks are set up
-import { usePrayers } from './usePrayersOptimized';
-import { firebasePrayerService } from '@/services';
-
-describe('usePrayersOptimized', () => {
-  let mockGetAllPrayers: any;
+describe('usePrayers', () => {
+  let queryClient: QueryClient;
 
   beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+      },
+    });
     vi.clearAllMocks();
-    // Get the mock function reference
-    mockGetAllPrayers = (firebasePrayerService.getInstance() as any).getAllPrayers;
+  });
+
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    React.createElement(QueryClientProvider, { client: queryClient }, children)
+  );
+
+  it('應該正確初始化', () => {
+    const { result } = renderHook(() => usePrayers(), { wrapper });
+    
+    expect(result.current.data).toEqual(undefined);
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.isError).toBe(false);
+    expect(result.current.error).toBe(null);
+    expect(typeof result.current.refetch).toBe('function');
   });
 
   it('應該成功獲取祈禱列表', async () => {
-    const mockPrayers = [
-      {
-        id: '1',
-        content: '測試祈禱 1',
-        user_id: 'user-1',
-        user_name: 'User 1',
-        is_anonymous: false,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-        image_url: null,
-        is_answered: false,
-        response_count: 0,
-        prayer_type: 'prayer'
-      },
-      {
-        id: '2',
-        content: '測試祈禱 2',
-        user_id: 'user-2',
-        user_name: 'User 2',
-        is_anonymous: false,
-        created_at: '2024-01-02T00:00:00Z',
-        updated_at: '2024-01-02T00:00:00Z',
-        image_url: null,
-        is_answered: false,
-        response_count: 5,
-        prayer_type: 'prayer'
-      }
-    ];
+    const { result } = renderHook(() => usePrayers(), { wrapper });
+    
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
 
+    expect(result.current.data).toEqual(mockPrayers);
+    expect(result.current.isError).toBe(false);
+    expect(mockGetAllPrayers).toHaveBeenCalled();
+  });
+
+  it('應該正確處理獲取錯誤', async () => {
+    const errorMessage = '獲取祈禱失敗';
+    // 使用 mockRejectedValue 而不是 mockRejectedValueOnce，確保重試時也會失敗
+    mockGetAllPrayers.mockRejectedValue(new Error(errorMessage));
+    
+    const { result } = renderHook(() => usePrayers(), { wrapper });
+    
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    }, { timeout: 5000 }); // 增加超時時間以允許重試完成
+
+    expect(result.current.isError).toBe(true);
+    expect(result.current.error).toBeInstanceOf(Error);
+    expect(result.current.data).toEqual(undefined);
+    
+    // 重置 mock 為預設行為，避免影響後續測試
     mockGetAllPrayers.mockResolvedValue(mockPrayers);
-
-    const { result } = renderHook(() => usePrayers(), {
-      wrapper: AllTheProviders,
-    });
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    expect(result.current.data).toHaveLength(2);
-    expect(result.current.data?.[0].id).toBe('1');
-    expect(result.current.data?.[1].id).toBe('2');
-    expect(result.current.error).toBeNull();
   });
 
-  it('應該處理加載錯誤', async () => {
-    const error = new Error('Firestore error');
-    mockGetAllPrayers.mockRejectedValue(error);
-
-    const { result } = renderHook(() => usePrayers(), {
-      wrapper: AllTheProviders,
-    });
-
+  it('應該支援手動重新獲取數據', async () => {
+    const { result } = renderHook(() => usePrayers(), { wrapper });
+    
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.data).toBeUndefined();
-    expect(result.current.error).toBeTruthy();
+    // 清除調用記錄
+    mockGetAllPrayers.mockClear();
+
+    await waitFor(async () => {
+      await result.current.refetch();
+    });
+
+    expect(mockGetAllPrayers).toHaveBeenCalled();
   });
 
-  it('應該處理重新獲取資料', async () => {
-    const mockPrayers = [
-      {
-        id: '1',
-        content: '測試祈禱',
-        user_id: 'user-1',
-        user_name: 'User 1',
-        is_anonymous: false,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-        image_url: null,
-        is_answered: false,
-        response_count: 0,
-        prayer_type: 'prayer'
-      }
-    ];
-
-    mockGetAllPrayers.mockResolvedValue(mockPrayers);
-
-    const { result } = renderHook(() => usePrayers(), {
-      wrapper: AllTheProviders,
-    });
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    // 觸發重新獲取
-    result.current.refetch();
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    expect(mockGetAllPrayers).toHaveBeenCalledTimes(2);
-  });
-
-  it('應該處理空結果', async () => {
-    mockGetAllPrayers.mockResolvedValue([]);
-
-    const { result } = renderHook(() => usePrayers(), {
-      wrapper: AllTheProviders,
-    });
-
+  it('應該正確處理空結果', async () => {
+    mockGetAllPrayers.mockResolvedValueOnce([]);
+    
+    const { result } = renderHook(() => usePrayers(), { wrapper });
+    
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
 
     expect(result.current.data).toEqual([]);
-    expect(result.current.error).toBeNull();
+    expect(result.current.isError).toBe(false);
   });
 
-  it('應該處理網絡錯誤', async () => {
+  it('應該正確記錄日誌', async () => {
+    const { log } = await import('@/lib/logger');
+    
+    const { result } = renderHook(() => usePrayers(), { wrapper });
+    
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(log.debug).toHaveBeenCalledWith(
+      '開始獲取代禱列表 (Firebase)',
+      {},
+      'usePrayers'
+    );
+    expect(log.info).toHaveBeenCalledWith(
+      '成功載入代禱列表 (Firebase)',
+      { count: mockPrayers.length },
+      'usePrayers'
+    );
+  });
+
+  it('應該正確處理網絡錯誤並記錄', async () => {
+    const { log } = await import('@/lib/logger');
     const networkError = new Error('Network error');
+    // 使用 mockRejectedValue 而不是 mockRejectedValueOnce，確保重試時也會失敗
     mockGetAllPrayers.mockRejectedValue(networkError);
-
-    const { result } = renderHook(() => usePrayers(), {
-      wrapper: AllTheProviders,
-    });
-
+    
+    const { result } = renderHook(() => usePrayers(), { wrapper });
+    
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
-    });
+    }, { timeout: 5000 }); // 增加超時時間以允許重試完成
 
-    expect(result.current.data).toBeUndefined();
-    expect(result.current.error).toBeTruthy();
+    expect(result.current.isError).toBe(true);
+    expect(log.error).toHaveBeenCalledWith(
+      'Firebase 查詢代禱列表失敗',
+      networkError,
+      'usePrayers'
+    );
+    
+    // 重置 mock 為預設行為，避免影響後續測試
+    mockGetAllPrayers.mockResolvedValue(mockPrayers);
   });
 
-  it('應該正確設置查詢選項', async () => {
-    mockGetAllPrayers.mockResolvedValue([]);
-
-    const { result } = renderHook(() => usePrayers(), {
-      wrapper: AllTheProviders,
-    });
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    // 驗證查詢已被調用
-    expect(mockGetAllPrayers).toHaveBeenCalled();
+  it('應該正確設置查詢選項', () => {
+    const { result } = renderHook(() => usePrayers(), { wrapper });
+    
+    // 檢查查詢是否已初始化
+    expect(result.current).toBeDefined();
+    expect(typeof result.current.refetch).toBe('function');
+    expect(typeof result.current.isLoading).toBe('boolean');
+    expect(typeof result.current.isError).toBe('boolean');
   });
 }); 

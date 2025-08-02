@@ -49,16 +49,7 @@ vi.mock('@/lib/logger', () => ({
   },
 }));
 
-// Mock localStorage
-const mockLocalStorage = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-};
-Object.defineProperty(window, 'localStorage', {
-  value: mockLocalStorage,
-});
+// localStorage mock is already set in setup.ts
 
 // Mock window.location
 delete (window as any).location;
@@ -130,7 +121,7 @@ describe('Journey 頁面', () => {
       isLoading: false,
     });
 
-    mockLocalStorage.getItem.mockReturnValue('false');
+    vi.mocked(window.localStorage.getItem).mockReturnValue('false');
   });
 
   afterEach(() => {
@@ -174,7 +165,7 @@ describe('Journey 頁面', () => {
   });
 
   it('應該在訪客模式下正常運行', () => {
-    mockLocalStorage.getItem.mockReturnValue('true');
+    vi.mocked(window.localStorage.getItem).mockReturnValue('true');
     
     const { useFirebaseAvatar } = require('@/hooks/useFirebaseAvatar');
     useFirebaseAvatar.mockReturnValue({
@@ -190,7 +181,7 @@ describe('Journey 頁面', () => {
   });
 
   it('應該在未登入且非訪客模式時重定向到認證頁面', async () => {
-    mockLocalStorage.getItem.mockReturnValue('false');
+    vi.mocked(window.localStorage.getItem).mockReturnValue('false');
     
     const { useFirebaseAvatar } = require('@/hooks/useFirebaseAvatar');
     useFirebaseAvatar.mockReturnValue({

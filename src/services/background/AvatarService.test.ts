@@ -66,7 +66,7 @@ describe('AvatarService', () => {
           } as any);
         }
         return Promise.resolve({ exists: () => false } as any);
-      } as any);
+      });
 
       const result = await avatarService.uploadAndRegisterAvatars(mockUserId, mockBlobs);
 

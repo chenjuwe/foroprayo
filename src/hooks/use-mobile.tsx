@@ -6,13 +6,21 @@ export function useIsMobile() {
   const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
 
   React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
     const onChange = () => {
       setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
     }
-    mql.addEventListener("change", onChange)
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    return () => mql.removeEventListener("change", onChange)
+
+    // 檢查 matchMedia 是否可用
+    if (window.matchMedia && typeof window.matchMedia === 'function') {
+      const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
+      mql.addEventListener("change", onChange)
+      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+      return () => mql.removeEventListener("change", onChange)
+    } else {
+      // 備用方案：只根據當前視窗寬度設定狀態
+      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+      return () => {}
+    }
   }, [])
 
   return !!isMobile

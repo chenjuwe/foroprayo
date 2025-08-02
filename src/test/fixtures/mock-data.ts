@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import type { User, Prayer, PrayerResponse } from '@/types'
 
 // 靜態 Mock 數據 - 用於需要固定數據的測試場景
@@ -196,4 +197,61 @@ export const mockPaginationData = {
       hasMore: false,
     },
   },
+}
+
+// 統計數據 Mock
+export const mockUserStats = {
+  default: {
+    prayerCount: 10,
+    responseCount: 25,
+    receivedLikesCount: 5,
+  },
+  zero: {
+    prayerCount: 0,
+    responseCount: 0,
+    receivedLikesCount: 0,
+  },
+  large: {
+    prayerCount: 999,
+    responseCount: 1234,
+    receivedLikesCount: 567,
+  },
+  thousand: {
+    prayerCount: 1000,
+    responseCount: 1500,
+    receivedLikesCount: 2000,
+  },
+}
+
+// Mock 工廠函數
+export const createMockUserStats = (scenario: keyof typeof mockUserStats = 'default') => {
+  return { ...mockUserStats[scenario] };
+}
+
+// Firebase 服務 Mock 工廠
+export const createMockFirebasePrayerService = (statsScenario: keyof typeof mockUserStats = 'default') => {
+  const stats = createMockUserStats(statsScenario);
+  
+  return {
+    getUserStats: vi.fn().mockResolvedValue(stats),
+    getAllPrayers: vi.fn().mockResolvedValue([]),
+    createPrayer: vi.fn().mockResolvedValue(mockPrayers.simple),
+    updatePrayer: vi.fn().mockResolvedValue(mockPrayers.simple),
+    deletePrayer: vi.fn().mockResolvedValue(true),
+    getPrayersByUserId: vi.fn().mockResolvedValue([]),
+  };
+}
+
+// 測試工具函數
+export const mockServiceInstances = {
+  // 重置所有服務 mock
+  resetAll: () => {
+    vi.clearAllMocks();
+  },
+  
+  // 設置特定場景的 mock 數據
+  setupUserStats: (scenario: keyof typeof mockUserStats) => {
+    const stats = createMockUserStats(scenario);
+    return stats;
+  }
 } 

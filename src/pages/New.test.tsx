@@ -105,16 +105,7 @@ vi.mock('heic2any', () => ({
   default: vi.fn().mockResolvedValue(new Blob(['test'], { type: 'image/jpeg' })),
 }));
 
-// Mock localStorage
-const localStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-};
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-});
+// localStorage mock is already set in setup.ts
 
 // Mock File API
 global.File = class MockFile {
@@ -147,8 +138,8 @@ const renderNew = (): RenderResult => {
 describe('New Page - 代禱發布流程', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorageMock.getItem.mockReturnValue(null);
-    localStorageMock.setItem.mockImplementation(() => {});
+    vi.mocked(window.localStorage.getItem).mockReturnValue(null);
+    vi.mocked(window.localStorage.setItem).mockImplementation(() => {});
   });
 
   describe('基本渲染', () => {

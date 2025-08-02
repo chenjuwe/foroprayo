@@ -23,6 +23,13 @@ interface GlobalAvatarState {
 
 const globalAvatarState: Record<string, GlobalAvatarState> = {};
 
+// 測試輔助函數 - 清除全局狀態
+export const clearAvatarGlobalState = () => {
+  Object.keys(globalAvatarState).forEach(key => {
+    delete globalAvatarState[key];
+  });
+};
+
 export const useFirebaseAvatar = (userId?: string) => {
   const currentUser = useFirebaseAuthStore(state => state.user);
   const isAuthLoading = useFirebaseAuthStore(state => state.isAuthLoading);
@@ -47,7 +54,7 @@ export const useFirebaseAvatar = (userId?: string) => {
   }
 
   // 取得頭像
-  const fetchAvatar = useCallback(async () => {
+  const fetchAvatar = useCallback(async (shouldThrowError = false) => {
     if (!effectiveUserId) return;
     setIsLoading(true);
     setError(null);
@@ -65,14 +72,23 @@ export const useFirebaseAvatar = (userId?: string) => {
         error: null,
       };
     } catch (err) {
-      setError(err);
+      const error: AvatarError = err instanceof Error 
+        ? { message: err.message, code: 'AVATAR_LOAD_ERROR' }
+        : { message: 'Unknown error occurred', code: 'UNKNOWN_ERROR' };
+        
+      setError(error);
       globalAvatarState[effectiveUserId] = {
         avatarUrl96: null,
         avatarUrl48: null,
         avatarUrl30: null,
         isLoading: false,
-        error: err,
+        error: error,
       };
+      
+      // 如果 shouldThrowError 為 true，重新拋出錯誤
+      if (shouldThrowError) {
+        throw error;
+      }
     } finally {
       setIsLoading(false);
     }
@@ -218,7 +234,7 @@ export const useFirebaseAvatar = (userId?: string) => {
   const refreshAvatar = useCallback(async () => {
     if (!effectiveUserId) {
       log.warn('嘗試刷新頭像，但用戶未登入或無效 userId', null, 'useFirebaseAvatar');
-      return;
+      return false;
     }
 
     setIsLoading(true);
@@ -242,8 +258,8 @@ export const useFirebaseAvatar = (userId?: string) => {
       setAvatarUrl48(null);
       setAvatarUrl30(null);
       
-      // 立即設置新的 URL，無延遲
-      fetchAvatar(); // 使用 fetchAvatar 重新載入
+      // 等待 fetchAvatar 完成
+      await fetchAvatar(true); // 傳入 true 允許錯誤傳播
       
       log.debug('頭像已刷新', { userId: effectiveUserId }, 'useFirebaseAvatar');
       

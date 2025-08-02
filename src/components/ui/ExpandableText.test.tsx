@@ -52,10 +52,13 @@ describe('ExpandableText', () => {
   });
 
   it('應該正確處理空內容', () => {
-    render(<ExpandableText>{''}</ExpandableText>);
+    const { container } = render(<ExpandableText>{''}</ExpandableText>);
     
-    const content = screen.getByText('');
-    expect(content).toBeInTheDocument();
+    // 檢查容器是否存在而不是查找空文本
+    expect(container.firstChild).toBeInTheDocument();
+    
+    // 驗證沒有展開按鈕（因為內容為空）
+    expect(screen.queryByText('展開')).not.toBeInTheDocument();
   });
 
   it('應該應用正確的樣式', () => {

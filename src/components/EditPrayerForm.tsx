@@ -38,12 +38,31 @@ export const EditPrayerForm: React.FC<EditPrayerFormProps> = ({
     }
   }, [content]);
 
+  // 鍵盤事件處理
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.ctrlKey && e.key === 'Enter') {
+      e.preventDefault();
+      if (content.trim()) {
+        onSave(content);
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      onCancel();
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (content.trim()) {
       onSave(content);
     }
   };
+
+  // 字數統計計算
+  const characterCount = content.length;
+  const maxLength = VALIDATION_CONFIG.PRAYER_CONTENT.MAX_LENGTH;
+  const isOverLimit = characterCount > maxLength;
+  const isNearLimit = characterCount > maxLength * 0.9;
 
   return (
     <div className="space-y-4">
@@ -87,11 +106,12 @@ export const EditPrayerForm: React.FC<EditPrayerFormProps> = ({
         </div>
       </div>
       
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4" role="form">
         <Textarea
           ref={textareaRef}
           value={content}
           onChange={(e) => setContent(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="編輯您的代禱內容..."
           className="resize-none p-3 bg-white"
           style={{
@@ -105,19 +125,22 @@ export const EditPrayerForm: React.FC<EditPrayerFormProps> = ({
           autoFocus
           autoComplete="off"
           name="edit-prayer-content"
+          aria-label="編輯代禱內容"
         />
         
         {/* 字數顯示 */}
         {content && (
           <div className="text-right">
             <span className={`text-xs ${
-              content.length > VALIDATION_CONFIG.PRAYER_CONTENT.MAX_LENGTH 
+              isOverLimit 
                 ? 'text-red-500' 
-                : content.length > VALIDATION_CONFIG.PRAYER_CONTENT.MAX_LENGTH * 0.9 
+                : isNearLimit 
                   ? 'text-orange-500' 
                   : 'text-gray-500'
             }`}>
-              {content.length}/{VALIDATION_CONFIG.PRAYER_CONTENT.MAX_LENGTH}
+              <span data-testid="character-count">{characterCount}</span>
+              <span data-testid="character-separator">/</span>
+              <span data-testid="character-limit">{maxLength}</span>
             </span>
           </div>
         )}

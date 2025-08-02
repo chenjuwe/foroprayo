@@ -11,7 +11,7 @@ import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { firebaseReportService as reportService } from '../services';
 import { CreateReportData } from '../types/common';
-import { useToast } from './ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface ReportDialogProps {
   isOpen: boolean;

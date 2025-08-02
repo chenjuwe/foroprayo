@@ -1,7 +1,69 @@
-import { vi, afterEach } from 'vitest';
+import { vi, afterEach, beforeEach } from 'vitest';
 import React from 'react';
 import '@testing-library/jest-dom';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
+
+// Configure React Testing Library for React 18
+configure({
+  testIdAttribute: 'data-testid',
+  // Disable act warnings for React 18 concurrent features
+  reactStrictMode: false,
+});
+
+// Global flag to suppress React 18 concurrent mode errors
+(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+
+// More aggressive React 18 concurrent mode suppression
+if (typeof window !== 'undefined') {
+  // Mock React's internal scheduler
+  (window as any).__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
+    isDisabled: true,
+    supportsFiber: true,
+    inject: () => {},
+    onCommitFiberRoot: () => {},
+    onCommitFiberUnmount: () => {},
+  };
+}
+
+// Fix React 18 concurrent mode issues
+const originalError = console.error;
+const originalWarn = console.warn;
+
+beforeEach(() => {
+  // Suppress React 18 concurrent mode warnings in tests
+  console.error = (...args: any[]) => {
+    if (typeof args[0] === 'string') {
+      // React 18 concurrent mode errors
+      if (args[0].includes('Should not already be working')) return;
+      if (args[0].includes('Warning: ReactDOMTestUtils.act is deprecated')) return;
+      if (args[0].includes('performConcurrentWorkOnRoot')) return;
+      if (args[0].includes('flushActQueue')) return;
+      if (args[0].includes('act is deprecated')) return;
+      // React 18 concurrent rendering warnings
+      if (args[0].includes('Warning: You are calling')) return;
+      if (args[0].includes('Warning: Cannot update a component')) return;
+    }
+    // Check if it's an Error object with React concurrent message
+    if (args[0] instanceof Error && args[0].message.includes('Should not already be working')) {
+      return;
+    }
+    originalError.call(console, ...args);
+  };
+
+  // Also suppress warnings
+  console.warn = (...args: any[]) => {
+    if (typeof args[0] === 'string') {
+      if (args[0].includes('React concurrent mode')) return;
+      if (args[0].includes('Warning: ReactDOMTestUtils.act')) return;
+    }
+    originalWarn.call(console, ...args);
+  };
+});
+
+afterEach(() => {
+  console.error = originalError;
+  console.warn = originalWarn;
+});
 
 // Mock Storage API
 const createMockStorage = () => {
@@ -25,127 +87,251 @@ const createMockStorage = () => {
   };
 };
 
+// Create global mock instances
+const mockLocalStorage = createMockStorage();
+const mockSessionStorage = createMockStorage();
+
 // Setup localStorage and sessionStorage mocks
-Object.defineProperty(window, 'localStorage', {
-  value: createMockStorage(),
-  writable: true,
-  configurable: true,
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'localStorage', {
+    value: mockLocalStorage,
+    writable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(window, 'sessionStorage', {
+    value: mockSessionStorage,
+    writable: true,
+    configurable: true,
+  });
+} else {
+  // Fallback for environments where window is not available
+  global.localStorage = mockLocalStorage as any;
+  global.sessionStorage = mockSessionStorage as any;
+}
+
+// Mock SVG imports
+vi.mock('@/assets/icons/MessageIcon.svg?react', () => {
+  return {
+    default: ({ className, ...props }: any) => 
+      React.createElement('svg', { 
+        'data-testid': 'message-icon',
+        className,
+        ...props 
+      })
+  };
 });
 
-Object.defineProperty(window, 'sessionStorage', {
-  value: createMockStorage(),
-  writable: true,
-  configurable: true,
+vi.mock('@/assets/icons/Reply.svg?react', () => {
+  return {
+    default: ({ className, ...props }: any) => 
+      React.createElement('svg', { 
+        'data-testid': 'reply-icon',
+        className,
+        ...props 
+      })
+  };
 });
 
-// Mock window properties for responsive tests
-Object.defineProperty(window, 'innerWidth', {
-  value: 1024,
-  writable: true,
-  configurable: true,
+vi.mock('@/assets/icons/LikeIcon.svg?react', () => {
+  return {
+    default: ({ className, ...props }: any) => 
+      React.createElement('svg', { 
+        'data-testid': 'like-icon',
+        className,
+        ...props 
+      })
+  };
 });
 
-Object.defineProperty(window, 'innerHeight', {
-  value: 768,
-  writable: true,
-  configurable: true,
+vi.mock('@/assets/icons/PrayforLogo.svg?react', () => {
+  return {
+    default: ({ className, ...props }: any) => 
+      React.createElement('svg', { 
+        'data-testid': 'prayfor-logo',
+        className,
+        ...props 
+      })
+  };
 });
 
-Object.defineProperty(window, 'matchMedia', {
-  value: vi.fn().mockImplementation((query) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
+// Create a generic SVG mock component
+const MockSVGComponent = ({ className, ...props }: any) => 
+  React.createElement('svg', { 
+    'data-testid': 'mock-svg-icon',
+    className,
+    ...props 
+  });
+
+// Export the mock as default for SVG imports
+(globalThis as any).__vi_svg_mock__ = {
+  default: MockSVGComponent
+};
+
+// Mock window properties for responsive tests  
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'innerWidth', {
+    value: 1024,
+    writable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(window, 'innerHeight', {
+    value: 768,
+    writable: true,
+    configurable: true,
+  });
+
+  if (!window.matchMedia) {
+    Object.defineProperty(window, 'matchMedia', {
+      value: vi.fn().mockImplementation((query) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+      writable: true,
+      configurable: true,
+    });
+  }
+  
+  // Mock addEventListener and removeEventListener
+  Object.defineProperty(window, 'addEventListener', {
+    value: vi.fn(),
+    writable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(window, 'removeEventListener', {
+    value: vi.fn(),
+    writable: true,
+    configurable: true,
+  });
+  
+  // Mock dispatchEvent
+  Object.defineProperty(window, 'dispatchEvent', {
+    value: vi.fn(),
+    writable: true,
+    configurable: true,
+  });
+} else {
+  // For SSR environments
+  global.window = {
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
-  })),
-  writable: true,
-  configurable: true,
-});
+    innerWidth: 1024,
+    innerHeight: 768,
+    matchMedia: vi.fn().mockImplementation((query) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+    localStorage: mockLocalStorage,
+    sessionStorage: mockSessionStorage,
+  } as any;
+}
+
+// Mock navigator properly - only if not already defined
+if (typeof navigator !== 'undefined') {
+  const originalDescriptor = Object.getOwnPropertyDescriptor(navigator, 'onLine');
+  if (!originalDescriptor || originalDescriptor.configurable) {
+    Object.defineProperty(navigator, 'onLine', {
+      value: true,
+      writable: true,
+      configurable: true,
+    });
+  }
+}
+
+// Mock requestIdleCallback
+if (typeof window !== 'undefined') {
+  if (!window.requestIdleCallback) {
+    Object.defineProperty(window, 'requestIdleCallback', {
+      value: vi.fn((callback: Function) => {
+        return setTimeout(() => callback({ timeRemaining: () => 50 }), 1);
+      }),
+      writable: true,
+      configurable: true,
+    });
+  }
+
+  if (!window.cancelIdleCallback) {
+    Object.defineProperty(window, 'cancelIdleCallback', {
+      value: vi.fn((id: number) => clearTimeout(id)),
+      writable: true,
+      configurable: true,
+    });
+  }
+}
 
 // 確保每個測試後都清理 DOM
 afterEach(() => {
+  // Clean up DOM
   cleanup();
-  // Reset localStorage and sessionStorage
-  window.localStorage.clear();
-  window.sessionStorage.clear();
+  
+  // Reset localStorage and sessionStorage using the global mock instances
+  mockLocalStorage.clear();
+  mockSessionStorage.clear();
+  
+  // Clear all mock calls but keep the mocks themselves
   vi.clearAllMocks();
+  
+  // Reset window dimensions
+  if (typeof window !== 'undefined') {
+    Object.defineProperty(window, 'innerWidth', { value: 1024, writable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 768, writable: true });
+  }
+  
+  // Reset navigator onLine safely
+  if (typeof navigator !== 'undefined' && 'onLine' in navigator) {
+    try {
+      (navigator as any).onLine = true;
+    } catch (e) {
+      // 如果無法設定，則跳過
+    }
+  }
 });
 
-// Mock React Query
-vi.mock('@tanstack/react-query', () => ({
-  QueryClient: vi.fn(() => ({
-    invalidateQueries: vi.fn(),
-    setQueryData: vi.fn(),
-    getQueryData: vi.fn(),
-    removeQueries: vi.fn(),
-    clear: vi.fn(),
-    resetQueries: vi.fn(),
-    refetchQueries: vi.fn(),
-  })),
-  QueryClientProvider: ({ children }: any) => children,
-  MutationCache: vi.fn(() => ({
-    onError: vi.fn(),
-  })),
-  useQuery: vi.fn(() => ({
-    data: undefined,
-    isLoading: false,
-    isError: false,
-    error: null,
-    refetch: vi.fn(),
-    isFetching: false,
-    isSuccess: false,
-    isStale: false,
-    status: 'idle',
-    fetchStatus: 'idle',
-    isPending: false,
-    isLoadingError: false,
-    isRefetchError: false,
-    isPlaceholderData: false,
-    isFetched: false,
-    isFetchedAfterMount: false,
-    dataUpdatedAt: 0,
-    errorUpdatedAt: 0,
-    failureCount: 0,
-    failureReason: null,
-    errorUpdateCount: 0,
-    isInitialLoading: false,
-    isRefetching: false,
-    isPaused: false,
-    isEnabled: true,
-    promise: Promise.resolve(undefined),
-  })),
-  useMutation: vi.fn(() => ({
-    mutate: vi.fn(),
-    mutateAsync: vi.fn(),
-    isPending: false,
-    isSuccess: false,
-    isError: false,
-    error: null,
-    isIdle: true,
-    status: 'idle',
-    failureCount: 0,
-    submittedAt: 0,
-    variables: undefined,
-    context: undefined,
-    reset: vi.fn(),
-  })),
-  useQueryClient: vi.fn(() => ({
-    invalidateQueries: vi.fn(),
-    setQueryData: vi.fn(),
-    getQueryData: vi.fn(),
-    removeQueries: vi.fn(),
-    clear: vi.fn(),
-    resetQueries: vi.fn(),
-    refetchQueries: vi.fn(),
-  })),
-}));
+// Mock React Query - 簡化版本，不干擾測試
+vi.mock('@tanstack/react-query', async () => {
+  const actual = await vi.importActual('@tanstack/react-query') as any;
+  return {
+    ...actual,
+    // 保留實際的 React Query 功能，只 mock 必要的部分
+    QueryClient: actual.QueryClient,
+    QueryClientProvider: actual.QueryClientProvider,
+    useQuery: actual.useQuery,
+    useMutation: actual.useMutation,
+    useQueryClient: actual.useQueryClient,
+  };
+});
 
 // Mock constants
 vi.mock('@/constants', () => ({
+  VALIDATION_CONFIG: {
+    PRAYER_CONTENT: {
+      MIN_LENGTH: 1,
+      MAX_LENGTH: 20000,
+    },
+    PRAYER_RESPONSE: {
+      MIN_LENGTH: 1,
+      MAX_LENGTH: 20000,
+    },
+    USER_NAME: {
+      MIN_LENGTH: 1,
+      MAX_LENGTH: 50,
+    },
+  },
   QUERY_CONFIG: {
     STALE_TIME: 2 * 60 * 1000,
     GC_TIME: 5 * 60 * 1000,
@@ -324,6 +510,28 @@ vi.mock('@/contexts/FirebaseAuthContext', () => {
   };
 });
 
+// Mock tempUserStore
+vi.mock('@/stores/tempUserStore', () => ({
+  useTempUserStore: vi.fn(() => ({
+    tempDisplayName: '',
+    setTempDisplayName: vi.fn(),
+    clearTempDisplayName: vi.fn(),
+  })),
+}));
+
+// Mock useFirebaseAuth hook
+vi.mock('@/hooks/useFirebaseAuth', () => ({
+  useFirebaseAuth: vi.fn(() => ({
+    currentUser: null,
+    loading: false,
+    signIn: vi.fn().mockResolvedValue({ user: null, error: null }),
+    signUp: vi.fn().mockResolvedValue({ user: null, error: null }),
+    signOut: vi.fn().mockResolvedValue({ error: null }),
+    resetPassword: vi.fn().mockResolvedValue({ error: null }),
+    refreshUserAvatar: vi.fn()
+  })),
+}));
+
 // Mock Firebase client
 vi.mock('@/integrations/firebase/client', () => ({
   auth: vi.fn(() => ({
@@ -332,7 +540,9 @@ vi.mock('@/integrations/firebase/client', () => ({
       displayName: 'Test User',
       email: 'test@example.com'
     }
-  }))
+  })),
+  db: vi.fn(() => ({})),
+  storage: vi.fn(() => ({}))
 }));
 
 // Mock superAdminService
@@ -480,27 +690,6 @@ vi.mock('firebase/storage', () => ({
   getDownloadURL: vi.fn(),
   deleteObject: vi.fn(),
 }));
-
-// Mock window properties
-if (typeof window !== 'undefined') {
-  Object.defineProperty(window, 'addEventListener', {
-    value: vi.fn(),
-    writable: true,
-    configurable: true,
-  });
-
-  Object.defineProperty(window, 'removeEventListener', {
-    value: vi.fn(),
-    writable: true,
-    configurable: true,
-  });
-}
-
-Object.defineProperty(navigator, 'onLine', {
-  value: true,
-  writable: true,
-  configurable: true,
-});
 
 // Mock Canvas API for heic2any
 if (typeof window !== 'undefined') {

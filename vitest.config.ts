@@ -9,6 +9,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    // 修復React 18並發模式問題的額外配置
+    pool: 'forks',
+    maxConcurrency: 1,
     setupFiles: [process.env.VITEST_SETUP_FILE || './src/test/setup.ts'],
     css: true,
     coverage: {
@@ -90,13 +93,7 @@ export default defineConfig({
     // 性能測試配置
     testTimeout: 30000, // 30 秒超時
     hookTimeout: 30000,
-    // 並行測試配置
-    pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
+    // 並行測試配置 - 修復React 18並發模式問題
     // 環境變數
     env: {
       NODE_ENV: 'test',
