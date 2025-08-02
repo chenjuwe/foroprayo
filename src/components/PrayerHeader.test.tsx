@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PrayerHeader } from './PrayerHeader';
 import type { Prayer } from '@/services/prayerService';
+import { useTempUserStore } from '@/stores/tempUserStore';
 
 // Mock dependencies
 vi.mock('./UserInfo', () => ({
@@ -40,7 +41,16 @@ vi.mock('./LikeButton', () => ({
 }));
 
 vi.mock('@/stores/tempUserStore', () => ({
-  useTempUserStore: vi.fn()
+  useTempUserStore: vi.fn(() => ({
+    tempDisplayName: '',
+    tempDisplayNames: {},
+    setTempDisplayName: vi.fn(),
+    getTempDisplayName: vi.fn(() => ''),
+    clearTempDisplayName: vi.fn(),
+    clearAllTempDisplayNames: vi.fn(),
+    setTempDisplayName_legacy: vi.fn(),
+    clearTempDisplayName_legacy: vi.fn(),
+  }))
 }));
 
 describe('PrayerHeader', () => {
@@ -78,11 +88,7 @@ describe('PrayerHeader', () => {
       writable: true,
     });
 
-    // Mock tempUserStore
-    const { useTempUserStore } = vi.mocked(require('@/stores/tempUserStore'));
-    useTempUserStore.mockReturnValue({
-      tempDisplayName: null
-    });
+    // tempUserStore mock 已經在文件頂部設置了，這裡不需要重新設置
 
     // Mock addEventListener and removeEventListener
     vi.spyOn(window, 'addEventListener');
@@ -120,9 +126,16 @@ describe('PrayerHeader', () => {
   });
 
   it('應該使用臨時顯示名稱（當用戶是擁有者時）', () => {
-    const { useTempUserStore } = vi.mocked(require('@/stores/tempUserStore'));
-    useTempUserStore.mockReturnValue({
-      tempDisplayName: 'Temporary Name'
+    // 在測試中重新配置 mock 返回值
+    vi.mocked(useTempUserStore).mockReturnValue({
+      tempDisplayName: 'Temporary Name',
+      tempDisplayNames: {},
+      setTempDisplayName: vi.fn(),
+      getTempDisplayName: vi.fn(() => 'Temporary Name'),
+      clearTempDisplayName: vi.fn(),
+      clearAllTempDisplayNames: vi.fn(),
+      setTempDisplayName_legacy: vi.fn(),
+      clearTempDisplayName_legacy: vi.fn(),
     });
 
     render(<PrayerHeader {...defaultProps} />);
@@ -131,9 +144,15 @@ describe('PrayerHeader', () => {
   });
 
   it('應該在非擁有者情況下不使用臨時名稱', () => {
-    const { useTempUserStore } = vi.mocked(require('@/stores/tempUserStore'));
-    useTempUserStore.mockReturnValue({
-      tempDisplayName: 'Temporary Name'
+    vi.mocked(useTempUserStore).mockReturnValue({
+      tempDisplayName: 'Temporary Name',
+      tempDisplayNames: {},
+      setTempDisplayName: vi.fn(),
+      getTempDisplayName: vi.fn(() => 'Temporary Name'),
+      clearTempDisplayName: vi.fn(),
+      clearAllTempDisplayNames: vi.fn(),
+      setTempDisplayName_legacy: vi.fn(),
+      clearTempDisplayName_legacy: vi.fn(),
     });
 
     render(<PrayerHeader {...defaultProps} isOwner={false} currentUserId="other-user" />);
