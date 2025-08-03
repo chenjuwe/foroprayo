@@ -26,7 +26,7 @@ export class BackgroundSyncService {
           }
         }
         // 觸發全局事件，讓其他頁面能即時取得最新背景
-        window.dispatchEvent(new Event('prayforo-background-updated'));
+        window.dispatchEvent(new Event('foroprayo-background-updated'));
       }
     } catch (error) {
       log.error('同步用戶背景失敗', error, 'BackgroundSyncService');

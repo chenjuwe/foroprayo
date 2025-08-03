@@ -4,7 +4,7 @@ export const APP_CONFIG = {
   version: "0.1.4",
   description: "A prayer sharing platform",
   author: "Pray for Others Team",
-  repository: "https://github.com/chenjuwe/prayforo",
+  repository: "https://github.com/chenjuwe/foroprayo",
 } as const;
 
 // API 配置常數

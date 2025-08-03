@@ -218,7 +218,7 @@ describe('BackgroundService', () => {
     
     // 驗證事件觸發
     expect(dispatchSpy).toHaveBeenCalledWith(expect.any(CustomEvent));
-    expect(dispatchSpy.mock.calls[0][0].type).toBe('prayforo-background-updated');
+    expect(dispatchSpy.mock.calls[0][0].type).toBe('foroprayo-background-updated');
   });
   
   it('should handle error in upsertUserBackground by saving to localStorage', async () => {

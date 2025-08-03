@@ -71,7 +71,7 @@ export const useFirebaseAuthStore = create<FirebaseAuthState>((set, get) => ({
           localStorage.setItem(STORAGE_KEYS.BACKGROUND, GUEST_DEFAULT_BACKGROUND);
           localStorage.setItem(STORAGE_KEYS.CUSTOM_BACKGROUND, '');
           localStorage.setItem(STORAGE_KEYS.CUSTOM_BACKGROUND_SIZE, '');
-          window.dispatchEvent(new Event('prayforo-background-updated'));
+          window.dispatchEvent(new Event('foroprayo-background-updated'));
         }
       });
       

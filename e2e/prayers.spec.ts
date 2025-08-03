@@ -8,7 +8,7 @@ test.describe('禱告功能端到端測試', () => {
 
   test('應該顯示禱告頁面基本結構', async ({ page }) => {
     // 檢查頁面標題
-    await expect(page).toHaveTitle(/PrayForO/);
+    await expect(page).toHaveTitle(/ForoPrayo/);
     
     // 檢查頁面主要元素
     await expect(page.locator('[data-testid="header"]')).toBeVisible();

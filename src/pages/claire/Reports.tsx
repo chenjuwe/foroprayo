@@ -283,7 +283,7 @@ export default function Reports() {
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `prayforo-report-${new Date().toISOString().split('T')[0]}.json`;
+            link.download = `foroprayo-report-${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     URL.revokeObjectURL(url);
     
@@ -401,7 +401,7 @@ export default function Reports() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">統計報告</h1>
-          <p className="text-gray-600">Prayforo 平台數據分析</p>
+                        <p className="text-gray-600">ForoPrayo 平台數據分析</p>
         </div>
         <div className="flex items-center space-x-2">
           <select 

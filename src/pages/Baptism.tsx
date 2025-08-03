@@ -105,8 +105,8 @@ export default function Baptism() {
     
     // 監聽全局背景同步事件
     const handler = () => loadBackground();
-    window.addEventListener('prayforo-background-updated', handler);
-    return () => window.removeEventListener('prayforo-background-updated', handler);
+          window.addEventListener('foroprayo-background-updated', handler);
+      return () => window.removeEventListener('foroprayo-background-updated', handler);
   }, [loadBackground]);
 
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'prayforo-cache-v2';
+const CACHE_NAME = 'foroprayo-cache-v2';
 const urlsToCache = [
   '/',
   '/index.html',

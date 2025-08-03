@@ -89,7 +89,7 @@ export class BackgroundService extends BaseService {
       
       // 觸發背景更新事件，通知其他頁面
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('prayforo-background-updated'));
+        window.dispatchEvent(new CustomEvent('foroprayo-background-updated'));
       }
     } catch (error) {
       // 修改錯誤處理，不重新拋出錯誤，而是記錄後使用 localStorage 回退

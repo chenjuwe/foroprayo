@@ -8,7 +8,7 @@ describe('AuthFooter', () => {
 
     expect(screen.getByText(/App 版本/)).toBeInTheDocument();
     expect(screen.getByText(/聯絡建議/)).toBeInTheDocument();
-    expect(screen.getByText(/amen@prayforo.com/)).toBeInTheDocument();
+    expect(screen.getByText(/amen@foroprayo.com/)).toBeInTheDocument();
   });
 
   it('應該包含版本資訊', () => {
@@ -24,7 +24,7 @@ describe('AuthFooter', () => {
     render(<AuthFooter />);
 
     const contactText = screen.getByText(/聯絡建議/);
-    const emailText = screen.getByText(/amen@prayforo.com/);
+    const emailText = screen.getByText(/amen@foroprayo.com/);
     
     expect(contactText).toBeInTheDocument();
     expect(emailText).toBeInTheDocument();

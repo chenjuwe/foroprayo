@@ -8,7 +8,7 @@ export function AuthFooter() {
         App 版本 ＿＿ v0.3.348 ( 2025-11-10 )
       </div>
       <div className="text-black" style={{ fontSize: '14px' }}>
-        聯絡建議 ＿＿ amen@prayforo.com
+        聯絡建議 ＿＿ amen@foroprayo.com
       </div>
     </div>
   );

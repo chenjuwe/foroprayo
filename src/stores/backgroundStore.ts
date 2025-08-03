@@ -36,7 +36,7 @@ export const useBackgroundStore = create<BackgroundState>()(
         });
         
         // 觸發全局事件，讓其他頁面能即時取得最新背景
-        window.dispatchEvent(new Event('prayforo-background-updated'));
+        window.dispatchEvent(new Event('foroprayo-background-updated'));
         log.debug('背景設定已更新', { backgroundId }, 'BackgroundStore');
       },
       
@@ -51,12 +51,12 @@ export const useBackgroundStore = create<BackgroundState>()(
           customBackgroundSize: null
         });
         
-        window.dispatchEvent(new Event('prayforo-background-updated'));
+        window.dispatchEvent(new Event('foroprayo-background-updated'));
         log.debug('背景設定已重置為預設', null, 'BackgroundStore');
       }
     }),
     {
-      name: 'prayforo-background-storage',
+      name: 'foroprayo-background-storage',
       partialize: (state) => ({ 
         backgroundId: state.backgroundId,
         customBackground: state.customBackground,

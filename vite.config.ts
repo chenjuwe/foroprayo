@@ -68,8 +68,8 @@ export default defineConfig(({ mode }) => ({
         ]
       },
       manifest: {
-        name: 'Prayforo',
-        short_name: 'Prayforo',
+        name: 'ForoPrayo',
+        short_name: 'ForoPrayo',
         description: '使用 Firebase 的代禱應用程序',
         theme_color: '#ffffff',
         background_color: '#ffffff',

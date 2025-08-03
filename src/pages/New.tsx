@@ -168,8 +168,8 @@ export default function New() {
     loadBackground();
     // 新增：監聽全局背景同步事件
     const handler = () => loadBackground();
-    window.addEventListener('prayforo-background-updated', handler);
-    return () => window.removeEventListener('prayforo-background-updated', handler);
+          window.addEventListener('foroprayo-background-updated', handler);
+      return () => window.removeEventListener('foroprayo-background-updated', handler);
   }, [loadBackground]);
 
   // 移除訂閱邏輯，直接使用全域 avatarUrl

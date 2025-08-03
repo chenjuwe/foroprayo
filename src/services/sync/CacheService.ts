@@ -18,7 +18,7 @@ class CacheService {
     // 創建持久化存儲器
     this.persister = createSyncStoragePersister({
       storage: window.localStorage,
-      key: 'prayforo-cache',
+      key: 'foroprayo-cache',
       throttleTime: 1000, // 限流，避免過多寫操作
       serialize: (data: unknown) => JSON.stringify(data),
       deserialize: (data: string) => JSON.parse(data),

@@ -163,8 +163,8 @@ export default function NewFire() {
     loadBackground();
     // 新增：監聽全局背景同步事件
     const handler = () => loadBackground();
-    window.addEventListener('prayforo-background-updated', handler);
-    return () => window.removeEventListener('prayforo-background-updated', handler);
+          window.addEventListener('foroprayo-background-updated', handler);
+      return () => window.removeEventListener('foroprayo-background-updated', handler);
   }, [loadBackground]);
   
   // 使用常量中的背景選項，不再需要本地定義

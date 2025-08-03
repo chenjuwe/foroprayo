@@ -7,9 +7,9 @@ import { getFirestore, Firestore } from "firebase/firestore";
 // Firebase 配置
 const firebaseConfig = {
   apiKey: "AIzaSyD6iKniBris0rzQ2v9LeAoZBcjVhhK6-WI",
-  authDomain: "prayforo.firebaseapp.com",
-  projectId: "prayforo",
-  storageBucket: "prayforo.firebasestorage.app",
+  authDomain: "foroprayo.firebaseapp.com",
+  projectId: "foroprayo",
+  storageBucket: "foroprayo.firebasestorage.app",
   messagingSenderId: "283821115552",
   appId: "1:283821115552:web:b94921c00771a74ecc21c5",
   measurementId: "G-G82C8BMVDB"

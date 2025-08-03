@@ -5,8 +5,8 @@ test.describe('基本 E2E 測試', () => {
     // 導航到首頁
     await page.goto('/')
     
-    // 檢查頁面標題（實際標題是 "Prayforo v0.3.6"）
-    await expect(page).toHaveTitle(/Prayforo/)
+    // 檢查頁面標題（實際標題是 "ForoPrayo v0.3.6"）
+    await expect(page).toHaveTitle(/ForoPrayo/)
     
     // 檢查頁面是否載入
     await expect(page.locator('body')).toBeVisible()
