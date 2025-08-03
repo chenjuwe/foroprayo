@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { usePrayerResponseLikes, useTogglePrayerResponseLike } from '../hooks/useSocialFeatures';
 import { useDeletePrayerResponse } from '../hooks/usePrayerResponsesOptimized';
-import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
+import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
 import { log } from '@/lib/logger';
 import { notify } from '@/lib/notifications';
 import { ReportDialog } from './ReportDialog';

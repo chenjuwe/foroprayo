@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>創建測試用戶 - ForoPrayo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #FFE5D9;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+        .info { color: #007bff; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 創建測試用戶</h1>
+    
+    <div class="section">
+        <h2>📝 創建新測試帳號</h2>
+        <input type="email" id="testEmail" placeholder="測試用電子郵件" value="test@foroprayo.com">
+        <input type="password" id="testPassword" placeholder="測試用密碼" value="test123456">
+        <br>
+        <button onclick="createTestUser()">🚀 創建測試用戶</button>
+        <button onclick="signInTestUser()">🔓 使用此帳號登入</button>
+        <div id="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>🔍 或者使用現有帳號</h2>
+        <input type="email" id="existingEmail" placeholder="現有電子郵件" value="chenjuwe@gmail.com">
+        <input type="password" id="existingPassword" placeholder="現有密碼" value="">
+        <br>
+        <button onclick="signInExistingUser()">🔓 登入現有帳號</button>
+        <button onclick="resetExistingPassword()">🔄 重設密碼</button>
+        <div id="existingResult"></div>
+    </div>
+
+    <script type="module">
+        const firebaseConfig = {
+            apiKey: "AIzaSyBcFamR8al69jVzgia0kxKIcf5inLpxt0I",
+            authDomain: "foroprayo.firebaseapp.com",
+            projectId: "foroprayo",
+            storageBucket: "foroprayo.firebasestorage.app",
+            messagingSenderId: "863364228350",
+            appId: "1:863364228350:web:9aa4648b3582c8670a71af",
+            measurementId: "G-YX85B6N0M8"
+        };
+
+        let auth = null;
+
+        // 初始化 Firebase
+        async function initFirebase() {
+            if (!auth) {
+                try {
+                    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');
+                    const { getAuth } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
+                    
+                    const app = initializeApp(firebaseConfig);
+                    auth = getAuth(app);
+                } catch (error) {
+                    console.error('Firebase 初始化失敗:', error);
+                    throw error;
+                }
+            }
+            return auth;
+        }
+
+        // 創建測試用戶
+        window.createTestUser = async function() {
+            const email = document.getElementById('testEmail').value;
+            const password = document.getElementById('testPassword').value;
+            const result = document.getElementById('result');
+            
+            if (!email || !password) {
+                result.innerHTML = '<p class="error">請輸入電子郵件和密碼</p>';
+                return;
+            }
+
+            result.innerHTML = '<p class="info">正在創建測試用戶...</p>';
+
+            try {
+                await initFirebase();
+                const { createUserWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
+                
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                
+                result.innerHTML = `
+                    <p class="success">✅ 測試用戶創建成功！</p>
+                    <p><strong>Email:</strong> ${userCredential.user.email}</p>
+                    <p><strong>User ID:</strong> ${userCredential.user.uid}</p>
+                    <p class="info">現在可以使用此帳號登入應用程式了！</p>
+                `;
+            } catch (error) {
+                let errorMessage = error.message;
+                if (error.code === 'auth/email-already-in-use') {
+                    errorMessage = '此電子郵件已被使用，請嘗試登入或使用不同的電子郵件';
+                } else if (error.code === 'auth/weak-password') {
+                    errorMessage = '密碼太弱，請使用至少 6 個字符';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = '電子郵件格式無效';
+                }
+                
+                result.innerHTML = `
+                    <p class="error">❌ 創建用戶失敗：${errorMessage}</p>
+                    <p><strong>錯誤代碼:</strong> ${error.code}</p>
+                `;
+            }
+        };
+
+        // 使用測試帳號登入
+        window.signInTestUser = async function() {
+            const email = document.getElementById('testEmail').value;
+            const password = document.getElementById('testPassword').value;
+            const result = document.getElementById('result');
+            
+            if (!email || !password) {
+                result.innerHTML = '<p class="error">請輸入電子郵件和密碼</p>';
+                return;
+            }
+
+            result.innerHTML = '<p class="info">正在登入...</p>';
+
+            try {
+                await initFirebase();
+                const { signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
+                
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                
+                result.innerHTML = `
+                    <p class="success">✅ 登入成功！</p>
+                    <p><strong>User ID:</strong> ${userCredential.user.uid}</p>
+                    <p><strong>Email:</strong> ${userCredential.user.email}</p>
+                    <p class="info">現在可以前往主應用程式使用相同帳號登入！</p>
+                `;
+            } catch (error) {
+                let errorMessage = error.message;
+                if (error.code === 'auth/user-not-found') {
+                    errorMessage = '用戶不存在，請先註冊';
+                } else if (error.code === 'auth/wrong-password') {
+                    errorMessage = '密碼錯誤';
+                } else if (error.code === 'auth/invalid-credential') {
+                    errorMessage = '憑證無效，請檢查電子郵件和密碼';
+                }
+                
+                result.innerHTML = `
+                    <p class="error">❌ 登入失敗：${errorMessage}</p>
+                    <p><strong>錯誤代碼:</strong> ${error.code}</p>
+                `;
+            }
+        };
+
+        // 使用現有帳號登入
+        window.signInExistingUser = async function() {
+            const email = document.getElementById('existingEmail').value;
+            const password = document.getElementById('existingPassword').value;
+            const result = document.getElementById('existingResult');
+            
+            if (!email || !password) {
+                result.innerHTML = '<p class="error">請輸入電子郵件和密碼</p>';
+                return;
+            }
+
+            result.innerHTML = '<p class="info">正在登入...</p>';
+
+            try {
+                await initFirebase();
+                const { signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
+                
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                
+                result.innerHTML = `
+                    <p class="success">✅ 登入成功！</p>
+                    <p><strong>User ID:</strong> ${userCredential.user.uid}</p>
+                    <p><strong>Email:</strong> ${userCredential.user.email}</p>
+                `;
+            } catch (error) {
+                let errorMessage = error.message;
+                let suggestion = '';
+                
+                if (error.code === 'auth/user-not-found') {
+                    errorMessage = '用戶不存在';
+                    suggestion = '建議：點擊下面的「創建測試用戶」來註冊新帳號';
+                } else if (error.code === 'auth/wrong-password') {
+                    errorMessage = '密碼錯誤';
+                    suggestion = '建議：嘗試重設密碼或確認密碼是否正確';
+                } else if (error.code === 'auth/invalid-credential') {
+                    errorMessage = '憑證無效';
+                    suggestion = '建議：檢查電子郵件格式和密碼，或先註冊新帳號';
+                }
+                
+                result.innerHTML = `
+                    <p class="error">❌ 登入失敗：${errorMessage}</p>
+                    <p><strong>錯誤代碼:</strong> ${error.code}</p>
+                    ${suggestion ? `<p class="warning">${suggestion}</p>` : ''}
+                `;
+            }
+        };
+
+        // 重設密碼
+        window.resetExistingPassword = async function() {
+            const email = document.getElementById('existingEmail').value;
+            const result = document.getElementById('existingResult');
+            
+            if (!email) {
+                result.innerHTML = '<p class="error">請輸入電子郵件地址</p>';
+                return;
+            }
+
+            result.innerHTML = '<p class="info">正在發送重設密碼郵件...</p>';
+
+            try {
+                await initFirebase();
+                const { sendPasswordResetEmail } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
+                
+                await sendPasswordResetEmail(auth, email);
+                
+                result.innerHTML = `
+                    <p class="success">✅ 密碼重設郵件已發送！</p>
+                    <p>請檢查您的電子郵件：<strong>${email}</strong></p>
+                    <p class="info">點擊郵件中的連結來重設密碼</p>
+                `;
+            } catch (error) {
+                let errorMessage = error.message;
+                if (error.code === 'auth/user-not-found') {
+                    errorMessage = '此電子郵件未註冊，請先創建帳號';
+                }
+                
+                result.innerHTML = `
+                    <p class="error">❌ 發送重設郵件失敗：${errorMessage}</p>
+                    <p><strong>錯誤代碼:</strong> ${error.code}</p>
+                `;
+            }
+        };
+    </script>
+</body>
+</html> 

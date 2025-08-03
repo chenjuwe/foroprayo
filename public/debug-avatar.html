@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>頭像功能調試</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .avatar-test {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .avatar-url {
+            word-break: break-all;
+            background: #f8f8f8;
+            padding: 8px;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+        img {
+            max-width: 100px;
+            max-height: 100px;
+            border-radius: 50%;
+            margin: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖼️ 頭像功能調試工具</h1>
+        
+        <div class="avatar-test">
+            <h3>1. 測試用戶 ID</h3>
+            <input type="text" id="userId" placeholder="請輸入用戶 ID" style="width: 300px; padding: 8px;">
+            <button onclick="testAvatar()">測試頭像</button>
+        </div>
+
+        <div class="avatar-test">
+            <h3>2. 預設頭像測試</h3>
+            <button onclick="testPlaceholder('張三')">測試張三</button>
+            <button onclick="testPlaceholder('李四')">測試李四</button>
+            <button onclick="testPlaceholder('test@example.com')">測試郵箱</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function addResult(title, content, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `avatar-test status ${type}`;
+            div.innerHTML = `<h4>${title}</h4>${content}`;
+            results.appendChild(div);
+        }
+
+        function testAvatar() {
+            const userId = document.getElementById('userId').value.trim();
+            if (!userId) {
+                addResult('錯誤', '請輸入用戶 ID', 'error');
+                return;
+            }
+
+            addResult('測試中...', `正在測試用戶 ID: ${userId}`, 'info');
+
+            // 測試 Firebase Storage 頭像 URL
+            const baseUrl = `https://firebasestorage.googleapis.com/v0/b/foroprayo.firebasestorage.app/o/avatars%2F${userId}%2Favatar_large.webp?alt=media`;
+            
+            testImageUrl(baseUrl, (success) => {
+                if (success) {
+                    const urls = {
+                        large: baseUrl,
+                        medium: baseUrl.replace('_large.webp', '_medium.webp'),
+                        small: baseUrl.replace('_large.webp', '_small.webp')
+                    };
+                    displayAvatarResults(userId, urls, 'Firebase Storage');
+                } else {
+                    // 使用預設頭像
+                    const name = userId.substring(0, 5);
+                    const placeholderUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`;
+                    const urls = {
+                        large: placeholderUrl,
+                        medium: placeholderUrl,
+                        small: placeholderUrl
+                    };
+                    displayAvatarResults(userId, urls, '預設頭像');
+                }
+            });
+        }
+
+        function testPlaceholder(name) {
+            const placeholderUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`;
+            const urls = {
+                large: placeholderUrl,
+                medium: placeholderUrl,
+                small: placeholderUrl
+            };
+            displayAvatarResults(name, urls, '預設頭像');
+        }
+
+        function testImageUrl(url, callback) {
+            const img = new Image();
+            img.onload = () => callback(true);
+            img.onerror = () => callback(false);
+            img.src = url;
+        }
+
+        function displayAvatarResults(identifier, urls, source) {
+            const content = `
+                <p><strong>來源:</strong> ${source}</p>
+                <div style="display: flex; align-items: center; gap: 10px; margin: 10px 0;">
+                    <img src="${urls.large}" alt="Large Avatar" title="Large (96px)" />
+                    <img src="${urls.medium}" alt="Medium Avatar" title="Medium (48px)" />
+                    <img src="${urls.small}" alt="Small Avatar" title="Small (30px)" />
+                </div>
+                <div class="avatar-url"><strong>Large:</strong> ${urls.large}</div>
+                <div class="avatar-url"><strong>Medium:</strong> ${urls.medium}</div>
+                <div class="avatar-url"><strong>Small:</strong> ${urls.small}</div>
+            `;
+            addResult(`頭像結果: ${identifier}`, content, 'success');
+        }
+
+        // 測試一些常見的情況
+        window.onload = function() {
+            addResult('歡迎', '這個工具可以幫助您測試頭像功能。請輸入用戶 ID 或點擊預設頭像測試按鈕。', 'info');
+        };
+    </script>
+</body>
+</html> 

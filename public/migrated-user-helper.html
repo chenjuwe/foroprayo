@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>遷移用戶協助工具 - ForoPrayo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #FFE5D9;
+            line-height: 1.6;
+        }
+        .section {
+            background: white;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+        .info { color: #007bff; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        input[type="email"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .migrated-user {
+            background: #e3f2fd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #2196f3;
+        }
+        .highlight {
+            background-color: #fff3cd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            border: 1px solid #ffeaa7;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔄 prayforo → foroprayo 遷移用戶協助工具</h1>
+
+    <div class="section">
+        <h2>📋 遷移狀態確認</h2>
+        <div class="highlight">
+            <strong>✅ 遷移已完成！</strong><br>
+            已成功從 prayforo 遷移 9 個用戶到 foroprayo
+        </div>
+        
+        <h3>🎯 已遷移的用戶列表：</h3>
+        <div class="migrated-user">
+            <strong>📧 clinoit@gmail.com</strong> - 克萊兒<br>
+            <strong>🔑 密碼: 123456</strong><br>
+            <small>建立時間: 2025-08-03</small>
+        </div>
+        <div class="migrated-user">
+            <strong>📧 zaosipai@gmail.com</strong> - 趙思白<br>
+            <strong>🔑 密碼: 123456</strong><br>
+            <small>建立時間: 2025-08-03</small>
+        </div>
+        <div class="migrated-user">
+            <strong>📧 wsvcat@gmail.com</strong> - 神的依賴者<br>
+            <strong>🔑 密碼: 123456</strong><br>
+            <small>建立時間: 2025-08-03</small>
+        </div>
+        <div class="migrated-user">
+            <strong>📧 clirtw@gmail.com</strong> - 伊蘇的國度<br>
+            <strong>🔑 密碼: 123456</strong><br>
+            <small>建立時間: 2025-08-03</small>
+        </div>
+        <div class="migrated-user">
+            <strong>📧 jessicalii5201314@gmail.com</strong> - 屬神的子民<br>
+            <strong>🔑 密碼: 123456</strong><br>
+            <small>建立時間: 2025-08-03</small>
+        </div>
+        <div class="migrated-user">
+            <strong>📧 catxnote@gmail.com</strong> - 雅拉那山磐石上的精神堡壘<br>
+            <strong>🔑 密碼: 123456</strong><br>
+            <small>建立時間: 2025-08-03</small>
+        </div>
+        <div class="migrated-user">
+            <strong>📧 chenjuwe@gmail.com</strong><br>
+            <strong>🔑 密碼: 123456</strong><br>
+            <small>建立時間: 2025-08-03</small>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>❗ 常見問題：無法登入</h2>
+        
+        <div class="success">
+            <strong>✅ 密碼已統一設置完成！</strong><br>
+            所有遷移用戶的密碼已統一設置為：<strong>123456</strong>
+        </div>
+
+        <h3>🚀 立即登入：</h3>
+        
+        <div class="highlight">
+            <h4>🔑 統一登入信息：</h4>
+            <ul>
+                <li><strong>郵箱地址</strong>：您在 prayforo 使用的原郵箱</li>
+                <li><strong>統一密碼</strong>：<code>123456</code></li>
+                <li><strong>登入網址</strong>：<a href="http://localhost:5173/" target="_blank">http://localhost:5173/</a></li>
+            </ul>
+        </div>
+
+        <h4>方法 1：直接登入（推薦）</h4>
+        <ol>
+            <li>前往主應用程式：<a href="http://localhost:5173/" target="_blank">http://localhost:5173/</a></li>
+            <li>輸入您的郵箱地址</li>
+            <li>輸入密碼：<strong>123456</strong></li>
+            <li>點擊登入</li>
+            <li>建議登入後立即修改密碼</li>
+        </ol>
+
+        <h4>方法 2：如需重設密碼</h4>
+        <div>
+            <label>輸入您的郵箱地址：</label>
+            <input type="email" id="resetEmail" placeholder="例如：clinoit@gmail.com">
+            <button onclick="sendPasswordReset()">🔄 發送重設密碼郵件</button>
+            <div id="resetResult"></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🔍 檢查帳號狀態</h2>
+        <p>輸入您的郵箱地址，檢查您的帳號是否已正確遷移：</p>
+        
+        <input type="email" id="checkEmail" placeholder="輸入您的郵箱地址">
+        <button onclick="checkUserStatus()">🔍 檢查帳號狀態</button>
+        <div id="checkResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>💡 重要提醒</h2>
+        <ul>
+            <li><strong>您的所有數據都已完整遷移</strong>：包括代禱文、回應、按讚記錄等</li>
+            <li><strong>用戶名和顯示名稱保持不變</strong></li>
+            <li><strong>統一密碼已設置</strong>：所有用戶密碼為 <code>123456</code></li>
+            <li><strong>建議修改密碼</strong>：登入後請立即修改為個人密碼</li>
+            <li><strong>遷移後的網址</strong>：<a href="http://localhost:5173/" target="_blank">http://localhost:5173/</a></li>
+        </ul>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+        import { getAuth, sendPasswordResetEmail, fetchSignInMethodsForEmail } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+
+        // Firebase 配置
+        const firebaseConfig = {
+            apiKey: "AIzaSyBcFamR8al69jVzgia0kxKIcf5inLpxt0I",
+            authDomain: "foroprayo.firebaseapp.com",
+            projectId: "foroprayo",
+            storageBucket: "foroprayo.firebasestorage.app",
+            messagingSenderId: "863364228350",
+            appId: "1:863364228350:web:9aa4648b3582c8670a71af",
+            measurementId: "G-YX85B6N0M8"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        // 存放已遷移的用戶列表
+        const migratedUsers = [
+            'clinoit@gmail.com',
+            'zaosipai@gmail.com', 
+            'wsvcat@gmail.com',
+            'clirtw@gmail.com',
+            'jessicalii5201314@gmail.com',
+            'catxnote@gmail.com',
+            'chenjuwe@gmail.com'
+        ];
+
+        window.sendPasswordReset = async function() {
+            const email = document.getElementById('resetEmail').value.trim();
+            const resultDiv = document.getElementById('resetResult');
+            
+            if (!email) {
+                resultDiv.innerHTML = '<div class="error">❌ 請輸入郵箱地址</div>';
+                return;
+            }
+
+            try {
+                await sendPasswordResetEmail(auth, email);
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        ✅ 重設密碼郵件已發送到 ${email}<br>
+                        請檢查您的郵箱（包括垃圾郵件資料夾）並按照指示設置新密碼。
+                    </div>
+                `;
+            } catch (error) {
+                console.error('重設密碼錯誤:', error);
+                if (error.code === 'auth/user-not-found') {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            ❌ 找不到此郵箱地址的帳號<br>
+                            請確認郵箱地址是否正確，或檢查是否已成功遷移。
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            ❌ 發送重設郵件失敗：${error.message}
+                        </div>
+                    `;
+                }
+            }
+        };
+
+        window.checkUserStatus = async function() {
+            const email = document.getElementById('checkEmail').value.trim();
+            const resultDiv = document.getElementById('checkResult');
+            
+            if (!email) {
+                resultDiv.innerHTML = '<div class="error">❌ 請輸入郵箱地址</div>';
+                return;
+            }
+
+            try {
+                const signInMethods = await fetchSignInMethodsForEmail(auth, email);
+                const isMigrated = migratedUsers.includes(email.toLowerCase());
+                
+                if (signInMethods.length > 0) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ 帳號狀態正常<br>
+                            <strong>郵箱：</strong>${email}<br>
+                            <strong>登入方式：</strong>${signInMethods.join(', ')}<br>
+                            ${isMigrated ? '<strong>✅ 此帳號已從 prayforo 成功遷移</strong>' : ''}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="warning">
+                            ⚠️ 此郵箱地址沒有關聯的帳號<br>
+                            請確認郵箱地址是否正確。
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('檢查用戶狀態錯誤:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        ❌ 檢查失敗：${error.message}
+                    </div>
+                `;
+            }
+        };
+    </script>
+</body>
+</html> 

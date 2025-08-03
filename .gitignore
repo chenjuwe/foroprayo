@@ -37,6 +37,10 @@ build
 .env.test.local
 .env.production.local
 
+# Firebase service account keys
+*-service-account-key.json
+scripts/*-service-account-key.json
+
 # Testing
 coverage
 test-results/

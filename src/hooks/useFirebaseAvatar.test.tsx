@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import React from 'react';
 import { useFirebaseAvatar, clearAvatarGlobalState } from './useFirebaseAvatar';
-import { getUserAvatarUrlFromFirebase } from '@/services/background/AvatarService';
+import { getUserAvatarUrlFromFirebase } from '@/services/auth/FirebaseUserService';
 import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore';
 // 導入我們的 mock 輔助函數
 import { mockFirebaseAvatarForLoggedOut, mockFirebaseAvatarForLoggedIn } from '@/test/setup';
@@ -13,7 +13,7 @@ vi.mock('@/stores/firebaseAuthStore', () => ({
   useFirebaseAuthStore: vi.fn(),
 }));
 
-vi.mock('@/services/background/AvatarService', () => ({
+vi.mock('@/services/auth/FirebaseUserService', () => ({
   getUserAvatarUrlFromFirebase: vi.fn(),
 }));
 
@@ -107,10 +107,10 @@ describe('useFirebaseAvatar', () => {
     // 使用我們剛建立的 mock 輔助函數
     mockFirebaseAvatarForLoggedOut();
     
-    mockGetAvatar.mockResolvedValue({
-      large: null,
-      medium: null,
-      small: null
+    mockGetAvatar.mockResolvedValue({ 
+      large: '', 
+      medium: '', 
+      small: '' 
     });
     const { result } = renderHook(() => useFirebaseAvatar());
     
@@ -233,7 +233,11 @@ describe('useFirebaseAvatar', () => {
       small: null,
     };
     
-    mockGetAvatar.mockResolvedValue(emptyAvatarUrls);
+    mockGetAvatar.mockResolvedValue({ 
+      large: '', 
+      medium: '', 
+      small: '' 
+    });
 
     const { result } = renderHook(() => useFirebaseAvatar());
 

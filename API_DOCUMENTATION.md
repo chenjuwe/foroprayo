@@ -1,4 +1,4 @@
-# Prayforo API 文檔 v0.3.6
+# Prayforo API 文檔 v0.3.8
 
 ## 概覽
 
@@ -611,7 +611,7 @@ function PrayerInteractions({ prayerId, isLiked, isBookmarked }) {
 
 ## 版本信息
 
-- **API 版本:** v0.3.348
+- **API 版本:** v0.3.8
 - **最後更新:** 2024年12月
 - **技術棧:** React 18.3.1, TypeScript, Supabase, TanStack Query
 

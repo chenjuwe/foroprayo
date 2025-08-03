@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase 配置助手 - ForoPrayo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #FFE5D9;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .config-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            margin: 10px 0;
+        }
+        .highlight {
+            background-color: #fff3cd;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 4px solid #ffc107;
+            margin: 10px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        textarea {
+            width: 100%;
+            height: 150px;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            border-left: 4px solid #007bff;
+            background: #f8f9fa;
+        }
+        .error { color: #dc3545; }
+        .success { color: #28a745; }
+        .warning { color: #ffc107; }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔥 Firebase 配置助手</h1>
+    
+    <div class="section">
+        <h2>目前的問題</h2>
+        <div class="error">
+            <p><strong>錯誤：</strong>auth/api-key-not-valid.-please-pass-a-valid-api-key</p>
+            <p><strong>原因：</strong>Firebase API Key 不正確或無效</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🔍 步驟 1：從 Firebase 控制台獲取正確配置</h2>
+        
+        <div class="step">
+            <h3>1.1 訪問 Firebase 控制台</h3>
+            <p>📱 訪問：<strong>https://console.firebase.google.com/project/foroprayo</strong></p>
+        </div>
+
+        <div class="step">
+            <h3>1.2 進入專案設定</h3>
+            <p>🔧 點擊左上角的 <strong>⚙️ 專案設定</strong> (Project Settings)</p>
+        </div>
+
+        <div class="step">
+            <h3>1.3 找到應用程式配置</h3>
+            <p>📋 滾動到頁面底部的 <strong>"您的應用程式"</strong> 區塊</p>
+            <p>🌐 找到 Web 應用程式 (圖標是 &lt;/&gt;)</p>
+            <p>⚙️ 點擊應用程式右側的 <strong>"設定"</strong> 或 <strong>"配置"</strong> 按鈕</p>
+        </div>
+
+        <div class="step">
+            <h3>1.4 複製 Firebase 配置</h3>
+            <p>📄 會看到類似下面的 JavaScript 代碼：</p>
+            <pre>const firebaseConfig = {
+  apiKey: "AIzaSy...",
+  authDomain: "foroprayo.firebaseapp.com",
+  projectId: "foroprayo",
+  storageBucket: "foroprayo.firebasestorage.app",
+  messagingSenderId: "863364228350",
+  appId: "1:863364228350:web:...",
+  measurementId: "G-..."
+};</pre>
+            <p>📋 <strong>複製整個 firebaseConfig 物件的內容</strong></p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📝 步驟 2：貼上您的 Firebase 配置</h2>
+        <p>將從 Firebase 控制台複製的配置貼到下面的文字框中：</p>
+        <textarea id="configInput" placeholder="請將從 Firebase 控制台複製的 firebaseConfig 物件貼到這裡...
+
+例如：
+{
+  apiKey: &quot;AIzaSy...&quot;,
+  authDomain: &quot;foroprayo.firebaseapp.com&quot;,
+  projectId: &quot;foroprayo&quot;,
+  storageBucket: &quot;foroprayo.firebasestorage.app&quot;,
+  messagingSenderId: &quot;863364228350&quot;,
+  appId: &quot;1:863364228350:web:...&quot;,
+  measurementId: &quot;G-...&quot;
+}"></textarea>
+        <br>
+        <button onclick="parseConfig()">🔍 解析和驗證配置</button>
+        <button onclick="clearConfig()">🗑️ 清除</button>
+    </div>
+
+    <div class="section">
+        <h2>📊 步驟 3：驗證結果</h2>
+        <div id="parseResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>🚀 步驟 4：自動更新配置</h2>
+        <p>如果配置驗證成功，點擊下面的按鈕自動生成更新代碼：</p>
+        <button id="generateBtn" onclick="generateUpdateCode()" disabled>🔧 生成更新代碼</button>
+        <div id="updateCode"></div>
+    </div>
+
+    <div class="section">
+        <h2>🧪 步驟 5：測試新配置</h2>
+        <button id="testBtn" onclick="testNewConfig()" disabled>🧪 測試新配置</button>
+        <div id="testResult"></div>
+    </div>
+
+    <script>
+        let validatedConfig = null;
+
+        function clearConfig() {
+            document.getElementById('configInput').value = '';
+            document.getElementById('parseResult').innerHTML = '';
+            document.getElementById('updateCode').innerHTML = '';
+            document.getElementById('testResult').innerHTML = '';
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('testBtn').disabled = true;
+            validatedConfig = null;
+        }
+
+        function parseConfig() {
+            const input = document.getElementById('configInput').value.trim();
+            const result = document.getElementById('parseResult');
+            
+            if (!input) {
+                result.innerHTML = '<p class="error">⚠️ 請先貼上 Firebase 配置</p>';
+                return;
+            }
+
+            try {
+                // 嘗試解析配置
+                let config;
+                
+                // 移除可能的 const firebaseConfig = 前綴
+                let cleanInput = input.replace(/^const\s+firebaseConfig\s*=\s*/, '').replace(/;$/, '');
+                
+                // 嘗試解析 JSON
+                config = JSON.parse(cleanInput);
+                
+                // 驗證必要的字段
+                const requiredFields = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+                const missing = requiredFields.filter(field => !config[field]);
+                
+                if (missing.length > 0) {
+                    result.innerHTML = `<p class="error">❌ 缺少必要字段：${missing.join(', ')}</p>`;
+                    return;
+                }
+
+                // 驗證項目 ID
+                if (config.projectId !== 'foroprayo') {
+                    result.innerHTML = `<p class="warning">⚠️ 項目 ID 不匹配！預期：foroprayo，實際：${config.projectId}</p>`;
+                    return;
+                }
+
+                // 驗證 API Key 格式
+                if (!config.apiKey.startsWith('AIzaSy')) {
+                    result.innerHTML = `<p class="warning">⚠️ API Key 格式看起來不正確。應該以 'AIzaSy' 開頭</p>`;
+                    return;
+                }
+
+                validatedConfig = config;
+                
+                result.innerHTML = `
+                    <p class="success">✅ 配置驗證成功！</p>
+                    <div class="config-box">
+                        <h4>驗證的配置：</h4>
+                        <pre>${JSON.stringify(config, null, 2)}</pre>
+                    </div>
+                `;
+                
+                document.getElementById('generateBtn').disabled = false;
+
+            } catch (e) {
+                result.innerHTML = `
+                    <p class="error">❌ 配置解析失敗：${e.message}</p>
+                    <div class="highlight">
+                        <h4>💡 建議：</h4>
+                        <ul>
+                            <li>確保貼上的是完整的 JSON 物件</li>
+                            <li>可以包含或不包含 "const firebaseConfig = " 前綴</li>
+                            <li>確保所有字串都用雙引號包圍</li>
+                            <li>確保沒有多餘的逗號或分號</li>
+                        </ul>
+                    </div>
+                `;
+            }
+        }
+
+        function generateUpdateCode() {
+            if (!validatedConfig) {
+                alert('請先驗證配置！');
+                return;
+            }
+
+            const updateCode = document.getElementById('updateCode');
+            
+            updateCode.innerHTML = `
+                <h3>🔧 更新代碼已生成</h3>
+                <div class="highlight">
+                    <p>請執行以下命令來更新您的應用程式配置：</p>
+                </div>
+                <div class="config-box">
+                    <h4>1. 更新應用程式配置文件：</h4>
+                    <pre>// 更新 src/integrations/firebase/client.ts 中的 firebaseConfig：
+const firebaseConfig = ${JSON.stringify(validatedConfig, null, 2)};</pre>
+                </div>
+                <div class="config-box">
+                    <h4>2. 更新測試配置：</h4>
+                    <pre>// 更新 public/test-auth.html 中的 firebaseConfig：
+const firebaseConfig = ${JSON.stringify(validatedConfig, null, 2)};</pre>
+                </div>
+            `;
+            
+            document.getElementById('testBtn').disabled = false;
+        }
+
+        async function testNewConfig() {
+            if (!validatedConfig) {
+                alert('請先驗證配置！');
+                return;
+            }
+
+            const result = document.getElementById('testResult');
+            result.innerHTML = '<p class="warning">🧪 正在測試新配置...</p>';
+
+            try {
+                // 動態導入 Firebase SDK
+                const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');
+                const { getAuth, connectAuthEmulator } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
+                
+                // 測試初始化
+                const app = initializeApp(validatedConfig);
+                const auth = getAuth(app);
+                
+                result.innerHTML = `
+                    <p class="success">✅ 新配置測試成功！</p>
+                    <div class="config-box">
+                        <p><strong>App Name:</strong> ${app.name}</p>
+                        <p><strong>Project ID:</strong> ${app.options.projectId}</p>
+                        <p><strong>API Key (前8字元):</strong> ${app.options.apiKey.substring(0, 8)}...</p>
+                    </div>
+                    <div class="highlight">
+                        <h4>🎉 下一步：</h4>
+                        <ol>
+                            <li>複製上面生成的更新代碼</li>
+                            <li>更新您的應用程式配置檔案</li>
+                            <li>重新啟動開發伺服器</li>
+                            <li>再次測試登入功能</li>
+                        </ol>
+                    </div>
+                `;
+
+            } catch (error) {
+                result.innerHTML = `
+                    <p class="error">❌ 新配置測試失敗：${error.message}</p>
+                    <p>請檢查配置是否正確，或聯繫開發者協助。</p>
+                `;
+            }
+        }
+
+        // 頁面載入時顯示指示
+        window.addEventListener('load', () => {
+            console.log('Firebase 配置助手已載入');
+        });
+    </script>
+</body>
+</html> 

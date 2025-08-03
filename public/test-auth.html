@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase 認證測試 - ForoPrayo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #FFE5D9;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+        .info { color: #007bff; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔥 Firebase 認證測試</h1>
+    
+    <div class="test-section">
+        <h2>1. Firebase 配置檢查</h2>
+        <button onclick="testFirebaseConfig()">測試 Firebase 配置</button>
+        <div id="configResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Firebase Auth 初始化檢查</h2>
+        <button onclick="testFirebaseAuth()">測試 Firebase Auth</button>
+        <div id="authResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. 手動登入測試</h2>
+        <input type="email" id="testEmail" placeholder="測試用電子郵件" value="">
+        <input type="password" id="testPassword" placeholder="測試用密碼" value="">
+        <button onclick="testSignIn()">測試登入</button>
+        <button onclick="testSignUp()">測試註冊</button>
+        <div id="loginResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. 當前認證狀態</h2>
+        <button onclick="checkAuthState()">檢查認證狀態</button>
+        <button onclick="signOutTest()">登出</button>
+        <div id="authStateResult"></div>
+    </div>
+
+    <script type="module">
+        // Firebase 配置 (與應用程式相同)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBcFamR8al69jVzgia0kxKIcf5inLpxt0I",
+            authDomain: "foroprayo.firebaseapp.com",
+            projectId: "foroprayo",
+            storageBucket: "foroprayo.firebasestorage.app",
+            messagingSenderId: "863364228350",
+            appId: "1:863364228350:web:9aa4648b3582c8670a71af",
+            measurementId: "G-YX85B6N0M8"
+        };
+
+        let auth = null;
+        let app = null;
+
+        // 測試 Firebase 配置
+        window.testFirebaseConfig = async function() {
+            const result = document.getElementById('configResult');
+            result.innerHTML = '<p class="info">正在測試 Firebase 配置...</p>';
+            
+            try {
+                // 動態導入 Firebase SDK
+                const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');
+                const { getAuth } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
+                
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                
+                result.innerHTML = `
+                    <p class="success">✅ Firebase 配置成功！</p>
+                    <pre>${JSON.stringify(firebaseConfig, null, 2)}</pre>
+                `;
+            } catch (error) {
+                result.innerHTML = `
+                    <p class="error">❌ Firebase 配置失敗：${error.message}</p>
+                    <pre>${error.stack}</pre>
+                `;
+            }
+        };
+
+        // 測試 Firebase Auth
+        window.testFirebaseAuth = async function() {
+            const result = document.getElementById('authResult');
+            result.innerHTML = '<p class="info">正在測試 Firebase Auth...</p>';
+            
+            try {
+                if (!auth) {
+                    await testFirebaseConfig();
+                }
+                
+                result.innerHTML = `
+                    <p class="success">✅ Firebase Auth 初始化成功！</p>
+                    <p><strong>App Name:</strong> ${auth.app.name}</p>
+                    <p><strong>Config:</strong> ${auth.app.options.projectId}</p>
+                `;
+            } catch (error) {
+                result.innerHTML = `
+                    <p class="error">❌ Firebase Auth 初始化失敗：${error.message}</p>
+                    <pre>${error.stack}</pre>
+                `;
+            }
+        };
+
+        // 測試登入
+        window.testSignIn = async function() {
+            const result = document.getElementById('loginResult');
+            const email = document.getElementById('testEmail').value;
+            const password = document.getElementById('testPassword').value;
+            
+            if (!email || !password) {
+                result.innerHTML = '<p class="warning">⚠️ 請輸入電子郵件和密碼</p>';
+                return;
+            }
+            
+            result.innerHTML = '<p class="info">正在嘗試登入...</p>';
+            
+            try {
+                if (!auth) {
+                    await testFirebaseAuth();
+                }
+                
+                const { signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                
+                result.innerHTML = `
+                    <p class="success">✅ 登入成功！</p>
+                    <p><strong>User ID:</strong> ${userCredential.user.uid}</p>
+                    <p><strong>Email:</strong> ${userCredential.user.email}</p>
+                    <p><strong>顯示名稱:</strong> ${userCredential.user.displayName || '未設定'}</p>
+                `;
+            } catch (error) {
+                result.innerHTML = `
+                    <p class="error">❌ 登入失敗：${error.message}</p>
+                    <p><strong>錯誤代碼:</strong> ${error.code}</p>
+                    <pre>${error.stack}</pre>
+                `;
+            }
+        };
+
+        // 測試註冊
+        window.testSignUp = async function() {
+            const result = document.getElementById('loginResult');
+            const email = document.getElementById('testEmail').value;
+            const password = document.getElementById('testPassword').value;
+            
+            if (!email || !password) {
+                result.innerHTML = '<p class="warning">⚠️ 請輸入電子郵件和密碼</p>';
+                return;
+            }
+            
+            result.innerHTML = '<p class="info">正在嘗試註冊...</p>';
+            
+            try {
+                if (!auth) {
+                    await testFirebaseAuth();
+                }
+                
+                const { createUserWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                
+                result.innerHTML = `
+                    <p class="success">✅ 註冊成功！</p>
+                    <p><strong>User ID:</strong> ${userCredential.user.uid}</p>
+                    <p><strong>Email:</strong> ${userCredential.user.email}</p>
+                `;
+            } catch (error) {
+                result.innerHTML = `
+                    <p class="error">❌ 註冊失敗：${error.message}</p>
+                    <p><strong>錯誤代碼:</strong> ${error.code}</p>
+                    <pre>${error.stack}</pre>
+                `;
+            }
+        };
+
+        // 檢查認證狀態
+        window.checkAuthState = async function() {
+            const result = document.getElementById('authStateResult');
+            result.innerHTML = '<p class="info">正在檢查認證狀態...</p>';
+            
+            try {
+                if (!auth) {
+                    await testFirebaseAuth();
+                }
+                
+                const { onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
+                
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        result.innerHTML = `
+                            <p class="success">✅ 用戶已登入</p>
+                            <p><strong>User ID:</strong> ${user.uid}</p>
+                            <p><strong>Email:</strong> ${user.email}</p>
+                            <p><strong>顯示名稱:</strong> ${user.displayName || '未設定'}</p>
+                            <p><strong>Email 驗證:</strong> ${user.emailVerified ? '已驗證' : '未驗證'}</p>
+                        `;
+                    } else {
+                        result.innerHTML = '<p class="warning">⚠️ 用戶未登入</p>';
+                    }
+                });
+                
+                setTimeout(() => {
+                    if (result.innerHTML.includes('正在檢查')) {
+                        result.innerHTML = '<p class="warning">⚠️ 認證狀態檢查超時</p>';
+                    }
+                }, 3000);
+                
+            } catch (error) {
+                result.innerHTML = `
+                    <p class="error">❌ 認證狀態檢查失敗：${error.message}</p>
+                    <pre>${error.stack}</pre>
+                `;
+            }
+        };
+
+        // 登出測試
+        window.signOutTest = async function() {
+            const result = document.getElementById('authStateResult');
+            result.innerHTML = '<p class="info">正在登出...</p>';
+            
+            try {
+                if (!auth) {
+                    await testFirebaseAuth();
+                }
+                
+                const { signOut } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
+                await signOut(auth);
+                
+                result.innerHTML = '<p class="success">✅ 已成功登出</p>';
+            } catch (error) {
+                result.innerHTML = `
+                    <p class="error">❌ 登出失敗：${error.message}</p>
+                    <pre>${error.stack}</pre>
+                `;
+            }
+        };
+
+        // 頁面載入時自動測試配置
+        window.addEventListener('load', () => {
+            testFirebaseConfig();
+        });
+    </script>
+</body>
+</html> 

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { User as FirebaseUser, AuthError, NextOrObserver, onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/integrations/firebase/client';
+import { User as FirebaseUser } from 'firebase/auth';
+import { addAuthStateListener } from '@/integrations/firebase/client';
 import { log } from '@/lib/logger';
 import { STORAGE_KEYS, GUEST_DEFAULT_BACKGROUND } from '@/constants';
 import { queryClient } from '@/config/queryClient';
@@ -16,6 +16,8 @@ interface FirebaseAuthState {
   initAuth: () => void;
   signOut: () => Promise<void>;
 }
+
+let unsubscribeAuth: (() => void) | null = null;
 
 export const useFirebaseAuthStore = create<FirebaseAuthState>((set, get) => ({
   user: null,
@@ -37,8 +39,13 @@ export const useFirebaseAuthStore = create<FirebaseAuthState>((set, get) => ({
   
   initAuth: () => {
     try {
-      // 設置 Firebase 認證狀態變化監聽
-      const unsubscribe = onAuthStateChanged(auth(), (user) => {
+      // 清除之前的監聽器
+      if (unsubscribeAuth) {
+        unsubscribeAuth();
+      }
+      
+      // 使用統一的認證狀態管理
+      unsubscribeAuth = addAuthStateListener((user) => {
         if (user) {
           set({ 
             user: user, 
@@ -67,6 +74,8 @@ export const useFirebaseAuthStore = create<FirebaseAuthState>((set, get) => ({
             displayName: ''
           });
           
+          log.debug('Firebase 用戶登出', {}, 'FirebaseAuthStore');
+          
           // 設置訪客背景
           localStorage.setItem(STORAGE_KEYS.BACKGROUND, GUEST_DEFAULT_BACKGROUND);
           localStorage.setItem(STORAGE_KEYS.CUSTOM_BACKGROUND, '');
@@ -74,9 +83,6 @@ export const useFirebaseAuthStore = create<FirebaseAuthState>((set, get) => ({
           window.dispatchEvent(new Event('foroprayo-background-updated'));
         }
       });
-      
-      // 注意：我們不再返回取消訂閱函數，因為 Zustand store 沒有生命週期方法來調用它
-      // 在實際應用中，可能需要在適當的地方手動調用 unsubscribe
     } catch (error) {
       log.error('初始化 Firebase 認證狀態失敗', error, 'FirebaseAuthStore');
       set({ isAuthLoading: false });
@@ -85,6 +91,7 @@ export const useFirebaseAuthStore = create<FirebaseAuthState>((set, get) => ({
   
   signOut: async () => {
     try {
+      const { auth } = await import('@/integrations/firebase/client');
       await auth().signOut();
       
       // 設置訪客背景

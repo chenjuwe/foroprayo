@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Root 元素測試</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Root 元素檢測</h1>
+    
+    <div id="results"></div>
+    
+    <!-- 這是模擬的 root 元素 -->
+    <div id="root">
+        <p>這是 root 元素內容</p>
+    </div>
+    
+    <script>
+        function addResult(message, isSuccess) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = 'test-result ' + (isSuccess ? 'success' : 'error');
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+        
+        // 立即檢測
+        const immediateRoot = document.getElementById('root');
+        addResult(
+            `立即檢測 Root 元素: ${immediateRoot ? '✅ 存在' : '❌ 不存在'}`, 
+            !!immediateRoot
+        );
+        
+        if (immediateRoot) {
+            addResult(`Root 元素內容: "${immediateRoot.innerHTML.trim()}"`, true);
+            addResult(`Root 元素標籤: ${immediateRoot.tagName}`, true);
+        }
+        
+        // DOM 載入完成後檢測
+        document.addEventListener('DOMContentLoaded', function() {
+            const domRoot = document.getElementById('root');
+            addResult(
+                `DOMContentLoaded 後檢測: ${domRoot ? '✅ 存在' : '❌ 不存在'}`, 
+                !!domRoot
+            );
+        });
+        
+        // 頁面完全載入後檢測
+        window.addEventListener('load', function() {
+            const loadRoot = document.getElementById('root');
+            addResult(
+                `Window Load 後檢測: ${loadRoot ? '✅ 存在' : '❌ 不存在'}`, 
+                !!loadRoot
+            );
+            
+            // 嘗試修改 root 元素內容
+            if (loadRoot) {
+                loadRoot.innerHTML = '<div style="color: green; font-weight: bold;">✅ Root 元素正常工作！</div>';
+                addResult('Root 元素內容修改成功', true);
+            }
+        });
+        
+        // 檢測是否有其他腳本
+        addResult(`當前頁面腳本數量: ${document.scripts.length}`, true);
+        
+        // 1秒後再次檢測
+        setTimeout(function() {
+            const timeoutRoot = document.getElementById('root');
+            addResult(
+                `1秒後檢測: ${timeoutRoot ? '✅ 存在' : '❌ 不存在'}`, 
+                !!timeoutRoot
+            );
+        }, 1000);
+    </script>
+</body>
+</html> 

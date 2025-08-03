@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
+import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
 import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore';
 import { log } from '@/lib/logger';
 import { useFirebaseAvatar } from '@/hooks/useFirebaseAvatar';

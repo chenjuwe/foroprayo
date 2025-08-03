@@ -1,4 +1,4 @@
-# ForoPrayo v0.3.6
+# ForoPrayo v0.3.8
 
 這是一個使用 Firebase 認證和存儲的代禱應用程序。
 

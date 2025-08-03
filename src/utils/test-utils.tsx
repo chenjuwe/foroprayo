@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { User as FirebaseUser } from 'firebase/auth';
 import { FirebaseAuthProvider } from '@/contexts/FirebaseAuthContext';
-import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
+import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
 import { mockUser, mockPrayers, mockResponses } from './test-constants';
 import { vi } from 'vitest';
 import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore';

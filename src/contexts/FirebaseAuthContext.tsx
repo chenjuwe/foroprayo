@@ -1,20 +1,20 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { User } from 'firebase/auth';
-import { FirebaseAuthService } from '@/services/auth/FirebaseAuthService';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { User as FirebaseUser } from 'firebase/auth';
 import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore';
 import { log } from '@/lib/logger';
+import { FirebaseAuthService } from '@/services/auth/FirebaseAuthService';
 
-// 定義回傳結果的介面
+// 認證結果介面
 interface AuthResult {
-  user: User | null;
+  user: FirebaseUser | null;
   error: string | null;
-  fromCache?: boolean;
 }
 
-// 創建上下文類型
+// 定義認證上下文類型
 interface FirebaseAuthContextType {
-  currentUser: User | null;
+  currentUser: FirebaseUser | null;
   loading: boolean;
+  authInitialized: boolean;
   signIn: (email: string, password: string) => Promise<AuthResult>;
   signUp: (email: string, password: string) => Promise<AuthResult>;
   signOut: () => Promise<{ error: string | null }>;
@@ -22,61 +22,23 @@ interface FirebaseAuthContextType {
   refreshUserAvatar: () => void;
 }
 
-// 創建上下文
-const FirebaseAuthContext = createContext<FirebaseAuthContextType | undefined>(undefined);
+// 創建認證上下文 - 確保導出以支援現有的 hook
+export const FirebaseAuthContext = createContext<FirebaseAuthContextType | undefined>(undefined);
 
-// 創建上下文提供者
-export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+// 認證提供者組件
+export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [authInitialized, setAuthInitialized] = useState(false);
   
-  // 獲取 store 中的方法，用於同步認證狀態
-  const setUser = useFirebaseAuthStore(state => state.setUser);
-  const setAuthLoading = useFirebaseAuthStore(state => state.setAuthLoading);
-  const initAuth = useFirebaseAuthStore(state => state.initAuth);
-
-  // 刷新用戶頭像
-  const refreshUserAvatar = useCallback(() => {
-    if (currentUser) {
-      log.debug('手動刷新用戶頭像', { userId: currentUser.uid }, 'FirebaseAuthContext');
-      
-      // 觸發頭像更新事件
-      window.dispatchEvent(new CustomEvent('avatar-updated', { 
-        detail: { 
-          userId: currentUser.uid,
-          timestamp: Date.now(),
-          source: 'FirebaseAuthContext'
-        }
-      }));
-      
-      // 清除本地頭像緩存
-      const cacheKeys = Object.keys(localStorage).filter(key => 
-        key.startsWith('avatar_') || key.includes('lastAvatarUpdate')
-      );
-      
-      cacheKeys.forEach(key => {
-        localStorage.removeItem(key);
-      });
-      
-      // 強制重新載入用戶資料
-      currentUser.reload().then(() => {
-        log.debug('用戶資料已重新載入', { userId: currentUser.uid }, 'FirebaseAuthContext');
-        
-        // 再次觸發頭像更新事件
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent('avatar-updated', { 
-            detail: { 
-              userId: currentUser.uid,
-              timestamp: Date.now(),
-              source: 'FirebaseAuthContext',
-              delayed: true
-            }
-          }));
-        }, 500);
-      });
-    }
-  }, [currentUser]);
+  // 從 store 獲取狀態和方法
+  const { 
+    user, 
+    isAuthLoading, 
+    setUser, 
+    setAuthLoading, 
+    initAuth 
+  } = useFirebaseAuthStore();
 
   // 身份驗證狀態監聽
   useEffect(() => {
@@ -84,102 +46,127 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     
     // 初始化 store 中的認證狀態
     initAuth();
-    
-    const unsubscribe = FirebaseAuthService.onAuthStateChanged((user) => {
-      setCurrentUser(user);
-      setLoading(false);
-      setAuthInitialized(true);
-      
-      // 同步到 store
-      setUser(user);
-      setAuthLoading(false);
-      
-      if (user) {
-        log.debug('Firebase 認證狀態變化: 用戶已登入', {
-          userId: user.uid,
-          email: user.email,
-          displayName: user.displayName
-        }, 'FirebaseAuthContext');
-        
-        // 登入後延遲刷新頭像，確保用戶資料已完全載入
-        setTimeout(() => {
-          refreshUserAvatar();
-        }, 300);
-      } else {
-        log.debug('Firebase 認證狀態變化: 用戶未登入', null, 'FirebaseAuthContext');
-      }
-    });
+  }, [initAuth]);
 
-    return unsubscribe;
-  }, [setUser, setAuthLoading, initAuth, refreshUserAvatar]);
+  // 監聽 store 中的用戶狀態變化
+  const storeUser = useFirebaseAuthStore(state => state.user);
+  const storeIsLoading = useFirebaseAuthStore(state => state.isAuthLoading);
+
+  useEffect(() => {
+    setCurrentUser(storeUser);
+    setLoading(storeIsLoading);
+    setAuthInitialized(true);
+    
+    // 同步到 store（確保一致性）
+    setUser(storeUser);
+    setAuthLoading(storeIsLoading);
+    
+    if (storeUser) {
+      log.debug('Firebase 認證狀態變化: 用戶已登入', {
+        userId: storeUser.uid,
+        email: storeUser.email,
+        displayName: storeUser.displayName,
+        photoURL: storeUser.photoURL
+      }, 'FirebaseAuthContext');
+      
+      // 同步用戶數據到 Firestore
+      (async () => {
+        try {
+          const { FirebaseUserService } = await import('@/services/auth/FirebaseUserService');
+          await FirebaseUserService.syncUserDataFromAuth(storeUser.uid);
+          log.debug('用戶數據同步完成', { userId: storeUser.uid }, 'FirebaseAuthContext');
+        } catch (error) {
+          log.error('用戶數據同步失敗', { error, userId: storeUser.uid }, 'FirebaseAuthContext');
+        }
+      })();
+    } else {
+      log.debug('Firebase 認證狀態變化: 用戶未登入', null, 'FirebaseAuthContext');
+    }
+  }, [storeUser, storeIsLoading, setUser, setAuthLoading]);
 
   // 登入方法
   const signIn = async (email: string, password: string): Promise<AuthResult> => {
-    const result = await FirebaseAuthService.signInWithPassword(email, password) as AuthResult;
-    
-    // 登入成功後同步到 store
-    if (result.user && !result.error) {
-      setUser(result.user);
-      log.debug('Firebase 登入成功', { 
-        userId: result.user.uid,
-        email: result.user.email,
-        displayName: result.user.displayName,
-        fromCache: result.fromCache
-      }, 'FirebaseAuthContext');
+    try {
+      const result = await FirebaseAuthService.signInWithPassword(email, password) as AuthResult;
       
-      // 更新當前用戶狀態
-      setCurrentUser(result.user);
+      if (result.user) {
+        log.debug('登入成功', {
+          userId: result.user.uid,
+          email: result.user.email
+        }, 'FirebaseAuthContext');
+      }
       
-      // 登入成功後刷新頭像
-      setTimeout(() => {
-        refreshUserAvatar();
-      }, 300);
+      return result;
+    } catch (error) {
+      log.error('登入失敗', { error }, 'FirebaseAuthContext');
+      return {
+        user: null,
+        error: error instanceof Error ? error.message : '登入失敗'
+      };
     }
-    
-    return result;
   };
 
   // 註冊方法
   const signUp = async (email: string, password: string): Promise<AuthResult> => {
-    const result = await FirebaseAuthService.signUp(email, password) as AuthResult;
-    
-    // 註冊成功後同步到 store
-    if (result.user && !result.error) {
-      setUser(result.user);
-      log.debug('Firebase 註冊成功', { 
-        userId: result.user.uid,
-        email: result.user.email
-      }, 'FirebaseAuthContext');
+    try {
+      const result = await FirebaseAuthService.signUp(email, password) as AuthResult;
       
-      // 註冊成功後刷新頭像
-      setTimeout(() => {
-        refreshUserAvatar();
-      }, 300);
+      if (result.user) {
+        log.debug('註冊成功', {
+          userId: result.user.uid,
+          email: result.user.email
+        }, 'FirebaseAuthContext');
+      }
+      
+      return result;
+    } catch (error) {
+      log.error('註冊失敗', { error }, 'FirebaseAuthContext');
+      return {
+        user: null,
+        error: error instanceof Error ? error.message : '註冊失敗'
+      };
     }
-    
-    return result;
   };
 
   // 登出方法
   const signOut = async () => {
-    const result = await FirebaseAuthService.signOut();
-    
-    // 登出後清除 store 中的用戶資料
-    if (!result.error) {
-      setUser(null);
+    try {
+      const result = await FirebaseAuthService.signOut();
+      log.debug('登出成功', null, 'FirebaseAuthContext');
+      return result;
+    } catch (error) {
+      log.error('登出失敗', { error }, 'FirebaseAuthContext');
+      return { error: error instanceof Error ? error.message : '登出失敗' };
     }
-    
-    return result;
   };
 
   // 重置密碼方法
   const resetPassword = async (email: string) => {
-    return await FirebaseAuthService.sendPasswordResetEmail(email);
+    try {
+      const result = await FirebaseAuthService.sendPasswordResetEmail(email);
+      log.debug('密碼重置郵件已發送', { email }, 'FirebaseAuthContext');
+      return result;
+    } catch (error) {
+      log.error('密碼重置失敗', { error, email }, 'FirebaseAuthContext');
+      return { error: error instanceof Error ? error.message : '密碼重置失敗' };
+    }
   };
 
-  const value = {
+  // 刷新用戶頭像 (空實現，為了兼容性)
+  const refreshUserAvatar = () => {
+    if (currentUser) {
+      log.debug('刷新用戶頭像', { userId: currentUser.uid }, 'FirebaseAuthContext');
+      // 觸發頭像更新事件
+      window.dispatchEvent(new CustomEvent('avatar-updated', {
+        detail: { userId: currentUser.uid, timestamp: Date.now() }
+      }));
+    }
+  };
+
+  const value: FirebaseAuthContextType = {
     currentUser,
     loading,
+    authInitialized,
     signIn,
     signUp,
     signOut,
@@ -189,10 +176,19 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   return (
     <FirebaseAuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </FirebaseAuthContext.Provider>
   );
-};
+}
 
-// 導出 FirebaseAuthContext
-export { FirebaseAuthContext }; 
+// 自定義 hook 來使用認證上下文
+export function useFirebaseAuth() {
+  const context = useContext(FirebaseAuthContext);
+  if (context === undefined) {
+    throw new Error('useFirebaseAuth 必須在 FirebaseAuthProvider 內使用');
+  }
+  return context;
+}
+
+// 確保導出名稱一致，避免 HMR 問題
+export default FirebaseAuthProvider; 

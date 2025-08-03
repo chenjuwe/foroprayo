@@ -1,27 +1,44 @@
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { BrowserRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PostActions } from './PostActions';
+import { FirebasePrayerService } from '@/services/prayer/FirebasePrayerService';
+import { FirebasePrayerResponseService } from '@/services/prayer/FirebasePrayerResponseService';
+import { mockPrayer } from '@/test/fixtures/mock-data';
+import type { Prayer } from '@/types/prayer';
 
-// Mock all dependencies
-vi.mock('@/hooks/useSocialFeatures', () => ({
-  usePrayerLikes: vi.fn(),
-  useTogglePrayerLike: vi.fn(),
+// Mock the Firebase services
+vi.mock('@/services/prayer/FirebasePrayerService');
+vi.mock('@/services/prayer/FirebasePrayerResponseService');
+
+// Mock sonner toast
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
 }));
 
-vi.mock('@/hooks/usePrayersOptimized', () => ({
-  useDeletePrayer: vi.fn(),
+// Mock the auth context
+vi.mock('@/contexts/FirebaseAuthContext', () => ({
+  useFirebaseAuth: vi.fn(() => ({
+    currentUser: { uid: 'test-user', email: 'test@example.com' },
+  })),
 }));
 
-vi.mock('@/hooks/useFirebaseAuth', () => ({
-  useFirebaseAuth: vi.fn(),
+// Mock the auth store
+vi.mock('@/stores/firebaseAuthStore', () => ({
+  useFirebaseAuthStore: vi.fn(() => ({
+    user: { uid: 'test-user', email: 'test@example.com' },
+  })),
 }));
 
-vi.mock('@/hooks/usePrayerAnswered', () => ({
-  useTogglePrayerAnswered: vi.fn(),
+// Mock react-router-dom
+vi.mock('react-router-dom', () => ({
+  useNavigate: vi.fn(() => vi.fn()),
 }));
 
+// Mock logger
 vi.mock('@/lib/logger', () => ({
   log: {
     debug: vi.fn(),
@@ -31,32 +48,9 @@ vi.mock('@/lib/logger', () => ({
   },
 }));
 
-vi.mock('@/lib/notifications', () => ({
-  notify: {
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-  },
-}));
-
-vi.mock('./ReportDialog', () => ({
-  ReportDialog: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => 
-    isOpen ? <div data-testid="report-dialog">Report Dialog</div> : null,
-}));
-
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
-  return {
-    ...actual,
-    useLocation: vi.fn(() => ({ pathname: '/prayers' })),
-  };
-});
-
-// Import mocked modules
-import { usePrayerLikes, useTogglePrayerLike } from '@/hooks/useSocialFeatures';
-import { useDeletePrayer } from '@/hooks/usePrayersOptimized';
-import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
-import { useTogglePrayerAnswered } from '@/hooks/usePrayerAnswered';
+// Import the mock after mocking
+import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
+import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore';
 
 const renderWithRouter = (component: React.ReactElement) => {
   return render(<BrowserRouter>{component}</BrowserRouter>);

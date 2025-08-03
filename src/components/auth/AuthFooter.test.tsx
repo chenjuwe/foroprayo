@@ -16,8 +16,8 @@ describe('AuthFooter', () => {
 
     const versionText = screen.getByText(/App 版本/);
     expect(versionText).toBeInTheDocument();
-    expect(versionText.textContent).toContain('v0.3.348');
-    expect(versionText.textContent).toContain('2025-11-10');
+    expect(versionText.textContent).toContain('v0.3.8');
+          expect(versionText.textContent).toContain('2025-01-03');
   });
 
   it('應該包含聯絡資訊', () => {

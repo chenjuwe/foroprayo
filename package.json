@@ -1,6 +1,6 @@
 {
   "name": "foroprayo",
-  "version": "0.3.758",
+  "version": "0.3.8",
   "description": "Pray for others - A prayer sharing platform",
   "type": "module",
   "scripts": {
@@ -55,7 +55,17 @@
     "test:coverage:summary": "node scripts/test-coverage-monitor.js",
     "test:report:all": "npm run test:coverage && npm run test:performance:report && npm run test:security:report",
     "test:validate:all": "npm run lint && npm run test:unit && npm run test:integration",
-    "check-deps": "depcheck"
+    "check-deps": "depcheck",
+    "firebase:migrate": "node scripts/firebase-migration.cjs",
+    "firebase:migrate:firestore": "node scripts/firebase-migration.cjs firestore",
+    "firebase:migrate:storage": "node scripts/firebase-migration.cjs storage",
+    "firebase:migrate:auth": "node scripts/firebase-migration.cjs auth",
+    "firebase:deploy": "node scripts/deploy-firebase-config.cjs",
+    "firebase:deploy:firestore": "node scripts/deploy-firebase-config.cjs firestore",
+    "firebase:deploy:storage": "node scripts/deploy-firebase-config.cjs storage",
+    "firebase:cleanup": "node scripts/cleanup-source-data.cjs",
+    "firebase:cleanup:firestore": "node scripts/cleanup-source-data.cjs firestore",
+    "firebase:cleanup:auth": "node scripts/cleanup-source-data.cjs auth"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "1.2.0",
@@ -133,6 +143,7 @@
     "eslint": "9.9.0",
     "eslint-plugin-react-hooks": "5.2.0",
     "eslint-plugin-react-refresh": "0.4.9",
+    "firebase-admin": "^13.4.0",
     "glob": "11.0.3",
     "globals": "16.3.0",
     "jsdom": "26.1.0",

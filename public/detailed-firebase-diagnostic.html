@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>詳細 Firebase 診斷 - ForoPrayo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #FFE5D9;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+        .info { color: #007bff; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .diagnostic-item {
+            border: 1px solid #ddd;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 詳細 Firebase 診斷工具</h1>
+    
+    <div class="section">
+        <h2>🔧 自動診斷</h2>
+        <button onclick="runFullDiagnostic()">🚀 執行完整診斷</button>
+        <div id="diagnosticResults"></div>
+    </div>
+
+    <script type="module">
+        const firebaseConfig = {
+            apiKey: "AIzaSyBcFamR8al69jVzgia0kxKIcf5inLpxt0I",
+            authDomain: "foroprayo.firebaseapp.com",
+            projectId: "foroprayo",
+            storageBucket: "foroprayo.firebasestorage.app",
+            messagingSenderId: "863364228350",
+            appId: "1:863364228350:web:9aa4648b3582c8670a71af",
+            measurementId: "G-YX85B6N0M8"
+        };
+
+        let diagnosticResults = [];
+
+        function addResult(test, status, message, details = null) {
+            diagnosticResults.push({ test, status, message, details });
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            const container = document.getElementById('diagnosticResults');
+            container.innerHTML = diagnosticResults.map(result => `
+                <div class="diagnostic-item">
+                    <h4 class="${result.status}">${result.status === 'success' ? '✅' : result.status === 'error' ? '❌' : '⚠️'} ${result.test}</h4>
+                    <p class="${result.status}">${result.message}</p>
+                    ${result.details ? `<pre>${JSON.stringify(result.details, null, 2)}</pre>` : ''}
+                </div>
+            `).join('');
+        }
+
+        window.runFullDiagnostic = async function() {
+            diagnosticResults = [];
+            updateDisplay();
+
+            try {
+                // 測試 1: 網絡連接
+                addResult('網絡連接測試', 'info', '正在檢查網絡連接...');
+                try {
+                    const response = await fetch('https://www.google.com/favicon.ico', { mode: 'no-cors' });
+                    addResult('網絡連接測試', 'success', '網絡連接正常');
+                } catch (e) {
+                    addResult('網絡連接測試', 'error', '網絡連接失敗', e.message);
+                    return;
+                }
+
+                // 測試 2: Firebase 服務可達性
+                addResult('Firebase 服務可達性', 'info', '正在檢查 Firebase 服務...');
+                try {
+                    const authResponse = await fetch('https://identitytoolkit.googleapis.com/v1/projects', { mode: 'no-cors' });
+                    addResult('Firebase 服務可達性', 'success', 'Firebase Auth 服務可達');
+                } catch (e) {
+                    addResult('Firebase 服務可達性', 'warning', 'Firebase 服務檢查失敗（可能正常）', e.message);
+                }
+
+                // 測試 3: Firebase SDK 載入
+                addResult('Firebase SDK 載入', 'info', '正在載入 Firebase SDK...');
+                try {
+                    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');
+                    const { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
+                    addResult('Firebase SDK 載入', 'success', 'Firebase SDK 載入成功');
+                    
+                    // 測試 4: Firebase App 初始化
+                    addResult('Firebase App 初始化', 'info', '正在初始化 Firebase App...');
+                    try {
+                        const app = initializeApp(firebaseConfig);
+                        addResult('Firebase App 初始化', 'success', 'Firebase App 初始化成功', {
+                            name: app.name,
+                            projectId: app.options.projectId
+                        });
+
+                        // 測試 5: Auth 服務初始化
+                        addResult('Auth 服務初始化', 'info', '正在初始化 Auth 服務...');
+                        try {
+                            const auth = getAuth(app);
+                            addResult('Auth 服務初始化', 'success', 'Auth 服務初始化成功');
+
+                            // 測試 6: API Key 有效性檢查（嘗試一個簡單的 Auth 操作）
+                            addResult('API Key 有效性', 'info', '正在檢查 API Key 有效性...');
+                            try {
+                                // 嘗試使用無效憑證登入來測試 API Key
+                                await signInWithEmailAndPassword(auth, 'test@test.com', 'wrongpassword');
+                            } catch (authError) {
+                                if (authError.code === 'auth/user-not-found' || 
+                                    authError.code === 'auth/wrong-password' || 
+                                    authError.code === 'auth/invalid-credential') {
+                                    addResult('API Key 有效性', 'success', 'API Key 有效（Auth 服務正常響應）');
+                                } else if (authError.code === 'auth/api-key-not-valid') {
+                                    addResult('API Key 有效性', 'error', 'API Key 無效', authError);
+                                } else if (authError.code === 'auth/operation-not-allowed') {
+                                    addResult('API Key 有效性', 'warning', 'API Key 有效，但 Email/Password 認證可能未啟用', authError);
+                                } else {
+                                    addResult('API Key 有效性', 'warning', `未知的認證錯誤：${authError.code}`, authError);
+                                }
+                            }
+
+                            // 測試 7: 網域授權檢查
+                            addResult('網域授權檢查', 'info', '檢查當前網域是否已授權...');
+                            const currentDomain = window.location.hostname;
+                            if (currentDomain === 'localhost' || currentDomain === '127.0.0.1') {
+                                addResult('網域授權檢查', 'success', `當前網域 (${currentDomain}) 通常會被自動授權`);
+                            } else {
+                                addResult('網域授權檢查', 'warning', `當前網域 (${currentDomain}) 需要在 Firebase 控制台中手動授權`);
+                            }
+
+                            // 測試 8: 嘗試註冊測試（測試 Auth 方法是否啟用）
+                            addResult('Auth 方法啟用檢查', 'info', '檢查 Email/Password 註冊是否啟用...');
+                            try {
+                                await createUserWithEmailAndPassword(auth, 'nonexistent@test.com', 'testpassword');
+                            } catch (signupError) {
+                                if (signupError.code === 'auth/email-already-in-use' || 
+                                    signupError.code === 'auth/weak-password' ||
+                                    signupError.code === 'auth/invalid-email') {
+                                    addResult('Auth 方法啟用檢查', 'success', 'Email/Password 註冊方法已啟用');
+                                } else if (signupError.code === 'auth/operation-not-allowed') {
+                                    addResult('Auth 方法啟用檢查', 'error', 'Email/Password 認證方法未啟用', signupError);
+                                } else {
+                                    addResult('Auth 方法啟用檢查', 'warning', `註冊測試遇到錯誤：${signupError.code}`, signupError);
+                                }
+                            }
+
+                        } catch (authInitError) {
+                            addResult('Auth 服務初始化', 'error', 'Auth 服務初始化失敗', authInitError);
+                        }
+
+                    } catch (appInitError) {
+                        addResult('Firebase App 初始化', 'error', 'Firebase App 初始化失敗', appInitError);
+                    }
+
+                } catch (sdkError) {
+                    addResult('Firebase SDK 載入', 'error', 'Firebase SDK 載入失敗', sdkError);
+                }
+
+                // 最終建議
+                setTimeout(() => {
+                    const hasErrors = diagnosticResults.some(r => r.status === 'error');
+                    const hasWarnings = diagnosticResults.some(r => r.status === 'warning');
+                    
+                    let recommendations = '<h3>🔧 建議修復步驟：</h3><ul>';
+                    
+                    if (hasErrors) {
+                        const errorTests = diagnosticResults.filter(r => r.status === 'error');
+                        errorTests.forEach(test => {
+                            if (test.test === 'API Key 有效性') {
+                                recommendations += '<li>檢查 Firebase 控制台中的 Web API Key 是否正確</li>';
+                                recommendations += '<li>確認專案設定中的 API Key 沒有被停用</li>';
+                            }
+                            if (test.test === 'Auth 方法啟用檢查') {
+                                recommendations += '<li>前往 Firebase 控制台 > Authentication > Sign-in method</li>';
+                                recommendations += '<li>確保 "Email/Password" 提供者已啟用</li>';
+                            }
+                        });
+                    }
+                    
+                    if (hasWarnings) {
+                        recommendations += '<li>檢查 Firebase 控制台 > Authentication > Settings > Authorized domains</li>';
+                        recommendations += '<li>確保包含 localhost 和您的部署網域</li>';
+                    }
+                    
+                    if (!hasErrors && !hasWarnings) {
+                        recommendations += '<li>所有檢查都通過！登入問題可能是憑證相關</li>';
+                        recommendations += '<li>確認您使用的測試帳號存在且密碼正確</li>';
+                    }
+                    
+                    recommendations += '</ul>';
+                    
+                    document.getElementById('diagnosticResults').innerHTML += `
+                        <div class="diagnostic-item">
+                            ${recommendations}
+                        </div>
+                    `;
+                }, 1000);
+
+            } catch (error) {
+                addResult('診斷過程', 'error', '診斷過程中發生錯誤', error);
+            }
+        };
+
+        // 頁面載入時自動執行診斷
+        window.addEventListener('load', () => {
+            setTimeout(runFullDiagnostic, 500);
+        });
+    </script>
+</body>
+</html> 

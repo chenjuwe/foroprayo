@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore';
-import { getUserAvatarUrlFromFirebase } from '@/services/background/AvatarService';
+import { getUserAvatarUrlFromFirebase } from '@/services/auth/FirebaseUserService';
 import { log } from '@/lib/logger';
 
 export type AvatarSize = 96 | 48 | 30;

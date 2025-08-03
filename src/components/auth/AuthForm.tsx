@@ -4,6 +4,7 @@ import { AuthInputs } from './AuthInputs';
 import { AuthButtons } from './AuthButtons';
 import { AuthToggle } from './AuthToggle'; // 確保導入 AuthToggle
 import { AuthFooter } from './AuthFooter'; // 確保導入 AuthFooter
+import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
 
 interface AuthFormProps {
   email: string;
@@ -27,10 +28,28 @@ export function AuthForm({
   onSubmit
 }: AuthFormProps) {
   // 移除本地狀態和 handleSubmit, 因為它們現在由 Auth.tsx 管理
+  const { resetPassword } = useFirebaseAuth();
   
   const handleForgotPassword = async () => {
-    // 忘記密碼邏輯可以保留或同樣提升
-    console.log("Forgot password clicked"); 
+    // 彈出輸入郵箱的對話框
+    const userEmail = prompt("請輸入您的郵箱地址來重置密碼：", email);
+    
+    if (userEmail && userEmail.trim()) {
+      try {
+        // 直接引導用戶到遷移協助工具進行密碼重置
+        const confirmed = window.confirm(
+          `將為 ${userEmail.trim()} 進行密碼重置\n\n如果您是從 prayforo 遷移過來的用戶，請使用遷移用戶協助工具進行密碼重置：\nhttp://localhost:5173/migrated-user-helper.html\n\n點擊確定前往協助工具。`
+        );
+        
+        if (confirmed) {
+          // 開啟遷移用戶協助工具
+          window.open('/migrated-user-helper.html', '_blank');
+        }
+      } catch (error) {
+        console.error('重置密碼錯誤:', error);
+        alert('請使用遷移用戶協助工具進行密碼重置：\nhttp://localhost:5173/migrated-user-helper.html');
+      }
+    }
   };
   
   const handleGuestAccess = () => {

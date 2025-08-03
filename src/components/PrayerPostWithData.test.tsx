@@ -1,43 +1,30 @@
-import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PrayerPostWithData } from './PrayerPostWithData';
-import type { Prayer } from '@/services/prayerService';
+import { useFirebaseUserData } from '@/hooks/useFirebaseUserData';
+import { mockPrayer } from '@/test/fixtures/mock-data';
 
-// Mock 所有依賴
-vi.mock('@/hooks/usePrayerResponsesOptimized', () => ({
-  usePrayerResponses: vi.fn(),
-  useCreatePrayerResponse: vi.fn(),
+// Mock the hooks
+vi.mock('@/hooks/useFirebaseUserData');
+vi.mock('@/contexts/FirebaseAuthContext', () => ({
+  useFirebaseAuth: vi.fn(() => ({
+    currentUser: { uid: 'test-user', email: 'test@example.com' },
+  })),
 }));
 
-vi.mock('@/hooks/useFirebaseAuth', () => ({
-  useFirebaseAuth: vi.fn(),
+// Mock子组件
+vi.mock('./PrayerPost', () => ({
+  PrayerPost: ({ prayer, userData }: any) => (
+    <div data-testid="prayer-post">
+      <div>Prayer: {prayer.content}</div>
+      <div>User: {userData?.displayName || 'Anonymous'}</div>
+    </div>
+  ),
 }));
 
-vi.mock('@/lib/notifications', () => ({
-  notify: {
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-    apiError: vi.fn(),
-  },
-}));
-
-vi.mock('@/lib/logger', () => ({
-  log: {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  },
-}));
-
-// Import the mocked modules
-import { usePrayerResponses, useCreatePrayerResponse } from '@/hooks/usePrayerResponsesOptimized';
-import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
-import { notify } from '@/lib/notifications';
-import { log } from '@/lib/logger';
+// Import the mocked hook
+import { useFirebaseAuth } from '@/contexts/FirebaseAuthContext';
 
 vi.mock('@/constants', () => ({
   VALIDATION_CONFIG: {
@@ -62,18 +49,7 @@ const renderWithRouter = (component: React.ReactElement) => {
 };
 
 // 默認的 Prayer 對象
-const defaultPrayer: Prayer = {
-  id: 'test-prayer-id',
-  user_id: 'test-user-id',
-  content: '這是一個測試代禱內容，用來測試組件的渲染和功能。',
-  created_at: '2024-01-01T00:00:00Z',
-  updated_at: '2024-01-01T00:00:00Z',
-  is_anonymous: false,
-  user_avatar: 'https://example.com/avatar.jpg',
-  like_count: 0,
-  response_count: 0,
-  user_name: null,
-};
+const defaultPrayer = mockPrayer;
 
 // 默認的 Props
 const defaultProps = {

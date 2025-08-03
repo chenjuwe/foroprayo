@@ -293,31 +293,73 @@ export default FirebaseUserService;
  * 根據 userId 取得頭像 URL（large/medium/small）
  */
 export async function getUserAvatarUrlFromFirebase(userId: string): Promise<{ large: string; medium: string; small: string }> {
-  const userData = await FirebaseUserService.getUserData(userId);
-  let baseUrl = '';
-  if (userData && userData.photoURL) {
-    baseUrl = userData.photoURL;
-  }
-  if (!baseUrl) {
-    // 沒有頭像就用預設
-    const name = userData?.displayName || userData?.email?.split('@')[0] || userId.substring(0, 5);
-    const placeholderUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`;
+  try {
+    log.debug('開始獲取用戶頭像', { userId }, 'getUserAvatarUrlFromFirebase');
+    
+    const userData = await FirebaseUserService.getUserData(userId);
+    log.debug('獲取到用戶數據', { 
+      userId, 
+      hasUserData: !!userData,
+      hasPhotoURL: !!(userData?.photoURL),
+      photoURL: userData?.photoURL
+    }, 'getUserAvatarUrlFromFirebase');
+    
+    let baseUrl = '';
+    if (userData && userData.photoURL) {
+      baseUrl = userData.photoURL;
+      log.debug('使用用戶的 photoURL', { baseUrl }, 'getUserAvatarUrlFromFirebase');
+    }
+    
+    if (!baseUrl) {
+      // 沒有頭像就用預設
+      const name = userData?.displayName || userData?.email?.split('@')[0] || userId.substring(0, 5);
+      const placeholderUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`;
+      log.debug('使用預設頭像', { 
+        name, 
+        placeholderUrl,
+        reason: '無 photoURL' 
+      }, 'getUserAvatarUrlFromFirebase');
+      
+      return {
+        large: placeholderUrl,
+        medium: placeholderUrl,
+        small: placeholderUrl
+      };
+    }
+    
+    // 假設 firebase 頭像 url 格式為 ..._large.webp
+    const getSizeUrl = (size: 'large' | 'medium' | 'small') => {
+      if (baseUrl.includes('_large.webp')) {
+        return baseUrl.replace('_large.webp', `_${size}.webp`);
+      }
+      // 如果不是多尺寸格式，直接使用原始 URL
+      return baseUrl;
+    };
+    
+    const result = {
+      large: getSizeUrl('large'),
+      medium: getSizeUrl('medium'),
+      small: getSizeUrl('small')
+    };
+    
+    log.debug('頭像 URL 生成完成', { 
+      userId,
+      baseUrl,
+      result 
+    }, 'getUserAvatarUrlFromFirebase');
+    
+    return result;
+  } catch (error) {
+    log.error('獲取用戶頭像失敗', { userId, error }, 'getUserAvatarUrlFromFirebase');
+    
+    // 發生錯誤時返回預設頭像
+    const fallbackName = userId.substring(0, 5);
+    const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=random&color=fff`;
+    
     return {
-      large: placeholderUrl,
-      medium: placeholderUrl,
-      small: placeholderUrl
+      large: fallbackUrl,
+      medium: fallbackUrl,
+      small: fallbackUrl
     };
   }
-  // 假設 firebase 頭像 url 格式為 ..._large.webp
-  const getSizeUrl = (size: 'large' | 'medium' | 'small') => {
-    if (baseUrl.includes('_large.webp')) {
-      return baseUrl.replace('_large.webp', `_${size}.webp`);
-    }
-    return baseUrl;
-  };
-  return {
-    large: getSizeUrl('large'),
-    medium: getSizeUrl('medium'),
-    small: getSizeUrl('small')
-  };
 } 
